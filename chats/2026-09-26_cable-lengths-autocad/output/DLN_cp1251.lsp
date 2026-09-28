@@ -23,6 +23,8 @@
       *dl-chk*   "DLN_Проверка"  ; слой пометок (не печатается)
       *dl-mark*  350.0         ; мм, радиус кружка пометки
       *dl-txth*  180.0         ; мм, высота текста пометки
+      *dl-gtol*  500.0         ; мм, «почти стык» концов — считается разрывом трассы
+      *dl-ptol*  300.0         ; мм, конец трассы у блока щита (слой *Щит*)
       *dl-btol*  150.0         ; мм, вершина трассы -> габарит блока потребителя
       *dl-minw*  20000.0       ; мм, мин. ширина окна видового экрана плана
       *dl-scale* 0.001         ; единицы чертежа -> метры
@@ -125,7 +127,9 @@
         (foreach y (cdr x)
           (if (and (= (car y) 1003) (not (member (strcase (cdr y)) fr)))
             (setq fr (cons (strcase (cdr y)) fr)))))
-      (list (car p0) (cadr p0) (car p1) (cadr p1) fr))))
+      ;; 6-й элемент: (pcx pcy mcx mcy k лист) — для перехода к пометке на листе
+      (list (car p0) (cadr p0) (car p1) (cadr p1) fr
+            (list (car pc) (cadr pc) cx cy (/ ph h) (cdr (assoc 410 ed)))))))
 
 (defun dl:width (w) (- (caddr w) (car w)))
 
@@ -569,6 +573,8 @@
         cNT (dl:hnew sh "DWG: примечание" 1 "DWG: примечание")
         cEX (dl:hnew sh "выноск" 2 "Доп. информация из выноски"))
   (setq names (mapcar 'dl:str (dl:col sh cD))
+        *dl-tnames* names
+        *dl-codes* (dl:read-codes book)
         hands (mapcar 'dl:str (dl:col sh cHN))
         svals (dl:col sh cS)
         last (1- *dl-row0*) i *dl-row0*)
@@ -598,6 +604,13 @@
     (dl:put sh (strcat cEX rs) (nth 6 s))
     (if (and (nth 3 s) (null (nth (- row *dl-row0*) svals)))
       (dl:put sh (strcat cS rs) (if (>= (nth 1 s) (nth 2 s)) 1 2))))
+  ;; строки таблицы, которых нет на плане (в пределах тех же «префикс.уровень», что есть в этом запуске)
+  (setq *dl-missing* (dl:missing names sum) i *dl-row0*)
+  (foreach n names
+    (if (member n *dl-missing*) (dl:put sh (strcat cNT (itoa i)) "нет на плане"))
+    (setq i (1+ i)))
+  (setq *dl-added* nil)
+  (foreach s sum (if (not (member (car s) names)) (setq *dl-added* (cons (car s) *dl-added*))))
   ;; строки, чьи полилинии удалены из чертежа (другие листы не трогаем)
   (setq i *dl-row0*)
   (foreach n names
@@ -707,71 +720,240 @@
             (setq p (1+ p))))))))
 
 ;;; ---------- проверка: пометки на чертеже ----------
+(defun dl:doc () (vla-get-ActiveDocument (vlax-get-acad-object)))
 (defun dl:chk-clear (/ ss i)
   (if (setq ss (ssget "_X" (list (cons 8 *dl-chk*))))
     (repeat (setq i (sslength ss)) (entdel (ssname ss (setq i (1- i))))))
+  (setq *dl-marks* nil *dl-cur* nil)
+  (vl-catch-all-apply 'vlax-ldata-delete (list "DLN" "marks"))
   (princ))
 (defun dl:chk-layer (/ l)
   (if (not (tblsearch "LAYER" *dl-chk*))
     (progn
-      (setq l (vla-Add (vla-get-Layers (vla-get-ActiveDocument (vlax-get-acad-object))) *dl-chk*))
+      (setq l (vla-Add (vla-get-Layers (dl:doc)) *dl-chk*))
       (vla-put-Color l 1)
       (vla-put-Plottable l :vlax-false))))
-;; пометка: кружок + текст причины
+;; пометка: кружок + текст «[N] причина»
 (defun dl:mark (pt txt / ms o)
-  (setq ms (vla-get-ModelSpace (vla-get-ActiveDocument (vlax-get-acad-object))))
+  (setq ms (vla-get-ModelSpace (dl:doc))
+        *dl-nmark* (1+ *dl-nmark*)
+        txt (strcat "[" (itoa *dl-nmark*) "] " txt))
+  (if (null pt) (progn (princ (strcat "\n  " txt " (без места на плане)")) (setq pt nil))
+  (progn
   (setq o (vla-AddCircle ms (vlax-3d-point (dl:3d pt)) *dl-mark*))
   (vla-put-Layer o *dl-chk*) (vla-put-Color o 1)
   (setq o (vla-AddMText ms (vlax-3d-point (list (+ (car pt) *dl-mark*) (+ (cadr pt) *dl-mark*) 0.0))
                         (* *dl-txth* 25.0) txt))
   (vla-put-Height o *dl-txth*) (vla-put-Layer o *dl-chk*) (vla-put-Color o 1)
-  (setq *dl-nmark* (1+ *dl-nmark*))
-  (princ (strcat "\n  [" (itoa *dl-nmark*) "] " txt)))
+  (setq *dl-marks* (append *dl-marks* (list (list *dl-nmark* (list (car pt) (cadr pt)) txt))))
+  (princ (strcat "\n  " txt)))))
 
 (defun dl:polypt (e) (vlax-curve-getPointAtDist e (/ (vlax-curve-getDistAtParam e (vlax-curve-getEndParam e)) 2.0)))
 (defun dl:starts-at-hub (p) (or (dl:hub (nth 5 p)) (dl:hub (nth 6 p))))
+(defun dl:first-arrow (g lbls / r)
+  (foreach hh *dl-hits* (if (and (null r) (= (car hh) g)) (setq r (caddr hh))))
+  (if (null r) (foreach lb lbls (if (and (null r) (= (car lb) g)) (setq r (car (car (nth 2 lb)))))))
+  r)
 
-(defun dl:check (labels issues sum / systems gl hubs g pts own)
+;; --- алфавит в номерах
+(setq *dl-cyr* "АВЕКМНОРСТХУ" *dl-lat* "ABEKMHOPCTXY")
+(defun dl:norm (s) (vl-string-translate *dl-cyr* *dl-lat* (strcase s)))
+(defun dl:script (s / i c lat cyr)
+  (setq i 0)
+  (while (< i (strlen s))
+    (setq i (1+ i) c (ascii (substr s i 1)))
+    (cond ((or (<= 65 c 90) (<= 97 c 122)) (setq lat T))
+          ((or (<= 1024 c 1279) (<= 192 c 255)) (setq cyr T))))
+  (cond ((and lat cyr) "M") (lat "L") (cyr "C") (T "")))
+(defun dl:prefix (g / i) (if (setq i (vl-string-search "." g)) (substr g 1 i) g))
+(defun dl:scope (g / i j)   ; "R.1.05.3" -> "R.1"
+  (if (and (setq i (vl-string-search "." g)) (setq j (vl-string-search "." g (1+ i))))
+    (substr g 1 j) g))
+(defun dl:abc-issue (g / pre alt)
+  (setq pre (dl:prefix g))
+  (cond
+    ((and *dl-codes* (member pre *dl-codes*)) nil)
+    ((and *dl-codes* (setq alt (vl-some '(lambda (c) (if (= (dl:norm c) (dl:norm pre)) c)) *dl-codes*)))
+     (strcat "в номере буквы другого алфавита: «" pre "», в Справочной «" alt "»"))
+    ((= (dl:script pre) "M") (strcat "в номере смешаны кириллица и латиница: «" pre "»"))
+    (*dl-codes* (strcat "префикса «" pre "» нет в Справочной"))))
+
+;; --- таблица
+(defun dl:read-codes (book / sh v r x)
+  (setq sh (vl-catch-all-apply 'vlax-get-property
+             (list (vlax-get-property book 'Worksheets) 'Item "Справочная")))
+  (if (not (vl-catch-all-error-p sh))
+    (progn
+      (setq v (vl-catch-all-apply 'vlax-get-property (list (vlax-get-property sh 'Range "P4:P200") 'Value2)))
+      (if (not (vl-catch-all-error-p v))
+        (foreach row (vlax-safearray->list (dl:vv v))
+          (if (/= (setq x (dl:str (dl:vv (car row)))) "") (setq r (cons x r)))))))
+  r)
+(defun dl:missing (names sum / scopes r)
+  (foreach s sum (if (not (member (dl:scope (car s)) scopes)) (setq scopes (cons (dl:scope (car s)) scopes))))
+  (foreach n names
+    (if (and (/= n "") (not (assoc n sum)) (member (dl:scope n) scopes)
+             (or (null *dl-filter*) (wcmatch (strcase n) (strcase *dl-filter*))))
+      (setq r (cons n r))))
+  (reverse r))
+;; только прочитать таблицу (для DLN_CHK)
+(defun dl:read-table (path / book sh)
+  (setq book (vl-catch-all-apply 'dl:book (list path)))
+  (if (not (vl-catch-all-error-p book))
+    (progn
+      (setq *dl-codes* (dl:read-codes book)
+            sh (vl-catch-all-apply 'vlax-get-property
+                 (list (vlax-get-property book 'Worksheets) 'Item *dl-sheet*)))
+      (if (not (vl-catch-all-error-p sh))
+        (setq *dl-tnames* (mapcar 'dl:str
+                            (mapcar '(lambda (row) (dl:vv (car row)))
+                              (vlax-safearray->list
+                                (dl:vv (vlax-get-property
+                                         (vlax-get-property sh 'Range
+                                           (strcat (dl:hcol-letter sh "Номер линии") (itoa *dl-row0*) ":"
+                                                   (dl:hcol-letter sh "Номер линии") (itoa *dl-row1*)))
+                                         'Value2))))))))))
+(defun dl:hcol-letter (sh key / hdr i r)
+  (setq hdr (mapcar '(lambda (x) (strcase (dl:str (dl:vv x))))
+              (car (vlax-safearray->list (dl:vv (vlax-get-property (vlax-get-property sh 'Range "A2:DZ2") 'Value2)))))
+        i 1)
+  (foreach h hdr (if (and (null r) (= h (strcase key))) (setq r i)) (setq i (1+ i)))
+  (dl:colname (if r r 4)))
+;; путь к таблице: в чертеже (ldata), запасной — реестр
+(defun dl:xls-path (ask / p)
+  (setq p (vlax-ldata-get "DLN" "xls"))
+  (if (or (null p) (not (findfile p))) (setq p (getenv "DLN_XLS")))
+  (if (and ask (or (null p) (= p "") (not (findfile p))))
+    (setq p (getfiled "Таблица однолинейки (Исходные данные)" (getvar "DWGPREFIX") "xlsx" 0)))
+  (if (and p (/= p "") (findfile p))
+    (progn (vlax-ldata-put "DLN" "xls" p) (setenv "DLN_XLS" p) p)))
+
+;; --- щиты на плане
+(defun dl:panels (wins / ss i e bb res)
+  (if (setq ss (ssget "_X" '((0 . "INSERT") (8 . "*Щит*") (410 . "Model"))))
+    (repeat (setq i (sslength ss))
+      (setq e (ssname ss (setq i (1- i))))
+      (if (setq bb (dl:bbox e)) (setq res (cons bb res)))))
+  res)
+(defun dl:at-panel (pt)
+  (or (dl:hub pt) (vl-some '(lambda (bb) (<= (dl:rect-d pt bb) *dl-ptol*)) *dl-pan*)))
+
+(defun dl:check (labels issues sum / systems gl hubs g own done gp ok best bd d e iss n)
   (setq *dl-nmark* 0)
   (dl:chk-clear)
   (dl:chk-layer)
+  (setq *dl-pan* (dl:panels nil))
   (princ "\nDLN: проверка выносок и трасс:")
   ;; 1. выноска мимо трассы / на трассе другой системы
   (foreach is issues (dl:mark (caddr is) (strcat (car is) ": " (cadr is))))
-  ;; 2. на одной трассе выноски разных групп (конфликт не разрешён)
+  ;; 2. на одной трассе выноски разных групп
   (foreach a *dl-asg*
     (if (> (length (setq gl (cdr a))) 1)
       (foreach hh *dl-hits*
         (if (eq (cadr hh) (car a))
           (dl:mark (caddr hh) (strcat (car hh) ": на этой трассе выноски разных групп ("
                                       (dl:join gl ", ") ") — длина не засчитана"))))))
-  ;; 3. выноска стоит на трассе, которая отдана другой группе
+  ;; 3. выноска стоит на трассе, отданной другой группе
   (foreach hh *dl-hits*
     (setq gl (dl:getg (cadr hh)))
     (if (and gl (not (member (car hh) gl)))
       (dl:mark (caddr hh) (strcat (car hh) ": выноска стоит на трассе группы " (dl:join gl ", ")))))
-  ;; 4. группа на нескольких трассах от щита — возможный дубль номера
+  ;; 4. несколько отдельных трасс от щита с одним номером
   (foreach s sum
     (setq g (car s) hubs 0)
     (foreach p *dl-polys* (if (and (equal (dl:getg (car p)) (list g)) (dl:starts-at-hub p)) (setq hubs (1+ hubs))))
     (if (> hubs 1)
-      (foreach hh *dl-hits*
-        (if (= (car hh) g)
-          (dl:mark (caddr hh) (strcat g ": " (itoa hubs) " отдельные трассы от щита с одним номером — проверьте, не дубль ли"))))))
+      (dl:mark (dl:first-arrow g labels)
+               (strcat g ": " (itoa hubs) " отдельные трассы от щита с одним номером — проверьте, не дубль ли"))))
   ;; 5. группа без длины
   (foreach s sum
     (if (and (null (nth 3 s)) (not (vl-some '(lambda (is) (= (car is) (car s))) issues))
-             (not (vl-some '(lambda (a) (and (> (length (cdr a)) 1) (member (car s) (cdr a)))) *dl-asg*)))
-      (foreach hh *dl-hits* (if (= (car hh) (car s)) (dl:mark (caddr hh) (strcat (car s) ": длина не найдена"))))))
-  ;; 6. трасса без выноски (только систем, по которым шёл расчёт)
+             (not (vl-some '(lambda (a) (and (> (length (cdr a)) 1) (member (car s) (cdr a)))) *dl-asg*))
+             (dl:first-arrow (car s) labels))
+      (dl:mark (dl:first-arrow (car s) labels) (strcat (car s) ": длина не найдена"))))
+  ;; 6. трасса группы не доходит до щита
+  (foreach s sum
+    (if (nth 3 s)
+      (progn
+        (setq ok nil)
+        (foreach p *dl-polys*
+          (if (and (equal (dl:getg (car p)) (list (car s)))
+                   (or (dl:at-panel (nth 5 p)) (dl:at-panel (nth 6 p))))
+            (setq ok T)))
+        (if (not ok) (dl:mark (dl:first-arrow (car s) labels) (strcat (car s) ": трасса не доходит до щита"))))))
+  ;; 7. буквы в номере
+  (setq done nil)
+  (foreach lb labels
+    (if (and (not (member (car lb) done)) (setq iss (dl:abc-issue (car lb))))
+      (progn (setq done (cons (car lb) done))
+             (dl:mark (dl:first-arrow (car lb) labels) (strcat (car lb) ": " iss)))))
+  ;; 8. трасса без выноски / разрыв трассы
   (foreach lb labels (if (not (member (dl:sys (nth 1 lb)) systems)) (setq systems (cons (dl:sys (nth 1 lb)) systems))))
   (foreach p *dl-polys*
     (if (and (null (dl:getg (car p))) (member (nth 1 p) systems))
-      (dl:mark (dl:polypt (car p))
-               (strcat "трасса без выноски, " (rtos (* *dl-scale* (nth 4 p)) 2 1) " м (" (dl:hnd (car p)) ")"))))
+      (progn
+        (setq best nil bd 1e99)
+        (foreach e (list (nth 5 p) (nth 6 p))
+          (if (not (dl:at-panel e))
+            (foreach p2 *dl-polys*
+              (if (and (= (length (dl:getg (car p2))) 1) (= (nth 1 p2) (nth 1 p)))
+                (foreach e2 (list (nth 5 p2) (nth 6 p2))
+                  (setq d (distance (dl:2d e) (dl:2d e2)))
+                  (if (and (> d *dl-jtol*) (<= d *dl-gtol*) (< d bd) (not (dl:at-panel e2)))
+                    (setq bd d best (list e (car (dl:getg (car p2)))))))))))
+        (if best
+          (dl:mark (car best) (strcat "разрыв трассы " (rtos bd 2 0) " мм: похоже на продолжение " (cadr best)
+                                      " (" (rtos (* *dl-scale* (nth 4 p)) 2 1) " м не засчитано)"))
+          (dl:mark (dl:polypt (car p))
+                   (strcat "трасса без выноски, " (rtos (* *dl-scale* (nth 4 p)) 2 1) " м (" (dl:hnd (car p)) ")"))))))
+  ;; 9. сверка с таблицей
+  (if *dl-tnames*
+    (progn
+      (setq n (dl:missing *dl-tnames* sum))
+      (if n (princ (strcat "\n  в таблице есть, на плане нет (" (itoa (length n)) "): " (dl:join n ", "))))
+      (setq n nil)
+      (foreach s sum (if (not (member (car s) *dl-tnames*)) (setq n (cons (car s) n))))
+      (if n (princ (strcat "\n  на плане есть, в таблице не было — добавлены (" (itoa (length n)) "): " (dl:join (reverse n) ", "))))))
+  (vl-catch-all-apply 'vlax-ldata-put (list "DLN" "marks" *dl-marks*))
+  (vl-catch-all-apply 'vlax-ldata-put (list "DLN" "vps" *dl-vps*))
   (if (= *dl-nmark* 0)
     (princ " замечаний нет.")
-    (princ (strcat "\n  пометок на чертеже: " (itoa *dl-nmark*) " (слой «" *dl-chk* "», не печатается; убрать — DLN_CLR)"))))
+    (princ (strcat "\n  пометок на чертеже: " (itoa *dl-nmark*)
+                   " — DLN_NEXT / DLN_PREV: переход по пометкам, DLN_CLR: убрать"))))
+
+;;; ---------- навигатор по пометкам ----------
+(defun dl:inbox (pt w) (and (< (car w) (car pt) (caddr w)) (< (cadr w) (cadr pt) (cadddr w))))
+(defun dl:goto (m / pt w vp tab ps h)
+  (setq pt (cadr m) tab (getvar "CTAB"))
+  ;; ВЭ на текущем листе, иначе любой ВЭ с этой точкой
+  (foreach w *dl-vps* (if (and (null vp) (dl:inbox pt w) (= (strcase (nth 5 (nth 5 w))) (strcase tab))) (setq vp w)))
+  (if (and (null vp) (/= (strcase tab) "MODEL"))
+    (foreach w *dl-vps* (if (and (null vp) (dl:inbox pt w)) (setq vp w))))
+  (if (and vp (/= (strcase tab) "MODEL"))
+    (progn
+      (setq w (nth 5 vp))
+      (if (/= (strcase (nth 5 w)) (strcase tab)) (setvar "CTAB" (nth 5 w)))
+      (vla-put-MSpace (dl:doc) :vlax-false)   ; в пространство листа — масштаб ВЭ не меняется
+      (setq ps (list (+ (car w) (* (- (car pt) (caddr w)) (nth 4 w)))
+                     (+ (cadr w) (* (- (cadr pt) (cadddr w)) (nth 4 w))) 0.0)
+            h (* 14.0 *dl-mark* (nth 4 w)))
+      (command "_.ZOOM" "_C" ps h))
+    (progn
+      (if (/= (getvar "TILEMODE") 1) (setvar "TILEMODE" 1))
+      (command "_.ZOOM" "_C" (list (car pt) (cadr pt) 0.0) (* 14.0 *dl-mark*))))
+  (princ (strcat "\n" (itoa (car m)) "/" (itoa (length *dl-marks*)) "  " (caddr m))))
+(defun dl:nav (step)
+  (if (null *dl-marks*) (setq *dl-marks* (vlax-ldata-get "DLN" "marks") *dl-vps* (vlax-ldata-get "DLN" "vps")))
+  (if (null *dl-marks*)
+    (princ "\nDLN: пометок нет — сначала DLN или DLN_CHK.")
+    (progn
+      (setq *dl-cur* (if *dl-cur* (+ *dl-cur* step) (if (> step 0) 0 (1- (length *dl-marks*)))))
+      (if (>= *dl-cur* (length *dl-marks*)) (setq *dl-cur* 0))
+      (if (< *dl-cur* 0) (setq *dl-cur* (1- (length *dl-marks*))))
+      (dl:goto (nth *dl-cur* *dl-marks*))))
+  (princ))
+(defun c:DLN_NEXT () (dl:nav 1))
+(defun c:DLN_PREV () (dl:nav -1))
 
 ;;; ---------- команды ----------
 (defun c:DLN (/ *error* path wins labels issues sum res bad ss)
@@ -780,15 +962,11 @@
     (if (not (wcmatch (strcase m) "*CANCEL*,*QUIT*,*EXIT*")) (princ (strcat "\nDLN: " m)))
     (princ))
   (setq *dl-app* nil)
-  (setq path (getenv "DLN_XLS"))
-  (if (or (null path) (= path "") (not (findfile path)))
-    (progn
-      (setq path (getfiled "Таблица однолинейки (Исходные данные)" (getvar "DWGPREFIX") "xlsx" 0))
-      (if path (setenv "DLN_XLS" path))))
+  (setq path (dl:xls-path T))
   (if (null path)
     (princ "\nDLN: таблица не выбрана.")
     (progn
-      (setq wins (dl:pick-wins))
+      (setq wins (dl:pick-wins) *dl-vps* wins)
       (if (null wins) (progn (princ "\nDLN: не найден ни один видовой экран плана.") (exit)))
       (setq *dl-filter* (getstring "\nDLN: какие линии брать, напр. R* или L*,LD*,LED* <все>: "))
       (if (= *dl-filter* "") (setq *dl-filter* nil))
@@ -819,18 +997,20 @@
       (princ "\nDLN: готово. Таблица открыта в Excel, сохраните её после проверки.")))
   (princ))
 
-(defun c:DLN_XLS () (setenv "DLN_XLS" "") (princ "\nDLN: путь к таблице сброшен.") (princ))
+(defun c:DLN_XLS () (vlax-ldata-delete "DLN" "xls") (setenv "DLN_XLS" "") (princ "\nDLN: путь к таблице сброшен.") (princ))
 (defun c:DLN_CLR () (dl:chk-clear) (princ "\nDLN: пометки проверки удалены.") (princ))
 ;; только проверка, без записи в Excel
-(defun c:DLN_CHK (/ wins labels issues)
-  (setq wins (dl:pick-wins))
+(defun c:DLN_CHK (/ wins labels issues path)
+  (setq wins (dl:pick-wins) *dl-vps* wins *dl-tnames* nil *dl-codes* nil)
   (if (null wins) (progn (princ "\nDLN: не найден ни один видовой экран плана.") (exit)))
   (setq *dl-filter* (getstring "\nDLN: какие линии проверять, напр. R* или L*,LD*,LED* <все>: "))
   (if (= *dl-filter* "") (setq *dl-filter* nil))
   (setq *dl-polys* (dl:polys wins) labels (dl:labels wins) issues (dl:match labels)
         *dl-cnt* nil)
+  ;; таблицу только читаем — для сверки номеров и Справочной
+  (if (setq path (dl:xls-path nil)) (dl:read-table path))
   (dl:check labels issues (dl:summary labels))
   (princ))
 
-(princ "\nDLN загружен. Команды: DLN (расчёт + проверка), DLN_CHK (только проверка), DLN_CLR (убрать пометки), DLN_XLS")
+(princ "\nDLN загружен. Команды: DLN (расчёт + проверка), DLN_CHK (только проверка), DLN_NEXT / DLN_PREV (по пометкам), DLN_CLR (убрать пометки), DLN_XLS (сменить таблицу)")
 (princ)
