@@ -1,0 +1,39 @@
+== init
+LISPSYS=1 ACADVER=26.0s (LMS Tech) DWG=C:\Users\marat\Documents\Чертеж2.dwg
+== open last xlsx
+== dialog
+path="C:\\Users\\marat\\Desktop\\SX_Однолинейка\\Однолинейка ЩР ЭОМ_v3.2.xlsx" sheet#=4 panels=("ЩР") pi=0 pt=(2569.94 1604.67 0.0) lib="C:\\Users\\marat\\Desktop\\02_Однолинейка.dwg" nsheet=17 step=20.0
+== after dialog
+style=SX_GOST
+== read excel
+rows read=998
+== filter rows
+recs=465 draw=365
+first place 1 row=("ЩР" 1.0 1.0 nil nil nil nil nil nil nil nil nil nil nil nil nil nil nil nil nil nil nil) helpers=(nil nil nil nil nil nil 0.0 0.0 nil nil nil nil nil nil nil nil nil nil 0.0 nil 0.0 nil nil 0.0 0.0 0.0 nil nil nil nil nil 0.0)
+== clear
+== layers
+== roles
+== make-blocks
+== import-blocks
+lib: found 12 of 12
+block QF1 OK
+block Шина OK
+block _Боковик_схема Юником OK
+block XT OK
+block БП OK
+block Драйвер OK
+block MK-5-1 OK
+block Розетка1 OK
+block $RECOVER_230831092053-0 OK
+block Сервопривод-1 OK
+block EK.1 OK
+block Привод OK
+block SX_U_HEAT OK
+block SX_U_BOX OK
+== table
+== sheets
+sheets=(18 17 16 15 14 13 12 11 10 9 8 7 6 5 4 3 2 1)
+== groups
+== modules
+== rows
+== done
