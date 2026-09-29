@@ -86,19 +86,19 @@
   (vl-string-trim " \t" out))
 
 ;; "К.1.01.1-(К.1.1) ..." -> "К.1.01.1"; не номер линии -> nil
-(defun dl:grp (s / i n c pre res part ok)
-  (setq i 1 n (strlen s) pre "")
-  (while (and (<= i n)
-              (not (member (setq c (substr s i 1)) '("." " " "(" ")")))
-              (not (wcmatch c "#")))
-    (setq pre (strcat pre c) i (1+ i)))
-  (setq res pre)
-  (while (and (< i n) (= (substr s i 1) ".") (wcmatch (substr s (1+ i) 1) "#"))
-    (setq part "." i (1+ i))
-    (while (and (<= i n) (wcmatch (substr s i 1) "#"))
-      (setq part (strcat part (substr s i 1)) i (1+ i)))
-    (setq res (strcat res part) ok T))
-  (if (and ok (> (strlen pre) 0) (/= (substr pre 1 1) "-")) res))
+;; номер линии = первое «слово» первой строки выноски:
+;;   "R.1.05.3", "R.0.001г.1", "R.1.001E.1", "R.0.00232", "ОЗДС01", "К.1.01.1-(К.1.1)" -> "К.1.01.1"
+;; признаки номера: начинается с буквы, есть цифра, нет «=», длина 2..40
+(defun dl:grp (s / i c tok)
+  (setq s (vl-string-trim " \t" s) i 1 tok "")
+  (while (and (<= i (strlen s)) (not (member (setq c (substr s i 1)) '(" " "\t" "("))))
+    (setq tok (strcat tok c) i (1+ i)))
+  (setq tok (vl-string-right-trim ".,;:-" tok))
+  (if (and (> (strlen tok) 1) (<= (strlen tok) 40)
+           (/= (dl:script (substr tok 1 1)) "")
+           (wcmatch tok "*#*")
+           (not (vl-string-search "=" tok)))
+    tok))
 
 ;;; ---------- окна видовых экранов ----------
 ;; окно ВЭ в модели: (x0 y0 x1 y1 (замороженные слои)) или nil
@@ -574,6 +574,7 @@
         cEX (dl:hnew sh "выноск" 2 "Доп. информация из выноски"))
   (setq names (mapcar 'dl:str (dl:col sh cD))
         *dl-tnames* names
+        *dl-renamed* nil
         *dl-codes* (dl:read-codes book)
         hands (mapcar 'dl:str (dl:col sh cHN))
         svals (dl:col sh cS)
@@ -583,6 +584,13 @@
   (foreach s sum
     (setq g (car s) row nil i *dl-row0*)
     (foreach n names (if (and (null row) (= n g)) (setq row i)) (setq i (1+ i)))
+    (if (null row)
+      (progn
+        (setq i *dl-row0*)
+        (foreach n names
+          (if (and (null row) (/= n "") (= (dl:norm n) (dl:norm g)))
+            (setq row i *dl-renamed* (cons (list g n) *dl-renamed*)))
+          (setq i (1+ i)))))
     (if (null row)
       (progn
         (setq last (1+ last) row last rs (itoa row) newn (1+ newn))
@@ -610,11 +618,13 @@
     (if (member n *dl-missing*) (dl:put sh (strcat cNT (itoa i)) "нет на плане"))
     (setq i (1+ i)))
   (setq *dl-added* nil)
-  (foreach s sum (if (not (member (car s) names)) (setq *dl-added* (cons (car s) *dl-added*))))
+  (foreach s sum
+    (if (not (vl-some '(lambda (n) (= (dl:norm n) (dl:norm (car s)))) names))
+      (setq *dl-added* (cons (car s) *dl-added*))))
   ;; строки, чьи полилинии удалены из чертежа (другие листы не трогаем)
   (setq i *dl-row0*)
   (foreach n names
-    (if (and (/= n "") (not (assoc n sum))
+    (if (and (/= n "") (not (dl:insum n sum))
              (/= (nth (- i *dl-row0*) hands) "")
              (not (vl-some 'dl:alive (dl:split (nth (- i *dl-row0*) hands)))))
       (progn (dl:put sh (strcat cPV (itoa i)) nil) (dl:put sh (strcat cPN (itoa i)) nil)
@@ -634,21 +644,22 @@
                    "L" "DALI" "LD" "LED" "АПС" "РЕЛЕ" "К" "K" "ПУ" "ПВ" "КМН" "УВ" "ПН" "WD" "КУП" "PE"))
 (defun dl:pad (n w) (substr (strcat "00000" n) (1+ (- (+ 5 (strlen n)) w))))
 ;; "R.1.05.10" -> "05|R|0001.0005.0010"; пустая строка -> в конец
-(defun dl:sortkey (name / i pre idx c num nums)
+;; "R.0.001г.1" -> "05|R|00000.00001г.00001"; числа в частях номера сравниваются как числа,
+;; буквы после цифр (г, д, Э, Т, E…) — после них; номер без точек (ОЗДС01) — в конец списка префиксов
+(defun dl:splitc (s ch / i r)
+  (while (setq i (vl-string-search ch s)) (setq r (cons (substr s 1 i) r) s (substr s (+ i 2))))
+  (reverse (cons s r)))
+(defun dl:segkey (seg / i d)
+  (setq i 0 d "")
+  (while (and (< i (strlen seg)) (wcmatch (substr seg (1+ i) 1) "#"))
+    (setq d (strcat d (substr seg (1+ i) 1)) i (1+ i)))
+  (strcat (dl:pad (if (= d "") "0" d) 5) (substr seg (1+ i))))
+(defun dl:sortkey (name / segs pre idx)
   (if (= name "")
     "99|~"
     (progn
-      (setq i (vl-string-search "." name)
-            pre (if i (substr name 1 i) name)
-            idx (vl-position pre *dl-order*)
-            i (if i (1+ i) (strlen name)) num "" nums "")
-      (while (< i (strlen name))
-        (setq i (1+ i) c (substr name i 1))
-        (if (wcmatch c "#")
-          (setq num (strcat num c))
-          (if (/= num "") (setq nums (strcat nums (dl:pad num 4) ".") num ""))))
-      (if (/= num "") (setq nums (strcat nums (dl:pad num 4) ".")))
-      (strcat (dl:pad (itoa (if idx idx 98)) 2) "|" pre "|" nums))))
+      (setq segs (dl:splitc name ".") pre (car segs) idx (vl-position pre *dl-order*))
+      (strcat (dl:pad (itoa (if idx idx 98)) 2) "|" pre "|" (dl:join (mapcar 'dl:segkey (cdr segs)) ".")))))
 
 ;; раскладка: с *dl-row0* по *dl-block* линий, затем *dl-gap* пустых строк и т.д.
 ;; строки с номером линии получают место по порядку номеров, пустые строки
@@ -756,8 +767,8 @@
   r)
 
 ;; --- алфавит в номерах
-(setq *dl-cyr* "АВЕКМНОРСТХУ" *dl-lat* "ABEKMHOPCTXY")
-(defun dl:norm (s) (vl-string-translate *dl-cyr* *dl-lat* (strcase s)))
+(setq *dl-cyr* "АВЕКМНОРСТХУавекмнорстху" *dl-lat* "ABEKMHOPCTXYabekmhopctxy")
+(defun dl:norm (s) (strcase (vl-string-translate *dl-cyr* *dl-lat* s)))
 (defun dl:script (s / i c lat cyr)
   (setq i 0)
   (while (< i (strlen s))
@@ -765,7 +776,12 @@
     (cond ((or (<= 65 c 90) (<= 97 c 122)) (setq lat T))
           ((or (<= 1024 c 1279) (<= 192 c 255)) (setq cyr T))))
   (cond ((and lat cyr) "M") (lat "L") (cyr "C") (T "")))
-(defun dl:prefix (g / i) (if (setq i (vl-string-search "." g)) (substr g 1 i) g))
+;; префикс = буквы до первой точки или цифры: "R.0.001г.1" -> "R", "ОЗДС01" -> "ОЗДС"
+(defun dl:prefix (g / i r c)
+  (setq i 1 r "")
+  (while (and (<= i (strlen g)) (/= (setq c (substr g i 1)) ".") (not (wcmatch c "#")))
+    (setq r (strcat r c) i (1+ i)))
+  r)
 (defun dl:scope (g / i j)   ; "R.1.05.3" -> "R.1"
   (if (and (setq i (vl-string-search "." g)) (setq j (vl-string-search "." g (1+ i))))
     (substr g 1 j) g))
@@ -789,10 +805,12 @@
         (foreach row (vlax-safearray->list (dl:vv v))
           (if (/= (setq x (dl:str (dl:vv (car row)))) "") (setq r (cons x r)))))))
   r)
+(defun dl:insum (n sum)
+  (or (assoc n sum) (vl-some '(lambda (s) (= (dl:norm (car s)) (dl:norm n))) sum)))
 (defun dl:missing (names sum / scopes r)
   (foreach s sum (if (not (member (dl:scope (car s)) scopes)) (setq scopes (cons (dl:scope (car s)) scopes))))
   (foreach n names
-    (if (and (/= n "") (not (assoc n sum)) (member (dl:scope n) scopes)
+    (if (and (/= n "") (not (dl:insum n sum)) (member (dl:scope n) scopes)
              (or (null *dl-filter*) (wcmatch (strcase n) (strcase *dl-filter*))))
       (setq r (cons n r))))
   (reverse r))
@@ -911,8 +929,12 @@
     (progn
       (setq n (dl:missing *dl-tnames* sum))
       (if n (princ (strcat "\n  в таблице есть, на плане нет (" (itoa (length n)) "): " (dl:join n ", "))))
+      (foreach rn *dl-renamed*
+        (dl:mark (dl:first-arrow (car rn) labels)
+                 (strcat (car rn) ": в таблице «" (cadr rn) "» — те же знаки, но другие буквы (кириллица/латиница); записано в эту строку")))
       (setq n nil)
-      (foreach s sum (if (not (member (car s) *dl-tnames*)) (setq n (cons (car s) n))))
+      (foreach s sum
+        (if (not (vl-some '(lambda (tn) (= (dl:norm tn) (dl:norm (car s)))) *dl-tnames*)) (setq n (cons (car s) n))))
       (if n (princ (strcat "\n  на плане есть, в таблице не было — добавлены (" (itoa (length n)) "): " (dl:join (reverse n) ", "))))))
   (vl-catch-all-apply 'vlax-ldata-put (list "DLN" "marks" *dl-marks*))
   (vl-catch-all-apply 'vlax-ldata-put (list "DLN" "vps" *dl-vps*))
@@ -1001,7 +1023,7 @@
 (defun c:DLN_CLR () (dl:chk-clear) (princ "\nDLN: пометки проверки удалены.") (princ))
 ;; только проверка, без записи в Excel
 (defun c:DLN_CHK (/ wins labels issues path)
-  (setq wins (dl:pick-wins) *dl-vps* wins *dl-tnames* nil *dl-codes* nil)
+  (setq wins (dl:pick-wins) *dl-vps* wins *dl-tnames* nil *dl-codes* nil *dl-renamed* nil)
   (if (null wins) (progn (princ "\nDLN: не найден ни один видовой экран плана.") (exit)))
   (setq *dl-filter* (getstring "\nDLN: какие линии проверять, напр. R* или L*,LD*,LED* <все>: "))
   (if (= *dl-filter* "") (setq *dl-filter* nil))
@@ -1009,6 +1031,11 @@
         *dl-cnt* nil)
   ;; таблицу только читаем — для сверки номеров и Справочной
   (if (setq path (dl:xls-path nil)) (dl:read-table path))
+  (foreach lb labels
+    (if (and *dl-tnames* (not (member (car lb) *dl-tnames*)) (not (assoc (car lb) *dl-renamed*)))
+      (foreach tn *dl-tnames*
+        (if (and (/= tn "") (= (dl:norm tn) (dl:norm (car lb))) (not (assoc (car lb) *dl-renamed*)))
+          (setq *dl-renamed* (cons (list (car lb) tn) *dl-renamed*))))))
   (dl:check labels issues (dl:summary labels))
   (princ))
 
