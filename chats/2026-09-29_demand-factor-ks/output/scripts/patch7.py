@@ -377,19 +377,33 @@ def _shift(f, dr, dc):
     return '"'.join(parts)
 
 
+def _fattrs(ftag):
+    return dict(re.findall(r'(\w+)="([^"]*)"', ftag))
+
+
+F_RX = re.compile(r'<f(\s[^>]*?)?(?:/>|>([^<]*)</f>)')
+
+
 def unshare(sh_, cols):
-    """общие формулы (t="shared") в столбцах cols → обычные, чтобы можно было писать поверх любой ячейки"""
+    """общие формулы (t="shared") в столбцах cols → обычные (со сдвигом ссылок), с любыми атрибутами у <f>"""
     cols = set(cols); masters = {}
-    for m in re.finditer(r'<c r="([A-Z]+)(\d+)"[^>]*><f t="shared" ref="([^"]*)" si="(\d+)">([^<]*)</f>', sh_.s):
-        masters[m.group(4)] = (m.group(1), int(m.group(2)), html.unescape(m.group(5)))
+    for m in re.finditer(r'<c r="([A-Z]+)(\d+)"[^>]*?(?:/>|>.*?</c>)', sh_.s, flags=re.S):
+        fm = F_RX.search(m.group(0))
+        if not fm: continue
+        at = _fattrs(fm.group(1) or "")
+        if at.get("t") == "shared" and "ref" in at and fm.group(2) is not None:
+            masters[at["si"]] = (m.group(1), int(m.group(2)), html.unescape(fm.group(2)))
     todo = {si for si, (c_, r_, f_) in masters.items() if c_ in cols}
     def fix(m):
         cell = m.group(0); col, row = m.group(1), int(m.group(2))
-        fm = re.search(r'<f t="shared"(?: ref="[^"]*")? si="(\d+)"\s*(?:/>|>[^<]*</f>)', cell)
-        if not fm or fm.group(1) not in todo: return cell
-        mc, mr, mf = masters[fm.group(1)]
+        fm = F_RX.search(cell)
+        if not fm: return cell
+        at = _fattrs(fm.group(1) or "")
+        if at.get("t") != "shared" or at.get("si") not in todo: return cell
+        mc, mr, mf = masters[at["si"]]
         f = _shift(mf, row - mr, X.col2n(col) - X.col2n(mc))
-        return cell.replace(fm.group(0), f"<f>{esc(f)}</f>")
+        ca = ' ca="1"' if at.get("ca") == "1" else ""
+        return cell.replace(fm.group(0), f"<f{ca}>{esc(f)}</f>")
     sh_.s = re.sub(r'<c r="([A-Z]+)(\d+)"[^>]*?(?:/>|>.*?</c>)', fix, sh_.s, flags=re.S)
     return len(todo)
 
@@ -397,9 +411,13 @@ def unshare(sh_, cols):
 def check_shared(WD):
     import glob
     for p in glob.glob(WD + "/xl/worksheets/sheet*.xml"):
-        s_ = rd(p)
-        masters = set(re.findall(r'<f t="shared" ref="[^"]*" si="(\d+)"', s_))
-        orphan = [x for x in re.findall(r'<f t="shared" si="(\d+)"\s*/>', s_) if x not in masters]
+        s_ = rd(p); masters = set(); deps = []
+        for fm in F_RX.finditer(s_):
+            at = _fattrs(fm.group(1) or "")
+            if at.get("t") != "shared": continue
+            if "ref" in at: masters.add(at["si"])
+            else: deps.append(at.get("si"))
+        orphan = [x for x in deps if x not in masters]
         assert not orphan, (p, "общие формулы без мастера", orphan[:5])
 
 
