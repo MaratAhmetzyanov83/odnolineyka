@@ -106,7 +106,9 @@ def add_after_cf(sh_, xml):
     sh_.s = sh_.s[:k] + xml + sh_.s[k:]
 
 
-def add_cf(sh_, sqref, formula, dxf, prio=1):
+def add_cf(sh_, sqref, formula, dxf, prio=None):
+    if prio is None:
+        prio = max([int(x) for x in re.findall(r'priority="(\d+)"', sh_.s)] or [0]) + 1
     xml = (f'<conditionalFormatting sqref="{sqref}"><cfRule type="expression" dxfId="{dxf}" priority="{prio}">'
            f'<formula>{esc(formula)}</formula></cfRule></conditionalFormatting>')
     k = sh_.s.rfind("</conditionalFormatting>")
@@ -347,7 +349,7 @@ def fix_dims(WD):
 
 
 def pack(WD, order, out):
-    fix_dims(WD)
+    fix_dims(WD); check_shared(WD)
     if os.path.exists(out): os.remove(out)
     with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as z:
         for n_ in order:
@@ -358,6 +360,47 @@ def pack(WD, order, out):
 def title(WD, text):
     gd = X.Sheet(X.sheet_path(WD, "Краткое руководство"))
     bulk(gd, {"C1": ct("C1", text, gd.style("C1") or gd.style("C2"))}); gd.save()
+
+
+def _shift(f, dr, dc):
+    """сдвинуть относительные ссылки A1 в формуле (вне строковых литералов)"""
+    parts = f.split('"')
+    rx = re.compile(r'(?<![A-Za-zА-Яа-яЁё_\d.!$])(\$?)([A-Z]{1,3})(\$?)(\d+)(?![\d(A-Za-zА-Яа-я_])')
+    def rep(m):
+        c1, col, r1, row = m.groups()
+        n = X.col2n(col) + (0 if c1 else dc); rr = int(row) + (0 if r1 else dr)
+        cs = ""
+        while n: n, rem = divmod(n - 1, 26); cs = chr(65 + rem) + cs
+        return f"{c1}{cs}{r1}{rr}"
+    for i in range(0, len(parts), 2):
+        parts[i] = rx.sub(rep, parts[i])
+    return '"'.join(parts)
+
+
+def unshare(sh_, cols):
+    """общие формулы (t="shared") в столбцах cols → обычные, чтобы можно было писать поверх любой ячейки"""
+    cols = set(cols); masters = {}
+    for m in re.finditer(r'<c r="([A-Z]+)(\d+)"[^>]*><f t="shared" ref="([^"]*)" si="(\d+)">([^<]*)</f>', sh_.s):
+        masters[m.group(4)] = (m.group(1), int(m.group(2)), html.unescape(m.group(5)))
+    todo = {si for si, (c_, r_, f_) in masters.items() if c_ in cols}
+    def fix(m):
+        cell = m.group(0); col, row = m.group(1), int(m.group(2))
+        fm = re.search(r'<f t="shared"(?: ref="[^"]*")? si="(\d+)"\s*(?:/>|>[^<]*</f>)', cell)
+        if not fm or fm.group(1) not in todo: return cell
+        mc, mr, mf = masters[fm.group(1)]
+        f = _shift(mf, row - mr, X.col2n(col) - X.col2n(mc))
+        return cell.replace(fm.group(0), f"<f>{esc(f)}</f>")
+    sh_.s = re.sub(r'<c r="([A-Z]+)(\d+)"[^>]*?(?:/>|>.*?</c>)', fix, sh_.s, flags=re.S)
+    return len(todo)
+
+
+def check_shared(WD):
+    import glob
+    for p in glob.glob(WD + "/xl/worksheets/sheet*.xml"):
+        s_ = rd(p)
+        masters = set(re.findall(r'<f t="shared" ref="[^"]*" si="(\d+)"', s_))
+        orphan = [x for x in re.findall(r'<f t="shared" si="(\d+)"\s*/>', s_) if x not in masters]
+        assert not orphan, (p, "общие формулы без мастера", orphan[:5])
 
 
 # ------------------------------------------------------------------ ГРЩ-ЖД из файла Марата
@@ -382,6 +425,7 @@ def fill_grsh(WD, src):
             SEC[ln] = 2 if "2" in str(t) else 1
     SEC["ЩСПЗ-ЖД.2"] = 2
     isx = X.Sheet(X.sheet_path(WD, "Исходные данные"))
+    print("  общих формул развёрнуто:", unshare(isx, set(MAP.values())))
     c = {}
     lines = []
     for r in range(3, 60):
