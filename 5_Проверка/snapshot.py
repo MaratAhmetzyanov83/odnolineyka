@@ -18,7 +18,7 @@ from openpyxl.utils import column_index_from_string as CI, get_column_letter as 
 
 import xlgrid
 
-FORMAT = 1
+FORMAT = 2
 ROUND = 6
 
 # ---- листы и адреса (определены по книге v3.11 и документации) --------------------------------
@@ -32,6 +32,9 @@ S_POW = "Питание_щита"
 S_SUB = "Нижестоящие_щиты"
 S_SPEC = "Спецификация_авто"
 S_ACAD = "В Акад"              # таблица нагрузок для AutoCAD (Data Link): P:U, 3 блока
+S_MODES = "Режимы"            # v3.12: режимы × источники, категории, необеспеченные линии, сверка
+S_IBP = "ИБП"                 # v3.12: подбор ИБП, АКБ, вход на ЩГП
+S_SUMM = "Категории_по_щитам"   # v3.12 (сборка в ГРЩ): итог по объекту и строка на щит
 
 # Однолинейка: столбец -> короткое имя поля (порядок вывода)
 ODN_FIELDS = OrderedDict([
@@ -50,10 +53,16 @@ SRC_FIELDS = OrderedDict([
     ("BC", "Группа Кс"), ("BF", "Допуст. ΔU, %"), ("BG", "ΔU от ВРУ, %"), ("BI", "Iкз min, А"),
     ("BJ", "Iкз/In"), ("BK", "Отключение ≤0,4 с"), ("BL", "Zпетли, Ом"), ("BM", "Iкз max, кА"),
 ])
+# «Исходные данные», v3.12: категории надёжности, пожарные, шины (BN:BV)
+CAT_FIELDS = OrderedDict([
+    ("BN", "Категория (ввод)"), ("BO", "Пожарная (ввод)"), ("BP", "Категория (итог)"), ("BQ", "Пожарная (итог)"),
+    ("BR", "Шина"), ("BS", "Тип шины"), ("BT", "Источник"), ("BU", "Категория обеспечена"), ("BV", "Проверка"),
+])
 # заголовки, за изменением которых следим (структура книги)
 HDR_WATCH = {S_ODN: (2, ["A", "B", "C", "G", "H", "M", "O", "P", "T", "U", "V", "Z", "AA", "AB", "AC",
                           "AD", "AE", "BD", "BE", "BF", "BG", "BH", "BI", "BJ", "BK", "BL", "BM"]),
-             S_SRC: (2, ["D", "E", "M", "T", "U", "V", "AB", "BC", "BG", "BI", "BJ", "BK", "BL", "BM"])}
+             S_SRC: (2, ["D", "E", "M", "T", "U", "V", "AB", "BC", "BG", "BI", "BJ", "BK", "BL", "BM",
+                          "BN", "BO", "BP", "BQ", "BR", "BS", "BT", "BU", "BV"])}
 
 
 # ---------------------------------------------------------------------------------------------
@@ -190,7 +199,7 @@ def sec_counters(b):
     ref = OrderedDict()
     if b.has(S_REF):
         rg = b.g[S_REF]
-        for r in range(7, 16):
+        for r in range(7, 17):
             lab, v = rg.get(r, CI("BE")), rg.get(r, CI("BF"))
             if isinstance(lab, str) and v is not None and not lab.startswith("ИТОГИ"):
                 ref[nv(lab)] = nv(v)
@@ -392,6 +401,166 @@ def sec_spec(b):
     return items, counts, warn
 
 
+def sec_categories(b):
+    """v3.12: «Исходные данные» BN:BV по линиям (категория, пожарная, шина, тип шины, источник, проверка)."""
+    gr = b.g.get(S_SRC)
+    out = OrderedDict()
+    if not gr:
+        return out
+    for r in range(3, gr.r0 + gr.nr):
+        line = gr.get(r, CI("D"))
+        if line is None or is_err(line) or (isinstance(line, float) and line == 0):
+            continue
+        put(out, str(nv(line)), OrderedDict((n, gr.get(r, CI(c))) for c, n in CAT_FIELDS.items()))
+    return out
+
+
+def sec_scheme(b):
+    """v3.12: «Питание_щита» - схема щита (C65:E69), таблица «Шины щита» (B73:D82), итоги для вышестоящего щита (J44:S47)."""
+    gr = b.g.get(S_POW)
+    out = OrderedDict()
+    if not gr:
+        return out
+    for r in range(65, 70):
+        lab = gr.get(r, CI("B"))
+        if isinstance(lab, str):
+            put(out, "схема: " + nv(lab), OrderedDict((c, gr.get(r, CI(c))) for c in "CDE"))
+    hdr = [nv(gr.get(44, CI(c))) for c in "JKLMNOPQRS"]
+    for r in range(45, 48):
+        n = gr.get(r, CI("B"))
+        if n is not None and not is_err(n):
+            put(out, "для вышестоящего (категории): " + str(nv(n)),
+                OrderedDict((h or c, gr.get(r, CI(c))) for h, c in zip(hdr, "JKLMNOPQRS")))
+    if gr.get(44, CI("T")) is not None:      # сборка в ГРЩ (grsh_rollup.py): составляющие T:BD, 37 значений
+        cols = [CL(i) for i in range(CI("T"), CI("BD") + 1)]
+        hdr2 = [nv(gr.get(44, CI(c))) for c in cols]
+        for r in range(45, 48):
+            n = gr.get(r, CI("B"))
+            if n is not None and not is_err(n):
+                put(out, "для вышестоящего (составляющие): " + str(nv(n)),
+                    OrderedDict((h or c, gr.get(r, CI(c))) for h, c in zip(hdr2, cols)))
+    for r in range(73, 83):
+        v = gr.get(r, CI("B"))
+        if v is not None:
+            put(out, "шина щита: " + str(nv(v)), OrderedDict([("щит", gr.get(r, CI("C"))), ("тип", gr.get(r, CI("D")))]))
+    return out
+
+
+def sec_modes(b):
+    """v3.12: лист «Режимы» - режимы × источники, по категориям, необеспеченные линии, сверка (разбор по подписям в B)."""
+    gr = b.g.get(S_MODES)
+    out = OrderedDict()
+    if not gr:
+        return out
+    put(out, "щит и схема", OrderedDict([
+        ("щит", gr.get(4, CI("C"))), ("вводов", gr.get(5, CI("C"))), ("АВР", gr.get(5, CI("D"))),
+        ("ИБП питается от", gr.get(6, CI("C"))), ("линий не обеспечено", gr.get(8, CI("C")))]))
+    src = [nv(gr.get(11, CI(c))) for c in "CDEFGH"]
+    mode = None          # None | ("m", имя) | ("c",) | ("b",) | ("k",)
+    cat_hdr = []
+    last = gr.r0 + gr.nr - 1
+    for r in range(12, last + 1):
+        lab = gr.get(r, CI("B"))
+        if not isinstance(lab, str) or not lab.strip():
+            continue
+        lab = lab.strip()
+        if lab.startswith("СЛУЖЕБНОЕ"):
+            break
+        m = re.match(r"^(\d)\)\s*([^(:]+)", lab)
+        if m:
+            mode = ("m", "%s) %s" % (m.group(1), m.group(2).strip()[:34]))
+            continue
+        if lab.startswith("2. ПО КАТЕГОРИЯМ"):
+            mode = ("c",)
+            cat_hdr = [nv(gr.get(r + 1, CI(c))) for c in "CDEFGHIJ"]
+            continue
+        if lab.startswith("3. ЛИНИИ"):
+            mode = ("b",)
+            continue
+        if lab.startswith("4. СВЕРКА"):
+            mode = ("k",)
+            continue
+        if lab in ("Категория", "Линия — наименование", "Показатель") or lab.startswith("1. РЕЖИМЫ"):
+            continue
+        if mode is None:
+            continue
+        if mode[0] == "m":
+            lab = lab.replace("слагаемое: ", "· ")
+            put(out, "%s | %s" % (mode[1], lab), OrderedDict((s_, gr.get(r, CI(c))) for s_, c in zip(src, "CDEFGH")))
+        elif mode[0] == "c":
+            if lab.startswith("Кс быт берётся"):
+                continue
+            put(out, "категория | %s" % lab, OrderedDict((h or c, gr.get(r, CI(c))) for h, c in zip(cat_hdr, "CDEFGHIJ")))
+        elif mode[0] == "b":
+            if lab.startswith("Все категории") or lab.startswith("Не обеспечено"):
+                put(out, "необеспеченные | сводка", OrderedDict([("текст", lab)]))
+            else:
+                put(out, "необеспеченные | %s" % lab, OrderedDict((h, gr.get(r, CI(c))) for h, c in
+                                                             zip(("щит", "требуется", "обеспечена", "шина", "тип"), "CDEFG")))
+        elif mode[0] == "k":
+            put(out, "сверка | %s" % lab, OrderedDict((h, gr.get(r, CI(c))) for h, c in
+                                                      zip(("Нагрузка_щитов", "Режимы", "разница"), "CDE")))
+    return out
+
+
+def sec_rollup(b):
+    """v3.12, сборка в ГРЩ: «Нижестоящие_щиты» P:BG - служебные столбцы, связи U:BE (составляющие), проверка категории фидера."""
+    gr = b.g.get(S_SUB)
+    out = OrderedDict()
+    if not gr or nv(gr.get(4, CI("P"))) != "Щит (этой книги)":
+        return out
+    cols = [CL(i) for i in range(CI("P"), CI("BG") + 1)]
+    hdr = [nv(gr.get(4, CI(c))) for c in cols]
+    for r in range(5, gr.r0 + gr.nr):
+        lab = gr.get(r, CI("B"))
+        if lab is None or is_err(lab):
+            continue
+        put(out, str(nv(lab)), OrderedDict((h or c, gr.get(r, CI(c))) for c, h in zip(cols, hdr)))
+    return out
+
+
+def sec_by_shield(b):
+    """v3.12, сборка в ГРЩ: лист «Категории_по_щитам» - итог по объекту, Руст и Рр по щитам (по подписям в B)."""
+    gr = b.g.get(S_SUMM)
+    out = OrderedDict()
+    if not gr:
+        return out
+    block, hdr = None, []
+    last = gr.r0 + gr.nr - 1
+    for r in range(4, last + 1):
+        lab = gr.get(r, CI("B"))
+        if not isinstance(lab, str) or not lab.strip():
+            continue
+        lab = lab.strip()
+        if re.match(r"^\d\. ", lab):
+            block = lab[3:30]
+            continue
+        if lab in ("Категория", "Щит / линия-фидер"):
+            hdr = [nv(gr.get(r, CI(c))) for c in "CDEFGHIJ"]
+            continue
+        if block is None or lab.startswith("«Одной") or lab.startswith("СЛУЖЕБНОЕ"):
+            continue
+        vals = OrderedDict((h or c, gr.get(r, CI(c))) for c, h in zip("CDEFGHIJ", hdr))
+        put(out, "%s | %s" % (block, lab[:60]), vals)
+    return out
+
+
+def sec_ibp(b):
+    """v3.12: лист «ИБП» - подпись строки (B) -> значение (C); ряд типоразмеров C50:C61."""
+    gr = b.g.get(S_IBP)
+    out = OrderedDict()
+    if not gr:
+        return out
+    for r in range(4, 47):
+        lab, v = gr.get(r, CI("B")), gr.get(r, CI("C"))
+        if isinstance(lab, str) and v is not None:
+            put(out, nv(lab)[:60], OrderedDict([("значение", v)]))
+    ser = [gr.get(r, CI("C")) for r in range(50, 62)]
+    if any(v is not None for v in ser):
+        put(out, "ряд типоразмеров, кВА", OrderedDict((str(i + 1), v) for i, v in enumerate(ser)))
+    return out
+
+
 # ---------------------------------------------------------------------------------------------
 def build(path, backend="auto", log=print):
     grids, used, warns = xlgrid.load(path, backend, log=log)
@@ -410,6 +579,12 @@ def build(path, backend="auto", log=print):
     snap["расчёт нагрузок (ПЗ)"] = sec_pz(b)
     snap["питание щита"] = sec_power(b)
     snap["нижестоящие щиты"] = sec_sub(b)
+    snap["категории и шины (линии)"] = sec_categories(b)
+    snap["схема щита и категории (питание)"] = sec_scheme(b)
+    snap["режимы"] = sec_modes(b)
+    snap["ибп"] = sec_ibp(b)
+    snap["сборка нижестоящих щитов"] = sec_rollup(b)
+    snap["категории по щитам"] = sec_by_shield(b)
     snap["в акад (таблица нагрузок)"] = sec_acad(b)
     snap["спецификация (позиция → кол-во)"] = spec
     snap["спецификация: подсчёт"] = spec_cnt
