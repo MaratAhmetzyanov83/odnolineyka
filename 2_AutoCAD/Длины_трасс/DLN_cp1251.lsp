@@ -10,9 +10,12 @@
 ;;;      стрелка должна лежать на полилинии той же системы (допуск *dl-tol*).
 ;;;   4. Полилиния без выноски, начинающаяся в конце трассы группы,
 ;;;      считается продолжением этой группы (допуск *dl-jtol*).
-;;;   5. Длины по типу линии: Continuous = гофра ПВХ, JIS_02_0.7 = гофра ПНД.
+;;;   5. Длины по типу линии: Continuous = гофра ПВХ, JIS_02_0.7 = гофра ПНД,
+;;;      Lotok = лоток. Участки гофры, идущие вдоль полилинии лотка
+;;;      (слой "*Лоток*" или тип линии Lotok не на слое трасс), — тоже лоток.
 ;;;   6. В лист "Исходные данные" пишутся колонки AU (ПВХ), AV (ПНД),
-;;;      AW (хэндлы), AX (примечание). Новые линии добавляются в конец.
+;;;      AW (хэндлы), AX (примечание), «DWG: лоток по плану, м» и формула
+;;;      в J «Лоток». Новые линии добавляются в конец.
 ;;;      Колонка S ставится только если пустая. Книга НЕ сохраняется.
 ;;; ================================================================
 (vl-load-com)
@@ -30,6 +33,11 @@
       *dl-scale* 0.001         ; единицы чертежа -> метры
       *dl-pvh*   "CONTINUOUS"
       *dl-pnd*   "JIS_02_0.7"
+      *dl-lot*   "*LOTOK*,*ЛОТОК*" ; тип линии лотка (маска)
+      *dl-lotlay* "*Лоток*"    ; слои полилиний лотка
+      *dl-ltol*  100.0         ; мм, кабель от оси лотка — считается «в лотке»
+      *dl-lstep* 100.0         ; мм, шаг проверки кабеля вдоль лотка
+      *dl-lmin*  500.0         ; мм, участки вдоль лотка короче — не лоток (пересечения)
       *dl-sheet* "Исходные данные"
       *dl-row0*  21            ; первая строка, куда DLN пишет линии
       *dl-block* 15            ; строк в блоке
@@ -168,7 +176,8 @@
 
 ;;; ---------- сбор полилиний и выносок ----------
 ;; запись полилинии: (ename sys major lt len start end)
-(defun dl:polys (wins / ss i e ed sp ep res)
+(defun dl:polys (wins / ss i e ed sp ep res lots cab)
+  (setq *dl-trays* (dl:trays wins))
   (if (setq ss (ssget "_X" '((0 . "LWPOLYLINE") (8 . "*Трасс*") (410 . "Model"))))
     (repeat (setq i (sslength ss))
       (setq e (ssname ss (setq i (1- i))) ed (entget e)
@@ -179,7 +188,72 @@
                               (vlax-curve-getDistAtParam e (vlax-curve-getEndParam e))
                               sp ep
                               (mapcar 'cdr (vl-remove-if-not '(lambda (x) (= (car x) 10)) ed))) res)))))
+  ;; Lotok на слое трасс поверх кабеля — это лоток, а не трасса: убираем в *dl-trays*
+  (foreach p res
+    (if (wcmatch (nth 3 p) *dl-lot*) (setq lots (cons p lots)) (setq cab (cons (cons (car p) (dl:bb4 (car p))) cab))))
+  (foreach p lots
+    (if (>= (dl:along (car p) (nth 4 p) cab) (* 0.5 (nth 4 p)))
+      (setq res (vl-remove p res) *dl-trays* (cons (cons (car p) (dl:bb4 (car p))) *dl-trays*))))
   res)
+
+;;; ---------- лоток ----------
+;; маска слоя для ssget: спецсимволы экранируются
+(defun dl:wesc (s / r)
+  (setq r "")
+  (foreach c (vl-string->list s)
+    (if (member c (vl-string->list "#@.*?~[]-,`")) (setq r (strcat r "`")))
+    (setq r (strcat r (chr c))))
+  r)
+(defun dl:bb4 (e / mn mx)
+  (if (not (vl-catch-all-error-p
+             (vl-catch-all-apply 'vla-GetBoundingBox (list (vlax-ename->vla-object e) 'mn 'mx))))
+    (append (dl:2d (vlax-safearray->list mn)) (dl:2d (vlax-safearray->list mx)))))
+(defun dl:bb-hit (a b d)
+  (and (<= (- (car a) d) (caddr b)) (<= (car b) (+ (caddr a) d))
+       (<= (- (cadr a) d) (cadddr b)) (<= (cadr b) (+ (cadddr a) d))))
+;; полилинии лотка в окнах: ((ename x0 y0 x1 y1) ...)
+;; слой "*Лоток*" или тип линии Lotok (у объекта или слоя), но не слой трасс
+(defun dl:trays (wins / tb nm lays flt ss i e ed lay bb res)
+  (while (setq tb (tblnext "LAYER" (null tb)))
+    (setq nm (cdr (assoc 2 tb)))
+    (if (and (not (wcmatch nm "*Трасс*"))
+             (or (wcmatch (strcase nm) (strcase *dl-lotlay*))
+                 (wcmatch (strcase (cdr (assoc 6 tb))) *dl-lot*)))
+      (setq lays (cons (dl:wesc nm) lays))))
+  (setq flt (append '((0 . "LWPOLYLINE,POLYLINE,LINE,ARC") (410 . "Model") (-4 . "<OR") (6 . "*[Ll][Oo][Tt][Oo][Kk]*,*[Лл][Оо][Тт][Оо][Кк]*"))
+                    (if lays (list (cons 8 (dl:join lays ","))))
+                    '((-4 . "OR>"))))
+  (if (setq ss (ssget "_X" flt))
+    (repeat (setq i (sslength ss))
+      (setq e (ssname ss (setq i (1- i))) ed (entget e) lay (cdr (assoc 8 ed)))
+      (if (and (not (wcmatch lay "*Трасс*"))
+               (dl:layer-on lay)
+               (setq bb (dl:bb4 e))
+               (vl-some '(lambda (w) (and (dl:bb-hit bb w 0.0) (not (member (strcase lay) (nth 4 w))))) wins))
+        (setq res (cons (cons e bb) res)))))
+  res)
+;; длина участков кривой e (длина L), идущих вдоль кривых cands ((ename x0 y0 x1 y1) ...)
+(defun dl:along (e L cands / bb trs n ds k pt run acc)
+  (setq acc 0.0 run 0.0)
+  (if (and cands (> L 0.0) (setq bb (dl:bb4 e)))
+    (progn
+      (foreach t0 cands (if (dl:bb-hit bb (cdr t0) *dl-ltol*) (setq trs (cons (car t0) trs))))
+      (if trs
+        (progn
+          (setq n (max 1 (fix (+ 0.999 (/ L *dl-lstep*)))) ds (/ L n) k 0)
+          (repeat n
+            (setq pt (vlax-curve-getPointAtDist e (* (+ k 0.5) ds)) k (1+ k))
+            (if (and pt
+                     (vl-some '(lambda (tr / c)
+                                 (and (setq c (vlax-curve-getClosestPointTo tr (dl:3d pt)))
+                                      (<= (distance (dl:2d c) (dl:2d pt)) *dl-ltol*)))
+                              trs))
+              (setq run (+ run ds))
+              (setq acc (if (>= run *dl-lmin*) (+ acc run) acc) run 0.0)))
+          (if (>= run *dl-lmin*) (setq acc (+ acc run)))))))
+  acc)
+;; длина участков полилинии кабеля p, идущих вдоль лотка (ед. чертежа)
+(defun dl:inlot (p) (dl:along (car p) (nth 4 p) *dl-trays*))
 
 ;; пары (первая последняя) вершин каждой линии выноски — из данных объекта
 (defun dl:ml-pairs-dxf (e / in first last res)
@@ -412,18 +486,20 @@
                 (setq cnt (dl:inc (cadr best) cnt)))))))))
   cnt)
 
-;; итог по группе: (grp pvh pnd handles note кол-во_блоков)
-(defun dl:summary (labels / names res pvh pnd hs notes gl L lt)
+;; итог по группе: (grp pvh pnd handles note кол-во_блоков выноска лоток)
+(defun dl:summary (labels / names res pvh pnd lot hs notes gl L lt lp)
   (foreach lb labels (if (not (member (car lb) names)) (setq names (cons (car lb) names))))
   (foreach g (reverse names)
-    (setq pvh 0.0 pnd 0.0 hs nil notes nil)
+    (setq pvh 0.0 pnd 0.0 lot 0.0 hs nil notes nil)
     (foreach p *dl-polys*
       (setq gl (dl:getg (car p)) L (* (nth 4 p) *dl-scale*) lt (nth 3 p))
       (cond
         ((equal gl (list g))
          (setq hs (cons (dl:hnd (car p)) hs))
-         (cond ((= lt *dl-pvh*) (setq pvh (+ pvh L)))
-               ((= lt *dl-pnd*) (setq pnd (+ pnd L)))
+         (cond ((wcmatch lt *dl-lot*) (setq lot (+ lot L)))
+               ((or (= lt *dl-pvh*) (= lt *dl-pnd*))
+                (setq lp (min L (* (dl:inlot p) *dl-scale*)) lot (+ lot lp))
+                (if (= lt *dl-pvh*) (setq pvh (+ pvh (- L lp))) (setq pnd (+ pnd (- L lp)))))
                (T (setq notes (cons (strcat "тип линии " lt " " (rtos L 2 1) " м не учтён") notes)))))
         ((and (> (length gl) 1) (member g gl))
          (setq notes (cons (strcat "полилиния " (dl:hnd (car p)) " общая с "
@@ -433,7 +509,8 @@
     (setq res (cons (list g (dl:r2 pvh) (dl:r2 pnd) (reverse hs)
                           (if notes (apply 'strcat (mapcar '(lambda (x) (strcat x "; ")) (reverse notes))) "")
                           (cdr (assoc g *dl-cnt*))
-                          (dl:join (dl:uniq (vl-remove "" (mapcar '(lambda (lb) (if (= (car lb) g) (nth 4 lb) "")) labels))) "; "))
+                          (dl:join (dl:uniq (vl-remove "" (mapcar '(lambda (lb) (if (= (car lb) g) (nth 4 lb) "")) labels))) "; ")
+                          (dl:r2 lot))
                     res)))
   (reverse res))
 
@@ -490,6 +567,11 @@
   (setq v (dl:vv (dl:try (strcat "чтение колонки " c) 'vlax-get-property
                          (list (dl:rng sh (strcat c (itoa *dl-row0*) ":" c (itoa *dl-row1*))) 'Value2))))
   (mapcar '(lambda (row) (dl:vv (car row))) (dl:try (strcat "разбор колонки " c) 'vlax-safearray->list (list v))))
+;; формулы колонки (как в строке формул): "" — пусто, "=..." — формула
+(defun dl:colf (sh c / v)
+  (setq v (dl:vv (dl:try (strcat "чтение формул " c) 'vlax-get-property
+                         (list (dl:rng sh (strcat c (itoa *dl-row0*) ":" c (itoa *dl-row1*))) 'Formula))))
+  (mapcar '(lambda (row) (dl:str (dl:vv (car row)))) (dl:try (strcat "разбор формул " c) 'vlax-safearray->list (list v))))
 (defun dl:str (x) (cond ((null x) "") ((= (type x) 'STR) (vl-string-trim " " x)) (T (vl-princ-to-string x))))
 
 (defun dl:book (path / xl book wbs)
@@ -542,8 +624,8 @@
       (setq *dl-hdrs* (append *dl-hdrs* (list (strcase title))))
       (dl:colname *dl-lastcol*))))
 
-(defun dl:write (path sum / book sh cD cG cI cK cL cM cS cPV cPN cHN cNT cEX
-                            names hands svals rs i last g row newn upd n)
+(defun dl:write (path sum / book sh cD cG cI cJ cK cL cM cS cPV cPN cLT cHN cNT cEX
+                            names hands svals jf lref rs i last g row newn upd n)
   (setq book (dl:book path)
         *dl-app* (vlax-get-property book 'Application)
         *dl-fmode* nil
@@ -571,13 +653,16 @@
         cPN (dl:hnew sh "DWG: гофра ПНД" 1 "DWG: гофра ПНД по плану, м")
         cHN (dl:hnew sh "DWG: хэндлы" 1 "DWG: хэндлы полилиний")
         cNT (dl:hnew sh "DWG: примечание" 1 "DWG: примечание")
-        cEX (dl:hnew sh "выноск" 2 "Доп. информация из выноски"))
+        cEX (dl:hnew sh "выноск" 2 "Доп. информация из выноски")
+        cLT (dl:hnew sh "DWG: лоток" 1 "DWG: лоток по плану, м")
+        cJ (if (dl:hcol "Лоток" 0) (dl:colname (dl:hcol "Лоток" 0))))
   (setq names (mapcar 'dl:str (dl:col sh cD))
         *dl-tnames* names
         *dl-renamed* nil
         *dl-codes* (dl:read-codes book)
         hands (mapcar 'dl:str (dl:col sh cHN))
         svals (dl:col sh cS)
+        jf (if cJ (dl:colf sh cJ))
         last (1- *dl-row0*) i *dl-row0*)
   (foreach n names (if (/= n "") (setq last i)) (setq i (1+ i)))
   (setq newn 0 upd 0)
@@ -600,13 +685,19 @@
     (setq rs (itoa row))
     (if (nth 5 s) (dl:put sh (strcat cG rs) (nth 5 s)))
     (dl:putf sh (strcat cI rs)
-      (strcat "=IF(COUNT(" cPV rs "," cPN rs ")=0,\"\",ROUNDUP(SUM(" cPV rs "," cPN rs "),0))"))
+      (strcat "=IF(COUNT(" cPV rs "," cPN rs "," cLT rs ")=0,\"\",ROUNDUP(SUM(" cPV rs "," cPN rs "," cLT rs "),0))"))
+    ;; J «Лоток»: формула от «DWG: лоток», если лоток найден или в J не ручное число
+    (if (and cJ (or (> (nth 7 s) 0.0) (member (substr (dl:str (nth (- row *dl-row0*) jf)) 1 1) '("" "="))))
+      (dl:putf sh (strcat cJ rs) (strcat "=IF(N(" cLT rs ")=0,\"\",ROUNDUP(N(" cLT rs "),0))")))
+    ;; основная гофра = итог - вторая гофра - лоток - 4
+    (setq lref (if cJ (strcat "N(" cJ rs ")") (strcat "ROUNDUP(N(" cLT rs "),0)")))
     (dl:putf sh (strcat cK rs)
-      (strcat "=IF(OR(" cI rs "=\"\"," cS rs "=\"\"),\"\",IF(" cS rs "=1,MAX(0," cM rs "-ROUNDUP(N(" cPN rs "),0)-4),ROUNDUP(N(" cPV rs "),0)))"))
+      (strcat "=IF(OR(" cI rs "=\"\"," cS rs "=\"\"),\"\",IF(" cS rs "=1,MAX(0," cM rs "-ROUNDUP(N(" cPN rs "),0)-" lref "-4),ROUNDUP(N(" cPV rs "),0)))"))
     (dl:putf sh (strcat cL rs)
-      (strcat "=IF(OR(" cI rs "=\"\"," cS rs "=\"\"),\"\",IF(" cS rs "=2,MAX(0," cM rs "-ROUNDUP(N(" cPV rs "),0)-4),ROUNDUP(N(" cPN rs "),0)))"))
+      (strcat "=IF(OR(" cI rs "=\"\"," cS rs "=\"\"),\"\",IF(" cS rs "=2,MAX(0," cM rs "-ROUNDUP(N(" cPV rs "),0)-" lref "-4),ROUNDUP(N(" cPN rs "),0)))"))
     (dl:put sh (strcat cPV rs) (nth 1 s))
     (dl:put sh (strcat cPN rs) (nth 2 s))
+    (dl:put sh (strcat cLT rs) (nth 7 s))
     (dl:put sh (strcat cHN rs) (dl:join (nth 3 s) " "))
     (dl:put sh (strcat cNT rs) (nth 4 s))
     (dl:put sh (strcat cEX rs) (nth 6 s))
@@ -628,6 +719,7 @@
              (/= (nth (- i *dl-row0*) hands) "")
              (not (vl-some 'dl:alive (dl:split (nth (- i *dl-row0*) hands)))))
       (progn (dl:put sh (strcat cPV (itoa i)) nil) (dl:put sh (strcat cPN (itoa i)) nil)
+             (dl:put sh (strcat cLT (itoa i)) nil)
              (dl:put sh (strcat cHN (itoa i)) nil)
              (dl:put sh (strcat cNT (itoa i)) "полилинии удалены из чертежа")))
     (setq i (1+ i)))
@@ -1004,6 +1096,7 @@
                                         "  заморожено слоёв в ВЭ: " (itoa (length (nth 4 w))))))
       (princ (strcat "\n  окон планов: " (itoa (length wins))
                      "  трасс: " (itoa (length *dl-polys*))
+                     "  лотков: " (itoa (length *dl-trays*))
                      "  выносок: " (itoa (length labels))
                      "  линий: " (itoa (length sum))))
       (setq res (dl:write path sum))
