@@ -11,6 +11,8 @@ if defined OPEN goto opened
 
 echo Сохраняю изменения этого ПК...
 git add -A
+powershell -NoProfile -Command "[Console]::OutputEncoding=[Text.Encoding]::UTF8; $n=0; git -c core.quotepath=false diff --cached --name-only --diff-filter=AM | %%{ if ((Test-Path -LiteralPath $_) -and ((Get-Item -LiteralPath $_).Length -gt 95MB)) { git reset -q -- $_; Write-Host ('   ' + $_); $n++ } }; exit $n"
+if errorlevel 1 echo Эти файлы больше 95 МБ - GitHub их не принимает, они остались только на этом ПК.
 git diff --cached --quiet
 if errorlevel 1 git commit -q -m "%COMPUTERNAME% %date% %time:~0,5%"
 echo Сверяю с GitHub...
