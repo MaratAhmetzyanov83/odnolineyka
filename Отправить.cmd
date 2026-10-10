@@ -1,0 +1,54 @@
+@echo off
+chcp 65001 >nul
+cd /d "%~dp0"
+where git >nul 2>&1 || goto nogit
+git config user.name >nul 2>&1 || git config user.name "%USERNAME%"
+git config user.email >nul 2>&1 || git config user.email "%USERNAME%@%COMPUTERNAME%"
+set OPEN=
+for /r %%f in (~$*) do set OPEN=%%~nxf
+for /r %%f in (*.dwl) do set OPEN=%%~nxf
+if defined OPEN goto opened
+
+echo Сохраняю изменения этого ПК...
+git add -A
+git diff --cached --quiet
+if errorlevel 1 git commit -q -m "%COMPUTERNAME% %date% %time:~0,5%"
+echo Сверяю с GitHub...
+git pull --rebase --autostash
+if errorlevel 1 goto conflict
+git push -q
+if errorlevel 1 goto pusherr
+echo.
+echo Готово: изменения на GitHub. На другом ПК нажмите "Получить.cmd".
+goto end
+
+:conflict
+echo.
+echo ВНИМАНИЕ: одни и те же файлы менялись и здесь, и на другом ПК:
+git diff --name-only --diff-filter=U
+git rebase --abort >nul 2>&1
+echo.
+echo Ничего не потеряно: ваши правки сохранены на этом ПК, но на GitHub не ушли.
+echo Откройте Claude в этой папке и скажите: "конфликт при отправке".
+goto end
+
+:pusherr
+echo.
+echo Не удалось отправить на GitHub: нет интернета или не выполнен вход.
+echo Правки сохранены на этом ПК - запустите "Отправить.cmd" позже.
+goto end
+
+:opened
+echo.
+echo Открыт файл в Excel или AutoCAD (найден %OPEN%).
+echo Сохраните и закройте таблицы и чертежи из этой папки, потом запустите снова.
+echo Если всё закрыто, а сообщение повторяется - удалите этот файл: он остался после сбоя.
+goto end
+
+:nogit
+echo Не найден Git. Установите Git for Windows: https://git-scm.com/download/win
+goto end
+
+:end
+echo.
+pause

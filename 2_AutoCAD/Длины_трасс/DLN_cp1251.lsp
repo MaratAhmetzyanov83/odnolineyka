@@ -1,7 +1,11 @@
 ;;; ================================================================
-;;;  DLN — длины кабельных линий из планов в таблицу однолинейки
-;;;  Команды:  DLN      — посчитать и записать в Excel
-;;;            DLN_XLS  — сбросить запомненный путь к таблице
+;;;  DLN v16 — длины кабельных линий из планов в таблицу однолинейки
+;;;  Книги: 1.06 / 1.05 / v3.12 (лист «Исходные данные»); v4, v5 (лист «Линии») — архив.
+;;;  Команды:  DLN      — заполнить таблицу (первый раз)
+;;;            DLN_UPD  — обновить после правок планов: длины, кол-во, текст выноски;
+;;;                       новые линии — по порядку номеров; пропавшие — подсветка
+;;;                       и «нет на плане»; «Потолок/Пол», мощность, кабель не трогает
+;;;            DLN_CHK  — только проверка чертежа;  DLN_XLS — сбросить путь к таблице
 ;;;
 ;;;  Логика:
 ;;;   1. Берутся окна видовых экранов планов (шириной в модели >= *dl-minw*).
@@ -13,10 +17,13 @@
 ;;;   5. Длины по типу линии: Continuous = гофра ПВХ, JIS_02_0.7 = гофра ПНД,
 ;;;      Lotok = лоток. Участки гофры, идущие вдоль полилинии лотка
 ;;;      (слой "*Лоток*" или тип линии Lotok не на слое трасс), — тоже лоток.
-;;;   6. В лист "Исходные данные" пишутся колонки AU (ПВХ), AV (ПНД),
-;;;      AW (хэндлы), AX (примечание), «DWG: лоток по плану, м» и формула
-;;;      в J «Лоток». Новые линии добавляются в конец.
-;;;      Колонка S ставится только если пустая. Книга НЕ сохраняется.
+;;;   6. В лист "Исходные данные" пишутся колонки «DWG: …» (ПВХ, ПНД, лоток, хэндлы,
+;;;      примечание) и «Доп. информация из выноски» — ищутся по заголовку; в J «Лоток» —
+;;;      формула от «DWG: лоток». Гофра ПВХ / ПНД — с плана раздельно, опуски
+;;;      (итог - по плану) — к гофре по «Потолок/Пол». Строки выше 21-й (вводы и т.п.)
+;;;      только обновляются на месте. Книга НЕ сохраняется.
+;;;   7. Книга v4 / v5 (есть лист "Линии") — архив: пишутся только колонки DWG и
+;;;      «Потолок/Пол» по номеру линии.
 ;;; ================================================================
 (vl-load-com)
 
@@ -43,6 +50,30 @@
       *dl-block* 15            ; строк в блоке
       *dl-gap*   2             ; пустых строк между блоками
       *dl-row1*  1000)
+(setq *dl-sheet-v3* *dl-sheet* *dl-row0-v3* *dl-row0* *dl-v4* nil)
+;; книга v4 (лист «Линии»): строки с 3-й, без сортировки и формул
+(defun dl:v4-setup (book / sh)
+  (setq sh (vl-catch-all-apply 'vlax-get-property (list (vlax-get-property book 'Worksheets) 'Item "Линии")))
+  (if (vl-catch-all-error-p sh)
+    (setq *dl-v4* nil *dl-sheet* *dl-sheet-v3* *dl-row0* *dl-row0-v3*)
+    (setq *dl-v4* T *dl-sheet* "Линии" *dl-row0* 3))
+  *dl-v4*)
+;; v4: последняя строка таблицы «Линии» и расширение таблицы до строки row
+(defun dl:v4-table (sh / los lo)
+  (setq los (vl-catch-all-apply 'vlax-get-property (list sh 'ListObjects)))
+  (if (not (vl-catch-all-error-p los))
+    (setq lo (vl-catch-all-apply 'vlax-invoke-method (list los 'Item "Линии"))))
+  (if (and lo (not (vl-catch-all-error-p lo))) lo))
+(defun dl:v4-last (sh / lo rg)
+  (if (setq lo (dl:v4-table sh))
+    (progn (setq rg (vlax-get-property lo 'Range))
+           (+ (vlax-get-property rg 'Row) (vlax-get-property (vlax-get-property rg 'Rows) 'Count) -1))))
+(defun dl:v4-resize (sh row / lo rg ncol)
+  (if (setq lo (dl:v4-table sh))
+    (progn (setq rg (vlax-get-property lo 'Range)
+                 ncol (vlax-get-property (vlax-get-property rg 'Columns) 'Count))
+           (vl-catch-all-apply 'vlax-invoke-method
+             (list lo 'Resize (dl:rng sh (strcat "A" (itoa (vlax-get-property rg 'Row)) ":" (dl:colname ncol) (itoa row))))))))
 
 ;;; ---------- мелкие помощники ----------
 (defun dl:2d (p) (list (car p) (cadr p)))
@@ -624,17 +655,58 @@
       (setq *dl-hdrs* (append *dl-hdrs* (list (strcase title))))
       (dl:colname *dl-lastcol*))))
 
-(defun dl:write (path sum / book sh cD cG cI cJ cK cL cM cS cPV cPN cLT cHN cNT cEX
-                            names hands svals jf lref rs i last g row newn upd n)
+;; цвет подсветки строки «нет на плане» (светло-красный, RGB 255,199,206)
+(setq *dl-miss-color* 13551615 *dl-row-top* 3)
+(defun dl:paint (sh a on / it)
+  (setq it (vl-catch-all-apply 'vlax-get-property (list (dl:rng sh a) 'Interior)))
+  (if (not (vl-catch-all-error-p it))
+    (if on
+      (vl-catch-all-apply 'vlax-put-property (list it 'Color *dl-miss-color*))
+      (if (equal (dl:vv (vl-catch-all-apply 'vlax-get-property (list it 'Color))) (float *dl-miss-color*) 0.5)
+        (vl-catch-all-apply 'vlax-put-property (list it 'ColorIndex -4142))))))
+;; строки выше *dl-row0* (вводы, ЩБП и т.п., вписанные вручную): только найти и обновить на месте
+(defun dl:col-top (sh c / v)
+  (if (> *dl-row0* *dl-row-top*)
+    (progn
+      (setq v (dl:vv (dl:try (strcat "чтение колонки " c) 'vlax-get-property
+                             (list (dl:rng sh (strcat c (itoa *dl-row-top*) ":" c (itoa (1- *dl-row0*)))) 'Value2))))
+      (mapcar '(lambda (row) (dl:vv (car row))) (dl:try (strcat "разбор колонки " c) 'vlax-safearray->list (list v))))))
+;; подсветка «нет на плане» / «полилинии удалены» — после раскладки строк, по номеру линии
+(defun dl:paint-all (sh cD marked / v i n last)
+  (setq v (mapcar '(lambda (row) (dl:str (dl:vv (car row))))
+            (vlax-safearray->list (dl:vv (dl:try "чтение номеров" 'vlax-get-property
+              (list (dl:rng sh (strcat cD (itoa *dl-row-top*) ":" cD (itoa *dl-row1*))) 'Value2)))))
+        i *dl-row-top* last *dl-row-top*)
+  (foreach n v (if (/= n "") (setq last i)) (setq i (1+ i)))
+  (setq i *dl-row-top*)
+  (foreach n v
+    (if (<= i (+ last *dl-block*))
+      (dl:paint sh (strcat cD (itoa i)) (and (/= n "") (member n marked))))
+    (setq i (1+ i))))
+;; найти строку линии g: точное совпадение, затем «те же знаки, другие буквы»
+(defun dl:find-row (g names row0 / row i)
+  (setq i row0)
+  (foreach n names (if (and (null row) (= n g)) (setq row i)) (setq i (1+ i)))
+  (if (null row)
+    (progn
+      (setq i row0)
+      (foreach n names
+        (if (and (null row) (/= n "") (= (dl:norm n) (dl:norm g)))
+          (setq row i *dl-renamed* (cons (list g n) *dl-renamed*)))
+        (setq i (1+ i)))))
+  row)
+
+;; mode: 'fill — DLN (первое заполнение), 'upd — DLN_UPD (обновить после правок планов)
+(defun dl:write (path sum mode / book sh cD cG cI cJ cK cL cM cS cPV cPN cLT cHN cNT cEX
+                            names tnames hands svals tsvals jf lref rs i last g row newn upd n isnew sv nlines ans)
   (setq book (dl:book path)
         *dl-app* (vlax-get-property book 'Application)
+        *dl-v4* (dl:v4-setup book)
         *dl-fmode* nil
         sh (dl:try (strcat "лист " *dl-sheet*) 'vlax-get-property
                    (list (dl:try "листы книги" 'vlax-get-property (list book 'Worksheets)) 'Item *dl-sheet*)))
   (if (= (vl-catch-all-apply 'vlax-get-property (list sh 'ProtectContents)) :vlax-true)
     (progn (princ (strcat "\nDLN: лист «" *dl-sheet* "» защищён — снимите защиту.")) (exit)))
-  (vl-catch-all-apply 'vlax-put-property (list *dl-app* 'Calculation -4135))
-  (vl-catch-all-apply 'vlax-put-property (list *dl-app* 'ScreenUpdating :vlax-false))
   ;; заголовки строки 2
   (setq *dl-hdrs* (mapcar '(lambda (x) (strcase (dl:str (dl:vv x))))
                           (car (dl:try "чтение заголовков" 'vlax-safearray->list
@@ -643,11 +715,23 @@
         *dl-lastcol* 0 i 1)
   (foreach h *dl-hdrs* (if (/= h "") (setq *dl-lastcol* i)) (setq i (1+ i)))
   (setq cD (dl:hreq "Номер линии" 0)
-        cG (dl:hreq "Кол-во потребителей" 1)
+        names (mapcar 'dl:str (dl:col sh cD))
+        nlines 0)
+  (foreach n names (if (/= n "") (setq nlines (1+ nlines))))
+  ;; DLN по уже заполненной таблице — предложить режим «обновить»
+  (if (and (= mode 'fill) (> nlines 0) (not *dl-v4*))
+    (progn
+      (initget "Обновить Заполнить _Update Fill")
+      (setq ans (getkword (strcat "\nDLN: в таблице уже " (itoa nlines)
+                                  " линий. Для правок планов — DLN_UPD. [Обновить/Заполнить] <Обновить>: ")))
+      (if (or (null ans) (= ans "Update")) (setq mode 'upd))))
+  (vl-catch-all-apply 'vlax-put-property (list *dl-app* 'Calculation -4135))
+  (vl-catch-all-apply 'vlax-put-property (list *dl-app* 'ScreenUpdating :vlax-false))
+  (setq cG (dl:hreq "Кол-во потребителей" 1)
         cI (dl:hreq "Длина линии (по плану)" 1)
         cK (dl:hreq "Гофра ПВХ" 0)
         cL (dl:hreq "Гофра ПНД" 0)
-        cM (dl:hreq "Длина линии (Итог)" 1)
+        cM (if *dl-v4* (dl:hreq "Длина, м" 0) (dl:hreq "Длина линии (Итог)" 1))
         cS (dl:hreq "Потолок" 1)
         cPV (dl:hnew sh "DWG: гофра ПВХ" 1 "DWG: гофра ПВХ по плану, м")
         cPN (dl:hnew sh "DWG: гофра ПНД" 1 "DWG: гофра ПНД по плану, м")
@@ -656,8 +740,9 @@
         cEX (dl:hnew sh "выноск" 2 "Доп. информация из выноски")
         cLT (dl:hnew sh "DWG: лоток" 1 "DWG: лоток по плану, м")
         cJ (if (dl:hcol "Лоток" 0) (dl:colname (dl:hcol "Лоток" 0))))
-  (setq names (mapcar 'dl:str (dl:col sh cD))
-        *dl-tnames* names
+  (setq tnames (if *dl-v4* nil (mapcar 'dl:str (dl:col-top sh cD)))
+        tsvals (if *dl-v4* nil (dl:col-top sh cS))
+        *dl-tnames* (append tnames names)
         *dl-renamed* nil
         *dl-codes* (dl:read-codes book)
         hands (mapcar 'dl:str (dl:col sh cHN))
@@ -665,52 +750,57 @@
         jf (if cJ (dl:colf sh cJ))
         last (1- *dl-row0*) i *dl-row0*)
   (foreach n names (if (/= n "") (setq last i)) (setq i (1+ i)))
+  (if (and *dl-v4* (dl:v4-last sh)) (setq last (dl:v4-last sh)))
   (setq newn 0 upd 0)
   (foreach s sum
-    (setq g (car s) row nil i *dl-row0*)
-    (foreach n names (if (and (null row) (= n g)) (setq row i)) (setq i (1+ i)))
+    (setq g (car s) isnew nil
+          row (dl:find-row g names *dl-row0*))
+    (if (and (null row) tnames) (setq row (dl:find-row g tnames *dl-row-top*)))
     (if (null row)
       (progn
-        (setq i *dl-row0*)
-        (foreach n names
-          (if (and (null row) (/= n "") (= (dl:norm n) (dl:norm g)))
-            (setq row i *dl-renamed* (cons (list g n) *dl-renamed*)))
-          (setq i (1+ i)))))
-    (if (null row)
-      (progn
-        (setq last (1+ last) row last rs (itoa row) newn (1+ newn))
+        (setq last (1+ last) row last rs (itoa row) newn (1+ newn) isnew T)
         (dl:put sh (strcat cD rs) g)
         (dl:put sh (strcat cG rs) 1))
       (setq upd (1+ upd)))
     (setq rs (itoa row))
     (if (nth 5 s) (dl:put sh (strcat cG rs) (nth 5 s)))
-    (dl:putf sh (strcat cI rs)
-      (strcat "=IF(COUNT(" cPV rs "," cPN rs "," cLT rs ")=0,\"\",ROUNDUP(SUM(" cPV rs "," cPN rs "," cLT rs "),0))"))
-    ;; J «Лоток»: формула от «DWG: лоток», если лоток найден или в J не ручное число
-    (if (and cJ (or (> (nth 7 s) 0.0) (member (substr (dl:str (nth (- row *dl-row0*) jf)) 1 1) '("" "="))))
-      (dl:putf sh (strcat cJ rs) (strcat "=IF(N(" cLT rs ")=0,\"\",ROUNDUP(N(" cLT rs "),0))")))
-    ;; основная гофра = итог - вторая гофра - лоток - 4
-    (setq lref (if cJ (strcat "N(" cJ rs ")") (strcat "ROUNDUP(N(" cLT rs "),0)")))
-    (dl:putf sh (strcat cK rs)
-      (strcat "=IF(OR(" cI rs "=\"\"," cS rs "=\"\"),\"\",IF(" cS rs "=1,MAX(0," cM rs "-ROUNDUP(N(" cPN rs "),0)-" lref "-4),ROUNDUP(N(" cPV rs "),0)))"))
-    (dl:putf sh (strcat cL rs)
-      (strcat "=IF(OR(" cI rs "=\"\"," cS rs "=\"\"),\"\",IF(" cS rs "=2,MAX(0," cM rs "-ROUNDUP(N(" cPV rs "),0)-" lref "-4),ROUNDUP(N(" cPN rs "),0)))"))
+    (if (not *dl-v4*)
+      (progn
+        ;; длина по плану = ПВХ + ПНД + лоток с плана
+        (dl:putf sh (strcat cI rs)
+          (strcat "=IF(COUNT(" cPV rs "," cPN rs "," cLT rs ")=0,\"\",ROUNDUP(SUM(" cPV rs "," cPN rs "," cLT rs "),0))"))
+        ;; J «Лоток»: формула от «DWG: лоток», если лоток найден или в J не ручное число
+        (if (and cJ (or (> (nth 7 s) 0.0)
+                        (and (>= row *dl-row0*) (member (substr (dl:str (nth (- row *dl-row0*) jf)) 1 1) '("" "=")))))
+          (dl:putf sh (strcat cJ rs) (strcat "=IF(N(" cLT rs ")=0,\"\",ROUNDUP(N(" cLT rs "),0))")))
+        ;; гофра — с плана раздельно (лоток в неё не входит); опуски (итог - по плану) — к гофре
+        ;; своего типа: потолок (1) или пусто — ПВХ, пол (2) — ПНД
+        (dl:putf sh (strcat cK rs)
+          (strcat "=IF(" cI rs "=\"\",\"\",ROUNDUP(N(" cPV rs "),0)+IF(" cS rs "=2,0,MAX(0,N(" cM rs ")-N(" cI rs "))))"))
+        (dl:putf sh (strcat cL rs)
+          (strcat "=IF(" cI rs "=\"\",\"\",ROUNDUP(N(" cPN rs "),0)+IF(" cS rs "=2,MAX(0,N(" cM rs ")-N(" cI rs ")),0))"))))
     (dl:put sh (strcat cPV rs) (nth 1 s))
     (dl:put sh (strcat cPN rs) (nth 2 s))
     (dl:put sh (strcat cLT rs) (nth 7 s))
     (dl:put sh (strcat cHN rs) (dl:join (nth 3 s) " "))
     (dl:put sh (strcat cNT rs) (nth 4 s))
     (dl:put sh (strcat cEX rs) (nth 6 s))
-    (if (and (nth 3 s) (null (nth (- row *dl-row0*) svals)))
+    ;; «Потолок/Пол»: при заполнении — если пусто; при обновлении — только у новых линий
+    (setq sv (if (>= row *dl-row0*) (nth (- row *dl-row0*) svals) (nth (- row *dl-row-top*) tsvals)))
+    (if (and (nth 3 s) (or isnew (and (= mode 'fill) (null sv))))
       (dl:put sh (strcat cS rs) (if (>= (nth 1 s) (nth 2 s)) 1 2))))
-  ;; строки таблицы, которых нет на плане (в пределах тех же «префикс.уровень», что есть в этом запуске)
-  (setq *dl-missing* (dl:missing names sum) i *dl-row0*)
+  ;; строки таблицы, которых нет на плане (в пределах тех же «префикс.уровень»): примечание + подсветка
+  (setq *dl-missing* (dl:missing *dl-tnames* sum) *dl-marked* *dl-missing* i *dl-row-top*)
+  (foreach n tnames
+    (if (member n *dl-missing*) (dl:put sh (strcat cNT (itoa i)) "нет на плане"))
+    (setq i (1+ i)))
+  (setq i *dl-row0*)
   (foreach n names
     (if (member n *dl-missing*) (dl:put sh (strcat cNT (itoa i)) "нет на плане"))
     (setq i (1+ i)))
   (setq *dl-added* nil)
   (foreach s sum
-    (if (not (vl-some '(lambda (n) (= (dl:norm n) (dl:norm (car s)))) names))
+    (if (not (vl-some '(lambda (n) (= (dl:norm n) (dl:norm (car s)))) *dl-tnames*))
       (setq *dl-added* (cons (car s) *dl-added*))))
   ;; строки, чьи полилинии удалены из чертежа (другие листы не трогаем)
   (setq i *dl-row0*)
@@ -721,11 +811,14 @@
       (progn (dl:put sh (strcat cPV (itoa i)) nil) (dl:put sh (strcat cPN (itoa i)) nil)
              (dl:put sh (strcat cLT (itoa i)) nil)
              (dl:put sh (strcat cHN (itoa i)) nil)
-             (dl:put sh (strcat cNT (itoa i)) "полилинии удалены из чертежа")))
+             (dl:put sh (strcat cNT (itoa i)) "полилинии удалены из чертежа")
+             (setq *dl-marked* (cons n *dl-marked*))))
     (setq i (1+ i)))
-  (dl:sort sh cD)
+  (if *dl-v4*
+    (if (> newn 0) (dl:v4-resize sh last))
+    (progn (dl:sort sh cD) (dl:paint-all sh cD *dl-marked*)))
   (dl:restore-xl)
-  (list upd newn))
+  (list upd newn mode))
 (defun dl:restore-xl ()
   (if *dl-app*
     (progn (vl-catch-all-apply 'vlax-put-property (list *dl-app* 'ScreenUpdating :vlax-true))
@@ -771,12 +864,20 @@
                            (T (vlax-make-variant v))))
                   vals)))
   (dl:try (strcat "перенос строки " (itoa row)) 'vlax-put-property
-          (list (dl:rng sh (strcat (dl:colname c1) (itoa row) ":" (dl:colname c2) (itoa row))) 'FormulaR1C1 sa)))
+          (list (dl:rng sh (strcat (dl:colname c1) (itoa row) ":" (dl:colname c2) (itoa row))) (dl:f2prop) sa)))
+;; Excel 365: Formula2R1C1 (без «@» в LET/XLOOKUP); старый Excel — FormulaR1C1
+(defun dl:f2prop ()
+  (if (null *dl-f2*)
+    (setq *dl-f2* (if (vl-catch-all-error-p
+                        (vl-catch-all-apply 'vlax-get-property (list (dl:rng *dl-sh-any* "A1") 'Formula2R1C1)))
+                    'FormulaR1C1 'Formula2R1C1)))
+  *dl-f2*)
 
 ;; перестановка строк без сортировки Excel: строки блока читаются (FormulaR1C1)
 ;; и переписываются на свои места; колонки с формулами массива не трогаются
 (defun dl:sort (sh cD / ncols names i data used maxi npos k srcs fills block arr p src row c c1 vals)
-  (setq ncols *dl-lastcol*
+  (setq *dl-sh-any* sh *dl-f2* nil
+        ncols *dl-lastcol*
         names (mapcar 'dl:str (dl:col sh cD)) i 0 maxi -1)
   (foreach n names
     (if (/= n "") (setq data (cons (cons (dl:sortkey n) i) data) maxi i))
@@ -803,7 +904,7 @@
                         (vlax-safearray->list
                           (dl:vv (dl:try "чтение строк" 'vlax-get-property
                                    (list (dl:rng sh (strcat "A" (itoa *dl-row0*) ":" (dl:colname ncols)
-                                                            (itoa (+ *dl-row0* npos -1)))) 'FormulaR1C1)))))
+                                                            (itoa (+ *dl-row0* npos -1)))) (dl:f2prop))))))
                 c 1 arr nil)
           (repeat ncols
             (if (dl:isarray sh (strcat (dl:colname c) (itoa *dl-row0*))) (setq arr (cons c arr)))
@@ -887,12 +988,16 @@
     (*dl-codes* (strcat "префикса «" pre "» нет в Справочной"))))
 
 ;; --- таблица
-(defun dl:read-codes (book / sh v r x)
-  (setq sh (vl-catch-all-apply 'vlax-get-property
-             (list (vlax-get-property book 'Worksheets) 'Item "Справочная")))
+(defun dl:read-codes (book / sh v r x rng)
+  (setq sh (vl-catch-all-apply 'vlax-get-property (list (vlax-get-property book 'Worksheets) 'Item "Коды"))
+        rng "A4:A1000")
+  (if (vl-catch-all-error-p sh)
+    (setq sh (vl-catch-all-apply 'vlax-get-property
+               (list (vlax-get-property book 'Worksheets) 'Item "Справочная"))
+          rng "P4:P200"))
   (if (not (vl-catch-all-error-p sh))
     (progn
-      (setq v (vl-catch-all-apply 'vlax-get-property (list (vlax-get-property sh 'Range "P4:P200") 'Value2)))
+      (setq v (vl-catch-all-apply 'vlax-get-property (list (vlax-get-property sh 'Range rng) 'Value2)))
       (if (not (vl-catch-all-error-p v))
         (foreach row (vlax-safearray->list (dl:vv v))
           (if (/= (setq x (dl:str (dl:vv (car row)))) "") (setq r (cons x r)))))))
@@ -911,7 +1016,8 @@
   (setq book (vl-catch-all-apply 'dl:book (list path)))
   (if (not (vl-catch-all-error-p book))
     (progn
-      (setq *dl-codes* (dl:read-codes book)
+      (setq *dl-v4* (dl:v4-setup book)
+            *dl-codes* (dl:read-codes book)
             sh (vl-catch-all-apply 'vlax-get-property
                  (list (vlax-get-property book 'Worksheets) 'Item *dl-sheet*)))
       (if (not (vl-catch-all-error-p sh))
@@ -934,7 +1040,7 @@
   (setq p (vlax-ldata-get "DLN" "xls"))
   (if (or (null p) (not (findfile p))) (setq p (getenv "DLN_XLS")))
   (if (and ask (or (null p) (= p "") (not (findfile p))))
-    (setq p (getfiled "Таблица однолинейки (Исходные данные)" (getvar "DWGPREFIX") "xlsx" 0)))
+    (setq p (getfiled "Таблица однолинейки (xlsx / xlsm)" (getvar "DWGPREFIX") "xlsx;xlsm" 0)))
   (if (and p (/= p "") (findfile p))
     (progn (vlax-ldata-put "DLN" "xls" p) (setenv "DLN_XLS" p) p)))
 
@@ -1070,7 +1176,9 @@
 (defun c:DLN_PREV () (dl:nav -1))
 
 ;;; ---------- команды ----------
-(defun c:DLN (/ *error* path wins labels issues sum res bad ss)
+(defun c:DLN () (dl:run 'fill))
+(defun c:DLN_UPD () (dl:run 'upd))
+(defun dl:run (mode / *error* path wins labels issues sum res bad ss)
   (defun *error* (m)
     (dl:restore-xl)
     (if (not (wcmatch (strcase m) "*CANCEL*,*QUIT*,*EXIT*")) (princ (strcat "\nDLN: " m)))
@@ -1099,8 +1207,9 @@
                      "  лотков: " (itoa (length *dl-trays*))
                      "  выносок: " (itoa (length labels))
                      "  линий: " (itoa (length sum))))
-      (setq res (dl:write path sum))
-      (princ (strcat "\n  обновлено строк: " (itoa (car res)) ", добавлено: " (itoa (cadr res))
+      (setq res (dl:write path sum mode))
+      (princ (strcat "\n  режим: " (if (= (caddr res) 'upd) "обновить" "заполнить")
+                     "  обновлено строк: " (itoa (car res)) ", добавлено: " (itoa (cadr res))
                      "  (формулы: " (cond ((= *dl-fmode* 1) "Formula") ((= *dl-fmode* 2) "FormulaLocal") ((= *dl-fmode* 3) "Value2") (T "-")) ")"))
       (dl:check labels issues sum)
       ;; выделить полилинии без группы или с конфликтом
@@ -1132,5 +1241,5 @@
   (dl:check labels issues (dl:summary labels))
   (princ))
 
-(princ "\nDLN загружен. Команды: DLN (расчёт + проверка), DLN_CHK (только проверка), DLN_NEXT / DLN_PREV (по пометкам), DLN_CLR (убрать пометки), DLN_XLS (сменить таблицу)")
+(princ "\nDLN for 1.06 загружен. Команды: DLN (заполнить), DLN_UPD (обновить после правок планов), DLN_CHK (только проверка), DLN_NEXT / DLN_PREV (по пометкам), DLN_CLR (убрать пометки), DLN_XLS (сменить таблицу)")
 (princ)

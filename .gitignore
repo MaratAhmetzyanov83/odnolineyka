@@ -13,3 +13,5 @@ __pycache__/
 2_AutoCAD/Кабельный_журнал/Кабельный_журнал_программа.zip
 _Разработка/2026-10-09_cable-journal/build/
 _Разработка/2026-10-09_cable-journal/release_v*/
+*.dwl
+*.dwl2

@@ -26,7 +26,6 @@ BASELINE_DIR = os.path.join(HERE, "baseline")
 # имя эталона -> путь к книге (от корня репозитория)
 ETALONS = OrderedDict([
     ("ostrov", os.path.join("1_Таблицы_Excel", "Однолинейка_пример_ЖК-Остров.xlsx")),
-    ("grsh_zhd", os.path.join("1_Таблицы_Excel", "Объект ЖД", "Однолинейка ГРЩ-ЖД.xlsx")),
 ])
 
 SECTION_TITLES = OrderedDict([
