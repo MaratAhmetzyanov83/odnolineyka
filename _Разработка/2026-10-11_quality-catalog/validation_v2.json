@@ -1,0 +1,23 @@
+{
+  "svg_blocks": 2542,
+  "old_named_definitions": 892,
+  "old_definition_changes": [],
+  "catalog_rows": 3441,
+  "pages": 1141,
+  "types": 28,
+  "manufacturer_layers": 213,
+  "corrected_dimensions": 395,
+  "gradient_blocks": 70,
+  "simplified_texture_blocks": 18,
+  "native": {
+    "INSERTS": 3440,
+    "VIEWS": 1416,
+    "LINKS": 5738,
+    "BROKEN_LINKS": 0,
+    "EXTERNAL_LINKS": 0
+  },
+  "checked_positions": 3440,
+  "audit_errors": 0,
+  "visual_sample_count": 26,
+  "gui_dialog_tested": false
+}

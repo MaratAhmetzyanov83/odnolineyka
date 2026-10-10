@@ -1,0 +1,23 @@
+{
+  "svg_blocks": 2542,
+  "original_definitions": 892,
+  "original_count_changes": [],
+  "catalog_rows": 3441,
+  "model_inserts": 3440,
+  "views": 219,
+  "types": 21,
+  "raster_trace_blocks": 2,
+  "texture_blocks": 18,
+  "gradient_blocks": 70,
+  "derived_dimension_blocks": 5,
+  "audit_errors": 0,
+  "sha256": "e43323a4a8bf8846ec2460151ac6745ee157ad6c4d9d170b6faa366c74b8d95a",
+  "updated_files": [
+    "C:\\Users\\marat\\Desktop\\odnolineyka\\База блоков компоновки (1).dwg",
+    "C:\\Users\\marat\\Desktop\\odnolineyka\\2_AutoCAD\\Блоки\\SX_Компоновка_пользовательские.dwg"
+  ],
+  "backups": [
+    "C:\\Users\\marat\\Desktop\\odnolineyka\\_Разработка\\2026-10-10_svg-base\\База блоков компоновки (1)_до_пополнения.dwg",
+    "C:\\Users\\marat\\Desktop\\odnolineyka\\_Разработка\\2026-10-10_svg-base\\SX_Компоновка_пользовательские_до_пополнения.dwg"
+  ]
+}

@@ -1,0 +1,82 @@
+Redirect stdout (file: C:\Users\marat\AppData\Local\Temp\accc220082).
+AcCoreConsole: StdOutConsoleMode: processed-output: disabled,auto
+AutoCAD Core Engine Console - Copyright 2026 Autodesk, Inc.  All rights reserved. (X.60.0.0)
+
+Execution Path:
+C:\Program Files\Autodesk\AutoCAD 2027\accoreconsole.exe
+Current Directory: C:\Users\marat\Documents\Codex\2026-10-10\e-x20
+
+Version Number: X.60.0.0 (UNICODE)
+LogFilePath has been set to the working folder.
+CoreHeartBeat
+Выполняется регенерация модели.
+CoreHeartBeat
+CoreHeartBeat
+CoreHeartBeat
+CoreHeartBeat
+CoreHeartBeat
+CoreHeartBeat
+CoreHeartBeat
+CoreHeartBeat
+CoreHeartBeat
+CoreHeartBeat
+CoreHeartBeat
+CoreHeartBeat
+CoreHeartBeat
+CoreHeartBeat
+CoreHeartBeat
+CoreHeartBeat
+CoreHeartBeat
+CoreHeartBeat
+CoreHeartBeat
+CoreHeartBeat
+CoreHeartBeat
+
+**** Системная переменная изменена ****
+Отслеживаемым системным переменным (2) назначены значения, отличные от предпочтительных. Для просмотра изменений воспользуйтесь командой СИСТПЕРЕММОНИТОР.
+
+
+Утилиты меню AutoCAD загружены.
+Команда:
+Команда:
+
+Команда:
+Команда: (load "C:/Users/marat/Documents/Codex/2026-10-10/e-x20/work/v2/verify_v2.lsp")
+
+CoreHeartBeat
+Каталог загружен: 3441 блоков. Команды: SXCAT, SXHOME, SXGO.
+
+
+Проверка заголовка
+
+
+Проверка таблиц
+
+
+Проверка объектов, проход 1
+
+Проход 1: проверено объектов: 853700
+Проверка объектов, проход 2
+
+Проход 2: проверено объектов: 853700
+Проверка блоков
+
+CoreHeartBeat
+ Проверено блоков: 3488
+
+
+
+Проверка AcDsRecords
+
+
+Всего найдено ошибок: 0, исправлено: 0
+
+Стерто 0 объектов
+
+VERIFY_V2_DONE
+
+Команда: _QUIT
+_Y
+Отказаться от всех изменений в чертеже? <Н> _Y
+
+LogFilePath has been restored to ''.
