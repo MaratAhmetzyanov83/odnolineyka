@@ -256,6 +256,7 @@ def step_reference(wb, sep):
 # ------------------------------------------------------------------------------------------------
 R_SCHEME = 64                      # заголовок «Схема щита»
 R_VVOD, R_AVR, R_IBP, R_PROV, R_PROV2 = 65, 66, 67, 68, 69
+R_UP = 70                          # категория питающей линии (от вышестоящего щита: связь или ввод)
 R_BUS_H = 72                       # заголовок таблицы «Шины щита»
 R_BUS1, R_BUS2 = 73, 82
 
@@ -314,14 +315,7 @@ def step_power_sections(wb, sep):
     add_list_validation(ws.Range("C%d:E%d" % (R_IBP, R_IBP)), ["Ввод 1", "Ввод 2", "Ввод 3"], sep)
     cell("B%d" % R_PROV, "Обеспечиваемая категория: шина «Ввод»")
     cell("B%d" % R_PROV2, "Обеспечиваемая категория: шина «ИБП», «ДГУ»")
-    for col in "CDE":
-        cell("%s%d" % (col, R_PROV),
-             '=IF(%s$%d="","",IF(IFERROR(--%s%d,1)>=2,IF(LOWER(TRIM(%s%d&""))="да","I","II"),"III"))'
-             % (col, R_SCHEME, col, R_VVOD, col, R_AVR), bold=True, align=-4108)
-        cell("%s%d" % (col, R_PROV2), '=IF(%s$%d="","","I особая")' % (col, R_SCHEME), bold=True, align=-4108)
-    cell("G%d" % R_PROV, "один ввод — III; 2+ ввода без АВР — II; 2+ ввода с АВР — I (шина «Одиночная» — всегда III)")
-    cell("G%d" % R_PROV2, "нагрузка на ИБП или ДГУ — I особая")
-    box(ws.Range("B%d:G%d" % (R_PROV, R_PROV2)))
+    step_feed_cat(wb, sep)
     # шины щита
     cell("B71", "Шины щита: тип шины вручную (если шины нет в таблице — тип по имени и секции)", bold=True, wrap=False)
     cell("B%d" % R_BUS_H, "Шина (как в «Однолинейка» D; основная — «основная»)")
@@ -354,6 +348,51 @@ def step_power_sections(wb, sep):
             wb.Names(nm).RefersTo = ref
         except Exception:
             wb.Names.Add(nm, ref)
+
+
+def step_feed_cat(wb, sep):
+    """«Питание_щита» C68:E69 - обеспечиваемая категория, C70:E70 - категория питающей линии (от вышестоящего щита).
+    Щит с одним вводом наследует категорию своей питающей линии, но не выше II: один кабель - не два независимых
+    источника (ПУЭ 1.2.19), для I щиту нужны 2 ввода с АВР. C70 заполняет grsh_rollup.py связью с «Нижестоящие_щиты» BH
+    вышестоящего щита; можно ввести вручную. Пусто - как раньше (по своей схеме). Ввод пользователя не затирается."""
+    ws = sheet(wb, "Питание_щита")
+
+    def cell(a, v, bold=False, size=10, color=None, align=None):
+        c = ws.Range(a)
+        c.Value = v
+        c.Font.Name = "Arial"
+        c.Font.Size = size
+        c.Font.Bold = bold
+        if color is not None:
+            c.Font.Color = color
+        if align is not None:
+            c.HorizontalAlignment = align
+        return c
+
+    cell("B%d" % R_PROV, "Обеспечиваемая категория: шина «Ввод»")
+    cell("B%d" % R_PROV2, "Обеспечиваемая категория: шина «ИБП», «ДГУ»")
+    cell("B%d" % R_UP, "Категория питающей линии (от вышестоящего щита)")
+    for col in "CDE":
+        up = 'TRIM(%s%d&"")' % (col, R_UP)
+        cell("%s%d" % (col, R_PROV),
+             '=IF(%s$%d="","",IF(IFERROR(--%s%d,1)>=2,IF(LOWER(TRIM(%s%d&""))="да","I","II"),'
+             'IF(OR(%s="I особая",%s="I",%s="II"),"II","III")))'
+             % (col, R_SCHEME, col, R_VVOD, col, R_AVR, up, up, up), bold=True, align=-4108)
+        cell("%s%d" % (col, R_PROV2), '=IF(%s$%d="","","I особая")' % (col, R_SCHEME), bold=True, align=-4108)
+    cell("F%d" % R_UP, "")
+    cell("G%d" % R_PROV, "один ввод — III (или II, если питающая линия I / II, строка %d); 2+ ввода без АВР — II; "
+                         "2+ ввода с АВР — I (шина «Одиночная» — всегда III)" % R_UP)
+    cell("G%d" % R_PROV2, "нагрузка на ИБП или ДГУ — I особая")
+    cell("G%d" % R_UP, "связь с ГРЩ («Нижестоящие_щиты» BH, ставит grsh_rollup.py) или вручную; один кабель даёт не выше II "
+                       "(ПУЭ 1.2.19); пусто — по своей схеме")
+    rng = ws.Range("C%d:E%d" % (R_UP, R_UP))
+    rng.Interior.Color = C_INPUT
+    rng.HorizontalAlignment = -4108
+    rng.Font.Name = "Arial"
+    rng.Font.Size = 10
+    rng.Locked = False
+    add_list_validation(rng, CAT, sep)
+    box(ws.Range("B%d:G%d" % (R_PROV, R_UP)))
 
 
 # ------------------------------------------------------------------------------------------------

@@ -1,0 +1,6 @@
+== init
+SX_Layout v0.2 / SX_Schema v3.13 mode=dlg
+encl csv C:\Users\marat\Desktop\SX_Однолинейка\odnolineyka\2_AutoCAD\Компоновка\SX_Корпуса.csv rows=222
+== open last xlsx
+== dialog
+FATAL at [dialog]: неверный тип аргумента: fixnump: T

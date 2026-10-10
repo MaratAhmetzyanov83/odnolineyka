@@ -1,0 +1,5 @@
+== init
+SX_Schema v3.13
+LISPSYS=1 ACADVER=26.0s (LMS Tech) DWG=C:\Users\marat\Documents\Чертеж1.dwg
+== update params
+FATAL at [update params]: завершить / выйти прервать

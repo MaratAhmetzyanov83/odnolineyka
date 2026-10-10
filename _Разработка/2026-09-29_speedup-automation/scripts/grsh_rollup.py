@@ -48,6 +48,8 @@ NHC0 = EXP0 + 1                            # первый столбец свя�
 # служебные столбцы «Нижестоящие_щиты»
 NH_P, NH_Q, NH_S_, NH_R_, NH_T = 16, 17, 19, 18, 20     # щит, источник, пожарная, категория, признак сборки
 NH_MAXC, NH_CHK = NHC0 + NCOL, NHC0 + NCOL + 1          # BF, BG
+NH_UP = NH_CHK + 1                                      # BH: обеспеченная категория фидера (для нижестоящего, «Питание_щита» C70)
+PS_BACK = (6, 7, 8)                                     # «Питание_щита» нижнего щита: строки обратной связи K:N (щиты 1-3)
 
 R_ON = R["svc"] + 54                       # строки «на вводах по щитам» в «Режимы»
 
@@ -312,8 +314,22 @@ def step_nh(wb, sep):
         ws.Range("%s%d" % (L(NH_CHK), r)).Formula = (
             '=IF($%s%d="","",IF(IFERROR(MATCH($%s%d,{"III","II","I","I особая"},0),1)>=IFERROR(MATCH($%s%d,{"III","II","I","I особая"},0),1),"ОК",'
             '"фидер "&$%s%d&" ниже нагрузки "&$%s%d))' % (L(NH_MAXC), r, L(NH_R_), r, L(NH_MAXC), r, L(NH_R_), r, L(NH_MAXC), r))
+    # BH: обеспеченная категория линии-фидера - нижний щит берёт её связью в «Питание_щита» C70 (step_feed_link)
+    ws.Range("%s4" % L(NH_CHK)).Copy(ws.Range("%s4" % L(NH_UP)))
+    ws.Range("%s5:%s%d" % (L(NH_CHK), L(NH_CHK), NH_R1)).Copy()
+    ws.Range("%s5:%s%d" % (L(NH_UP), L(NH_UP), NH_R1)).PasteSpecial(-4122)
+    ws.Application.CutCopyMode = False
+    ws.Range("%s3" % L(NH_UP)).Value = "ДЛЯ НИЖЕСТОЯЩЕГО (v3.12)"
+    ws.Range("%s3" % L(NH_UP)).Font.Bold = True
+    ws.Range("%s3" % L(NH_UP)).Font.Size = 9
+    ws.Range("%s4" % L(NH_UP)).Value = "Обеспечена на фидере (связью в его «Питание_щита» C70)"
+    ws.Columns(NH_UP).ColumnWidth = 16
+    for r in range(NH_R0, NH_R1 + 1):
+        ws.Range("%s%d" % (L(NH_UP), r)).Formula = (
+            "=IF($B{r}=\"\",\"\",IFERROR(INDEX('Исходные данные'!$BU$1:$BU${n},MATCH($B{r},'Исходные данные'!$D$1:$D${n},0))&\"\",\"\"))"
+            .format(r=r, n=LAST))
     ws.Range("%s%d:%s%d" % (L(NH_P), NH_R0, L(NH_T), NH_R1)).Font.Color = C_GREY
-    ws.Range("%s%d:%s%d" % (L(NH_P), NH_R0, L(NH_CHK), NH_R1)).HorizontalAlignment = -4108
+    ws.Range("%s%d:%s%d" % (L(NH_P), NH_R0, L(NH_UP), NH_R1)).HorizontalAlignment = -4108
     setnf(ws.Range("%s%d:%s%d" % (L(NHC0), NH_R0, L(NHC0 + NCOL - 1), NH_R1)), "0.00")
     # связи: тем же способом, что D:J (тот же внешний файл, «Питание_щита»!T45:BD45)
     n_ok = 0
@@ -328,6 +344,24 @@ def step_nh(wb, sep):
             ws.Range("%s%d" % (L(NHC0 + n), r)).Formula = "%s%s%s" % (pref, L(EXP0 + n), rownum)
         n_ok += 1
     return n_ok, rows
+
+
+def step_feed_link(wb):
+    """Нижний щит: «Питание_щита» C70:E70 (категория питающей линии) = связь с «Нижестоящие_щиты» BH вышестоящего щита,
+    по той же строке, что обратная связь C6:F6 (K:N). Ввод пользователя (не связь) не затирается. Возвращает число связей."""
+    ws = sheet(wb, "Питание_щита")
+    n = 0
+    for i, r in enumerate(PS_BACK):
+        f0 = ws.Range("C%d" % r).Formula
+        m = re.match(r"^(=.*Нижестоящие_щиты'?!)\$?K\$?(\d+)$", f0 or "")
+        if not m:
+            continue
+        t = ws.Range("%s%d" % ("CDE"[i], M.R_UP))
+        if not (M.is_empty(t) or (t.HasFormula and "Нижестоящие_щиты" in t.Formula)):
+            continue
+        t.Formula = "%s%s%s" % (m.group(1), L(NH_UP), m.group(2))
+        n += 1
+    return n
 
 
 def step_ng_flag(wb):
@@ -619,6 +653,10 @@ def run(path, out=None, links=True, rollup=None):
             if links:
                 fx, tot = step_links(wb, folder)
                 log("связи: исправлено %d из %d" % (fx, tot))
+            M.step_feed_cat(wb, sep)
+            nf = step_feed_link(wb)
+            if nf:
+                log("категория питающей линии («Питание_щита» C70): связей %d" % nf)
             step_ng_flag(wb)
             log("экспорт «Питание_щита» T:BD...")
             step_export(wb)
@@ -638,7 +676,7 @@ def run(path, out=None, links=True, rollup=None):
             xl.Calculation = -4105
             xl.CalculateFull()
             bad = 0
-            for shn, addr in (("Режимы", "B1:L210"), ("Питание_щита", "T44:BD47"), (NH, "P4:BG34"), (NG, "BB3:BB%d" % LAST),
+            for shn, addr in (("Режимы", "B1:L210"), ("Питание_щита", "T44:BD47"), (NH, "P4:BH34"), ("Питание_щита", "C68:E70"), (NG, "BB3:BB%d" % LAST),
                               (NG, "AJ3:AJ%d" % LAST), ("Категории_по_щитам", "B1:S100")):
                 w = sheet(wb, shn)
                 if w is None:

@@ -1,0 +1,8 @@
+(setvar "CMDECHO" 0)
+(setvar "OSMODE" 0)
+(setvar "ATTREQ" 0)
+(command "_.-INSERT" "LY-K2810412J=C:/Users/marat/AppData/Local/Temp/claude/C--Users-marat-Desktop-SX------------/9b70fd8b-8c16-431e-8972-6668244a1be4/scratchpad/letour_raw.dwg" (list 0.0 0.0) 1 1 0)
+(entdel (entlast))
+(command "_.AUDIT" "_Y")
+(princ "\nREDEF-DONE\n")
+(princ)

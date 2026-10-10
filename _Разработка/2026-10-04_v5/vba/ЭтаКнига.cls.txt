@@ -1,0 +1,16 @@
+Option Explicit
+Private Sub Workbook_Open()
+    SX_AutoFillOff
+End Sub
+
+Private Sub Workbook_Activate()
+    SX_AutoFillOff
+End Sub
+
+Private Sub Workbook_Deactivate()
+    SX_AutoFillRestore
+End Sub
+
+Private Sub Workbook_BeforeClose(Cancel As Boolean)
+    SX_AutoFillRestore
+End Sub

@@ -1,0 +1,22 @@
+Option Explicit
+' table "Shields": gray "auto" cells come back when emptied ("Fed from" = by the feeder line)
+Private Sub Worksheet_Change(ByVal Target As Range)
+    Dim lo As ListObject, rng As Range, c As Range, h As String
+    On Error GoTo done
+    Set lo = Me.ListObjects(U("^0429^0438^0442^044B"))
+    If lo.DataBodyRange Is Nothing Then Exit Sub
+    Set rng = Application.Intersect(Target, lo.DataBodyRange)
+    If rng Is Nothing Then Exit Sub
+    If rng.Cells.Count > 3000 Then Exit Sub
+    Application.EnableEvents = False
+    For Each c In rng.Cells
+        If Not c.HasFormula Then
+            If Len(Trim$(CStr(c.Formula))) = 0 Then
+                h = CStr(lo.HeaderRowRange.Cells(1, c.Column - lo.Range.Column + 1).Value)
+                If h = U("^041F^0438^0442^0430^0435^0442^0441^044F ^043E^0442") Then c.Formula2 = "=[@[" & U("_^0430^0432^0442^043E ^043F^0438^0442^0430^0435^0442^0441^044F ^043E^0442") & "]]"
+            End If
+        End If
+    Next
+done:
+    Application.EnableEvents = True
+End Sub

@@ -1,0 +1,34 @@
+Option Explicit
+' table "Lines": gray "auto" cells come back when emptied; "gr" typed into "Breaker" moves to "Group";
+' whole rows inserted / deleted -> formulas are repaired
+Private Sub Worksheet_Change(ByVal Target As Range)
+    Dim lo As ListObject, rng As Range, c As Range, h As String, v As String, i As Long
+    On Error GoTo done
+    Set lo = SxTable()
+    If lo Is Nothing Then Exit Sub
+    If lo.DataBodyRange Is Nothing Then Exit Sub
+    Set rng = Application.Intersect(Target, lo.DataBodyRange)
+    If rng Is Nothing Then Exit Sub
+    If Target.Columns.Count >= lo.ListColumns.Count Then
+        SX_RepairFormulas
+        Exit Sub
+    End If
+    If rng.Cells.Count > 3000 Then Exit Sub
+    Application.EnableEvents = False
+    For Each c In rng.Cells
+        If Not c.HasFormula Then
+            h = CStr(lo.HeaderRowRange.Cells(1, c.Column - lo.Range.Column + 1).Value)
+            If h = U("^0410^0432^0442^043E^043C^0430^0442") Then
+                v = Trim$(CStr(c.Formula))
+                If v = U("^0433^0440") Or v = "=" Or v = "^" Or v = ChrW(8593) Then
+                    i = c.Row - lo.DataBodyRange.Row + 1
+                    lo.ListColumns(U("^0413^0440^0443^043F^043F^0430")).DataBodyRange.Cells(i, 1).Value = U("^0433^0440")
+                    c.ClearContents
+                End If
+            End If
+        End If
+    Next
+    SX_FillAuto rng
+done:
+    Application.EnableEvents = True
+End Sub
