@@ -1,0 +1,17 @@
+folder_absent_from_support_path=PASS
+cached_dialog_resolved=PASS
+bundled_library_resolved=PASS
+main_dialog_loads=PASS
+mapping_dialog_loads=PASS
+cpdraw_created_one_layout=PASS
+layout_has_saved_settings=PASS
+library_closed_after_cpdraw=PASS
+excel_released_after_cpdraw=PASS
+devices=11 terminals=38
+cpupdate_replaced_layout=PASS
+cpupdate_preserves_transform=PASS
+cpedit_replaced_layout=PASS
+cpedit_saves_parameters=PASS
+controlled_failure_preserves_layout=PASS
+controlled_failure_closes_library_and_excel=PASS
+cpfail_exits_without_undefined_error=PASS

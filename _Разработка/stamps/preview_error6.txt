@@ -1,0 +1,4 @@
+Autodesk.AutoCAD.Runtime.Exception: eWasOpenForWrite
+   at Autodesk.AutoCAD.Runtime.Interop.ThrowExceptionForErrorStatus(Int32 errorStatus)
+   at Autodesk.AutoCAD.DatabaseServices.Database.SaveAs(String fileName, DwgVersion version)
+   at StampApply.Preview() in C:\Users\user\Desktop\02_Справочники_CAD_Revit\odnolineyka\_Разработка\stamps\apply\StampApply.cs:line 78

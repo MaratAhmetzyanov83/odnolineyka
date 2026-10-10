@@ -1,9 +1,19 @@
 ;;; ============================================================================
-;;;  SX_Schema.lsp  v3.14 —  однолинейная схема из Excel на ВАШИХ блоках
+;;;  SX_Schema.lsp  v3.17 —  однолинейная схема из Excel на ВАШИХ блоках
 ;;;
 ;;;  Команды:
 ;;;    SXDRAW    — окно: файл Excel, лист «Однолинейка», щит, точка вставки,
 ;;;                библиотека блоков (DWG) -> строит схему целиком.
+;;;    SXUPDATE  — перестроить щит целиком по сохранённым в чертеже настройкам.
+;;;    SXUPDSEL  — перестроить только выделенные места (столбцы) схемы: выберите
+;;;                любые объекты нужных мест; связанные автоматы групп и модули
+;;;                перерисуются вместе с ними; итоги щита обновляются всегда.
+;;;                При выборе ввода обновляются и шины/границы его листа.
+;;;                Работает по меткам объектов (xdata SX_SCHEMA), которые
+;;;                ставят SXDRAW / SXUPDATE начиная с v3.15. Выделена шина или
+;;;                граница листа — перестраивается весь этот лист.
+;;;    SXUPDSHEET — перестроить целиком лист(ы) схемы, на которых выделены объекты
+;;;                (шины, границы, все места, автоматы, модули; на 1-м листе и боковик).
 ;;;    SXCLEAR   — удалить всё построенное (слои SX_*).
 ;;;    SXBLOCKS  — пересоздать служебные блоки SX_* (столбец таблицы, канал).
 ;;;
@@ -22,7 +32,7 @@
 ;;; ============================================================================
 
 (vl-load-com)
-(setq sx:ver "v3.14")
+(setq sx:ver "v3.17")
 
 
 ;;; ---------------------------------------------------------------- настройки
@@ -58,6 +68,9 @@
       sx:vTickQ (/ (+ 162.96 sx:vXTtop) 2.0) sx:vTickLine (+ 119.5 sx:dLow)   ; засечки: на спуске от автомата (посередине) / на линии канала
       sx:vOutTop 73.0)   ; кабельный вывод в строке УГО: верх символа (ячейка УГО 62..75)
 (setq sx:xtb sx:vXTbot)   ; низ клеммы текущей строки (у двухуровневой клеммы выше на 2 мм)
+;;; ввод: геометрия кабельной петли и отступ щита из образца 09.10.2026.
+;;; Питающий щит слева — пользовательские блоки, его аппарат не выводится из QF ввода.
+(setq sx:inDx 80.0 sx:inLow 71.70 sx:inFeed 159.66 sx:inLeft 45.93 sx:inBus 6.63)
 
 ;;; столбцы листа «Однолинейка» (A = 1)
 (setq sx:cPanel 1 sx:cPos 2 sx:cBusName 4 sx:cQFtxt 8 sx:cDev1 9
@@ -128,6 +141,21 @@
 (defun sx:sheet (i) (/ i *sx-sheet*))
 (defun sx:nth0 (k lst) (if (and lst (< k (length lst))) (nth k lst) ""))
 (defun sx:has (rec col) (/= (sx:s (sx:c rec col)) ""))
+
+;;; «Ввод.1» / код «Ввод» в AL: отдельная питающая линия, не отходящее УГО BOX.
+(defun sx:input-p (d / code line)
+  (setq code (strcase (sx:s (sx:c d 38)))
+        line (strcase (sx:s (sx:c d sx:cLine))))
+  (or (= code (strcase (sx:ru '(1042 1074 1086 1076))))
+      (wcmatch line (strcat (strcase (sx:ru '(1042 1074 1086 1076))) ".*"))))
+
+;;; Сдвиг левого края только если перед вводом оставлены свободные места, как в образце.
+(defun sx:sheet-input (draw s / ds q us)
+  (setq ds (vl-remove-if-not '(lambda (d) (= (sx:sheet (sx:i d)) s)) draw)
+        q (car (vl-remove-if-not 'sx:input-p ds)) us (* s *sx-sheet* *sx-step*))
+  (if (and q (>= (- (sx:u q) us) (+ sx:inDx 10.0))
+           (not (vl-some '(lambda (d) (and (< (sx:u d) (sx:u q)) (sx:content-p d))) ds)))
+    q))
 
 ;;; ---------------------------------------------------------------- журнал / отладка
 (setq sx:logl nil sx:errs nil sx:stage "start")
@@ -773,6 +801,43 @@
       (if (vl-catch-all-error-p vals) (error (vl-catch-all-error-message vals)))
       (mapcar '(lambda (row) (mapcar 'sx:v row)) vals))))
 
+;;; Итоги берутся из вычисленной таблицы, включая коэффициенты спроса.
+;;; Пустые таблицы (даже с заполненным cos и ошибками фаз) не рисуются.
+(defun sx:summary-values (vals panel / r c row val found metrics)
+  (setq r 0)
+  (foreach row vals
+    (setq c 0)
+    (foreach val row
+      (if (and (not found) (> r 0) (>= c 3)
+               (= (sx:s val) (sx:ru '(1056 1091 1089 1090 61)))
+               (= (sx:s (nth (- c 3) (nth (1- r) vals))) panel))
+        (progn
+          (setq metrics (list (nth (1+ c) row)
+                         (nth (1+ c) (nth (1+ r) vals))
+                         (nth (1+ c) (nth (+ r 2) vals))
+                         (nth (1+ c) (nth (+ r 3) vals))
+                         (nth (1+ c) (nth (+ r 4) vals))
+                         (nth (+ c 4) row)
+                         (nth (+ c 4) (nth (1+ r) vals))
+                         (nth (+ c 4) (nth (+ r 2) vals))))
+          (if (not (vl-some '(lambda (v) (not (numberp v))) metrics))
+            (setq found metrics)
+            (if (car metrics) (sx:log (strcat "summary: invalid values for " panel))))))
+      (setq c (1+ c)))
+    (setq r (1+ r)))
+  found)
+
+(defun sx:read-summary (panel / sh rg vals)
+  (if (setq sh (cdr (assoc (sx:ru '(1053 1072 1075 1088 1091 1079 1082 1072 95 1097 1080 1090 1086 1074)) sx:sheets)))
+    (progn
+      (setq rg (vlax-get-property sh 'Range "A1:AQ1000"))
+      (setq vals (vl-catch-all-apply
+                   '(lambda () (vlax-safearray->list
+                      (vlax-variant-value (vlax-get-property rg 'Value2)))) nil))
+      (sx:rel rg)
+      (if (vl-catch-all-error-p vals) (error (vl-catch-all-error-message vals)))
+      (sx:summary-values (mapcar '(lambda (row) (mapcar 'sx:v row)) vals) panel))))
+
 (defun sx:xl-release ()
   (sx:free-book)
   (foreach wb sx:wb-opened
@@ -781,6 +846,239 @@
   (if (and sx:xl sx:xl-created) (vl-catch-all-apply 'vlax-invoke-method (list sx:xl 'Quit)))
   (if sx:xl (sx:rel sx:xl))
   (setq sx:xl nil sx:xl-created nil sx:wb nil sx:wb-opened nil sx:sheets nil))
+
+;;; ---------------------------------------------------------------- метки и выборочное обновление
+;;; каждый построенный объект получает xdata SX_SCHEMA: (щит, кусок схемы)
+;;;   H — боковик, S|лист — шины и границы листа, T|i — столбец таблицы места i,
+;;;   G|i — автомат группы в месте i с перемычками и N, M|модуль|лист — контур модуля,
+;;;   U — итоги щита, K — шина KNX, R|i — канал, клемма, линия и УГО места i (i = № места - 1)
+(setq sx:app "SX_SCHEMA" sx:part nil sx:onlyP nil sx:onlyG nil sx:onlyM nil sx:onlyS nil sx:tagpanel "")
+(defun sx:wantP (i) (or (not sx:part) (member i sx:onlyP)))
+(defun sx:wantG (i) (or (not sx:part) (member i sx:onlyG)))
+(defun sx:wantM (k) (or (not sx:part) (member k sx:onlyM)))
+(defun sx:wantS (k) (or (not sx:part) (member k sx:onlyS)))
+;; лист схемы (с 0), к которому относится кусок
+(defun sx:key-sheet (k / i)
+  (cond ((wcmatch k "T|*,R|*,G|*") (sx:sheet (sx:key-n k)))
+        ((wcmatch k "S|*") (sx:key-n k))
+        ((wcmatch k "M|*") (setq i (vl-string-position 124 k nil T)) (atoi (substr k (+ i 2))))
+        ((member k '("H" "U")) 0)))
+;; SXUPDSHEET: куски -> листы целиком ("S|лист")
+(defun sx:keys->sheets (keys / res s)
+  (foreach k keys
+    (if (and (setq s (sx:key-sheet k)) (not (member (strcat "S|" (itoa s)) res)))
+      (setq res (cons (strcat "S|" (itoa s)) res))))
+  res)
+(defun sx:xd-set (e key)
+  ;; Преобразование ename тоже защищено: служебные записи не являются VLA-объектами.
+  (vl-catch-all-apply
+    '(lambda ()
+       (vla-setxdata (vlax-ename->vla-object e)
+         (vlax-safearray-fill (vlax-make-safearray vlax-vbInteger '(0 . 2)) '(1001 1000 1000))
+         (vlax-safearray-fill (vlax-make-safearray vlax-vbVariant '(0 . 2)) (list sx:app sx:tagpanel key)))) nil))
+;; пометить всё, что создано после mark (атрибуты и концы вставок не трогаем)
+(defun sx:tag-new (mark key / e ed)
+  (regapp sx:app)
+  (setq e (if mark (entnext mark) (entnext)))
+  (while e
+    (setq ed (entget e))
+    (if (and ed (= (cdr (assoc 410 ed)) "Model")
+             (not (member (cdr (assoc 0 ed)) '("ATTRIB" "SEQEND" "VERTEX" "BLOCK" "ENDBLK" "ATTDEF"))))
+      (sx:xd-set e key))
+    (setq e (entnext e))))
+;; sx:try + метка куска схемы
+(defun sx:ttry (key fn label / first count result err ob)
+  ;; Только новые объекты ModelSpace. entnext может заходить в определения блоков.
+  (setq first (vla-get-count sx:ms))
+  (sx:try fn label)
+  (regapp sx:app)
+  (setq count (vla-get-count sx:ms))
+  (while (< first count)
+    (setq result (vl-catch-all-apply
+      '(lambda ()
+         (setq ob (vla-item sx:ms first))
+         (sx:xd-set (vlax-vla-object->ename ob) key)) nil))
+    (if (vl-catch-all-error-p result)
+      (progn
+        (setq err (strcat "tag " label ": " (vl-catch-all-error-message result)))
+        (sx:log err) (setq sx:errs (cons err sx:errs))))
+    (setq first (1+ first))))
+;; (щит кусок) из метки объекта или nil
+(defun sx:xd-get (e / xd)
+  (if (setq xd (cdr (assoc -3 (entget e (list sx:app)))))
+    (mapcar 'cdr (vl-remove-if-not '(lambda (x) (= (car x) 1000)) (cdr (car xd))))))
+(defun sx:key-n (k) (atoi (substr k 3)))
+;; ключ модуля строки (как в sx:draw-modules) или nil
+(defun sx:modkey (d)
+  (if (and (sx:has d sx:cMod) (sx:c d sx:cCh) (/= (sx:s (sx:c d sx:cChT)) "="))
+    (strcat (sx:s (sx:c d sx:cMod)) "|" (itoa (sx:sheet (sx:i d))))))
+;; выбор объектов: (щиты куски непомеченных) или nil
+(defun sx:pick-keys ( / ss k e xd pans keys bare)
+  (setq ss (ssget "_I" '((8 . "SX_*"))))
+  (if (null ss)
+    (progn (princ (strcat "\n" (sx:ru '(1042 1099 1073 1077 1088 1080 1090 1077 32 1086 1073 1098 1077 1082 1090 1099 32 1089 1093 1077 1084 1099 44 32 1082 1086 1090 1086 1088 1099 1077 32 1085 1091 1078 1085 1086 32 1087 1077 1088 1077 1089 1090 1088 1086 1080 1090 1100 58 32))))
+           (setq ss (ssget '((8 . "SX_*"))))))
+  (sssetfirst nil nil)
+  (if ss
+    (progn
+      (setq k (sslength ss) bare 0)
+      (repeat k
+        (setq e (ssname ss (setq k (1- k))))
+        (if (setq xd (sx:xd-get e))
+          (progn
+            (if (not (member (car xd) pans)) (setq pans (cons (car xd) pans)))
+            (if (not (member (cadr xd) keys)) (setq keys (cons (cadr xd) keys))))
+          (setq bare (1+ bare))))
+      (list pans keys bare))))
+;; что перестроить по выбранным кускам: ставит sx:onlyP/G/M, возвращает куски к удалению
+(defun sx:sel-units (keys draw / pl gl ml sl dk gid q mk i s insl)
+  ;; ввод задаёт левый край шин/границ: обновлять вместе с его листом.
+  (foreach d draw
+    (if (and (sx:input-p d)
+             (vl-some '(lambda (k) (and (wcmatch k "T|*,R|*,G|*") (= (sx:key-n k) (sx:i d)))) keys))
+      (setq insl (cons (sx:sheet (sx:i d)) insl))))
+  ;; лист целиком: все его места
+  (foreach k keys
+    (if (and (wcmatch k "S|*") (not (member (sx:key-n k) sl)))
+      (progn
+        (setq sl (cons (sx:key-n k) sl) i (* (sx:key-n k) *sx-sheet*))
+        (repeat *sx-sheet* (if (not (member i pl)) (setq pl (cons i pl))) (setq i (1+ i))))))
+  (foreach k keys
+    (cond ((wcmatch k "T|*,R|*,G|*") (if (not (member (sx:key-n k) pl)) (setq pl (cons (sx:key-n k) pl))))
+          ((wcmatch k "M|*")
+           (setq ml (cons (substr k 3) ml))
+           (foreach d draw
+             (if (and (= (sx:modkey d) (substr k 3)) (not (member (sx:i d) pl))) (setq pl (cons (sx:i d) pl)))))))
+  (foreach k keys (if (and (wcmatch k "G|*") (not (member (sx:key-n k) gl))) (setq gl (cons (sx:key-n k) gl))))
+  ;; автомат группы и модуль перерисовываются, если затронуто любое их место
+  (foreach d draw
+    (if (member (sx:i d) pl)
+      (progn
+        (if (and (sx:has d sx:cQFown) (not (member (sx:i d) gl))) (setq gl (cons (sx:i d) gl)))
+        (if (/= (setq gid (sx:s (sx:c d sx:cGrp))) "")
+          (foreach q draw
+            (if (and (= (sx:s (sx:c q sx:cQFown)) gid) (not (member (sx:i q) gl))) (setq gl (cons (sx:i q) gl)))))
+        (if (and (setq mk (sx:modkey d)) (not (member mk ml))) (setq ml (cons mk ml))))))
+  ;; Для ввода обновить геометрию шин, сохраняя остальные места листа.
+  (foreach s insl (if (not (member s sl)) (setq sl (cons s sl))))
+  (setq sx:onlyP pl sx:onlyG gl sx:onlyM ml sx:onlyS sl)
+  (foreach s sl (setq dk (cons (strcat "S|" (itoa s)) dk)))
+  (if (member 0 sl) (setq dk (cons "H" dk)))
+  (foreach i pl (setq dk (cons (strcat "T|" (itoa i)) (cons (strcat "R|" (itoa i)) dk))))
+  (foreach i gl (setq dk (cons (strcat "G|" (itoa i)) dk)))
+  (foreach mk ml (setq dk (cons (strcat "M|" mk) dk)))
+  (if ml (setq dk (cons "K" dk)))
+  (cons "U" dk))
+;; удалить помеченные куски щита; число удалённых
+(defun sx:del-keys (panel keys / ss k e xd n)
+  (setq n 0)
+  (if (setq ss (ssget "_X" (list (list -3 (list sx:app)))))
+    (progn
+      (setq k (sslength ss))
+      (repeat k
+        (setq e (ssname ss (setq k (1- k))) xd (sx:xd-get e))
+        (if (and xd (= (car xd) panel) (member (cadr xd) keys)) (progn (entdel e) (setq n (1+ n)))))))
+  n)
+
+;;; Однократный переход с ручного образца: взять под управление только его
+;;; две точные линии кабеля и левую границу. Остальные пользовательские объекты
+;;; (питающий щит, аппарат, УГО отходящих линий) не затрагиваются.
+(defun sx:path-equal (pts expected)
+  (and (= (length pts) (length expected))
+       (not (vl-some '(lambda (a b) (> (distance a b) 0.15)) pts expected))))
+(defun sx:adopt-inputs (draw / ss k e ed pts u xs cable1 cable2 bound key)
+  (if (setq ss (ssget "_X" '((0 . "LINE,LWPOLYLINE") (410 . "Model"))))
+    (foreach d draw
+      (if (and (sx:input-p d) (sx:wantP (sx:i d)))
+        (progn
+          (setq u (sx:u d) xs (- u sx:inDx)
+                cable1 (list (sx:pt xs sx:inLow) (sx:pt xs sx:inFeed))
+                cable2 (list (sx:pt xs sx:inLow) (sx:pt u sx:inLow) (sx:pt u sx:vOutTop))
+                bound (list (sx:pt (- u sx:inLeft) sx:vTop) (sx:pt (- u sx:inLeft) sx:vBottom))
+                k (sslength ss))
+          (repeat k
+            (setq e (ssname ss (setq k (1- k))) ed (entget e) key nil)
+            (setq pts (if (= (cdr (assoc 0 ed)) "LINE")
+                        (list (cdr (assoc 10 ed)) (cdr (assoc 11 ed)))
+                        (mapcar '(lambda (p) (append (cdr p) '(0.0)))
+                                (vl-remove-if-not '(lambda (p) (= (car p) 10)) ed))))
+            (cond
+              ((and (= (cdr (assoc 8 ed)) "0")
+                    (or (sx:path-equal pts cable1) (sx:path-equal pts cable2)))
+               (vla-put-layer (vlax-ename->vla-object e) sx:L)
+               (setq key (strcat "R|" (itoa (sx:i d)))))
+              ((and (= (cdr (assoc 8 ed)) sx:B) (null (sx:xd-get e)) (sx:path-equal pts bound))
+               (setq key (strcat "S|" (itoa (sx:sheet (sx:i d)))))))
+            (if key (sx:xd-set e key))))))))
+
+;;; Итоги под первым листом: блок SX_SUMMARY 120 x 40 мм, восемь атрибутов.
+;;; При обновлении сохраняем положение; старую таблицу заменяем блоком.
+(defun sx:summary-capture ( / ob e xd pt target)
+  (setq sx:sumpt (sx:pt 7.56437443444702 -5.3734190440593)
+        sx:sumscale '(1.0 1.0 1.0) sx:sumang sx:ang)
+  (setq target sx:sumpt)
+  (vlax-for ob sx:ms
+    (if (or (and (= (vla-get-objectname ob) "AcDbTable")
+                 (= (vla-get-rows ob) 5) (= (vla-get-columns ob) 6))
+            (and (= (vla-get-objectname ob) "AcDbBlockReference")
+                 (= (strcase (vla-get-effectivename ob)) "SX_SUMMARY")))
+      (progn
+        (setq e (vlax-vla-object->ename ob) xd (sx:xd-get e)
+              pt (vlax-safearray->list (vlax-variant-value (vla-get-insertionpoint ob))))
+        (if (or (equal xd (list sx:tagpanel "U"))
+                (and (null xd) (< (distance pt target) 0.15)))
+          (progn
+            (setq sx:sumpt pt)
+            (if (= (vla-get-objectname ob) "AcDbBlockReference")
+              (setq sx:sumscale (list (vla-get-xscalefactor ob) (vla-get-yscalefactor ob) (vla-get-zscalefactor ob))
+                    sx:sumang (vla-get-rotation ob)))
+            (vla-put-layer ob sx:TB)
+            (sx:xd-set e "U")))))))
+
+(defun sx:summary-num (v / oldz text)
+  ;; Два знака после запятой, как в Excel, независимо от DIMZIN чертежа.
+  (setq oldz (getvar "DIMZIN")) (setvar "DIMZIN" 0)
+  (setq text (vl-string-translate "." "," (rtos v 2 2)))
+  (setvar "DIMZIN" oldz)
+  text)
+
+(defun sx:summary-block ( / ents y x r labels tags label)
+  (setq ents (bR 0.0 -40.0 120.0 0.0))
+  (foreach y '(-8.0 -16.0 -24.0 -32.0)
+    (setq ents (append ents (list (bL 0.0 y 120.0 y)))))
+  (setq ents (append ents (list (bL 20.0 0.0 20.0 -40.0))))
+  (foreach x '(40.0 60.0 80.0 100.0)
+    (setq ents (append ents (list (bL x 0.0 x -24.0)))))
+  (setq labels (list (sx:ru '(1056 1091 1089 1090 61)) (sx:ru '(1056 1088 61)) (sx:ru '(73 1088 61))
+                     (sx:ru '(67 111 115 40 1092 41 61)) (sx:ru '(1050 1089 61)))
+        tags '("PUST" "PR" "IR" "COS" "KS") r 0)
+  (foreach label labels
+    (setq y (- -4.0 (* r 8.0))
+          ents (append ents (list (bT 10.0 y 2.5 label "M" 0.0)
+                                   (bAtt (nth r tags) (if (< r 3) 30.0 70.0) y 2.5 "M" 0.0 nil))))
+    (if (< r 3)
+      (setq ents (append ents
+        (list (bT 50.0 y 2.5 (if (= r 2) (sx:ru '(1040)) (sx:ru '(1082 1042 1090))) "M" 0.0)
+              (bT 70.0 y 2.5 (strcat "L" (itoa (1+ r)) "p=") "M" 0.0)
+              (bAtt (strcat "L" (itoa (1+ r))) 90.0 y 2.5 "M" 0.0 nil)
+              (bT 110.0 y 2.5 (sx:ru '(1082 1042 1090)) "M" 0.0)))))
+    (setq r (1+ r)))
+  (sx:defblock "SX_SUMMARY" ents nil))
+
+(defun sx:draw-summary ( / ob pairs tags tag k a)
+  (if sx:summary
+    (progn
+      (sx:summary-block)
+      (setq ob (vla-insertblock sx:ms (vlax-3d-point sx:sumpt) "SX_SUMMARY"
+                 (nth 0 sx:sumscale) (nth 1 sx:sumscale) (nth 2 sx:sumscale) sx:sumang))
+      ;; Сразу пометить объект: следующий запуск удалит и незавершённый блок.
+      (vla-put-layer ob sx:TB) (sx:xd-set (vlax-vla-object->ename ob) "U")
+      (setq tags '("PUST" "PR" "IR" "COS" "KS" "L1" "L2" "L3") pairs nil k 0)
+      (foreach tag tags
+        (setq pairs (cons (cons tag (sx:summary-num (nth k sx:summary))) pairs) k (1+ k)))
+      (foreach a (vlax-invoke ob 'GetAttributes)
+        (vla-put-textstring a (cdr (assoc (strcase (vla-get-tagstring a)) pairs))))
+      (vla-update ob))))
 
 ;;; ---------------------------------------------------------------- очистка
 (defun sx:clear ( / ss k)
@@ -796,9 +1094,11 @@
   (or (sx:has d sx:cQFown) (sx:c d sx:cCh) (sx:is1 d sx:cXT)))
 
 (defun sx:draw-table (recs / nm cab k)
-  (if (sx:blk-p sx:bHEAD) (sx:insv sx:bHEAD sx:vHeadDx 0.0 1.0 0.0 nil sx:TB))
+  (if (and (sx:wantS 0) (sx:blk-p sx:bHEAD))
+    (sx:ttry "H" (function (lambda () (sx:insv sx:bHEAD sx:vHeadDx 0.0 1.0 0.0 nil sx:TB))) "head"))
   (foreach d recs
-   (sx:try (function (lambda ()
+   (if (sx:wantP (sx:i d))
+   (sx:ttry (strcat "T|" (itoa (sx:i d))) (function (lambda ()
     (setq nm (sx:wrap (sx:s (sx:c d sx:cName)) 20 3)
           cab (sx:s (sx:c d sx:cCab))
           k (vl-string-search " L=" cab))
@@ -811,7 +1111,7 @@
                   (cons "CAB1" (vl-string-translate "." "," (if k (substr cab 1 k) cab)))
                   (cons "CAB2" (vl-string-translate "." "," (if k (substr cab (+ k 2)) ""))))
             sx:TB)))
-    (strcat "table " (sx:rowinfo d)))))
+    (strcat "table " (sx:rowinfo d))))))
 
 ;;; шина: ваш динамический блок «Шина» (L и N) или две линии
 (defun sx:bus (us ue vL vN name / ob)
@@ -825,19 +1125,24 @@
       (sx:line (+ us 3) vL (- ue 1) vL sx:L) (sx:line (+ us 3) vN (- ue 1) vN sx:LN)
       (sx:text (+ us 4) (+ vL 1) 2.5 name sx:T) (sx:text (+ us 4) (+ vN 1) 2.5 "N" sx:T))))
 
-(defun sx:draw-sheets (draw panel / sheets s us ue onsheet b2 segs k)
+(defun sx:draw-sheets (draw panel / sheets s us ue onsheet b2 segs k input left busus)
   (setq sheets '())
   (foreach d draw
     (if (and (sx:content-p d) (not (member (sx:sheet (sx:i d)) sheets)))
       (setq sheets (cons (sx:sheet (sx:i d)) sheets))))
   (sx:log (strcat "sheets=" (sx:str sheets)))
   (foreach s sheets
-   (sx:try (function (lambda ()
+   (if (sx:wantS s)
+   (sx:ttry (strcat "S|" (itoa s)) (function (lambda ()
     (setq us (* s *sx-sheet* *sx-step*) ue (* (1+ s) *sx-sheet* *sx-step*))
-    (sx:bus us ue sx:vBusL sx:vBusN "L1,L2,L3")
-    (sx:text (+ us 2) (+ sx:vTop 1.5) 2.5 panel sx:T)
-    (sx:line (+ us 2) sx:vTop (- ue 2) sx:vTop sx:B)
-    (sx:line (+ us 2) sx:vBottom (- ue 2) sx:vBottom sx:B)   ; граница щита снизу
+    (setq input (sx:sheet-input draw s)
+          left (if input (- (sx:u input) sx:inLeft) (+ us 2.0))
+          busus (if input (+ left sx:inBus -5.0) us))
+    (sx:bus busus ue sx:vBusL sx:vBusN "L1,L2,L3")
+    (sx:text left (+ sx:vTop 1.5) 2.5 panel sx:T)
+    (sx:line left sx:vTop (- ue 2) sx:vTop sx:B)
+    (sx:line left sx:vBottom (- ue 2) sx:vBottom sx:B)   ; граница щита снизу
+    (if input (sx:line left sx:vTop left sx:vBottom sx:B))
     (setq onsheet (vl-remove-if-not '(lambda (d) (= (sx:sheet (sx:i d)) s)) draw))
     (setq b2 (vl-remove-if-not '(lambda (d) (and (sx:has d sx:cQFown) (sx:is1 d sx:cBus2))) onsheet))
     ;; вторые шины — до конца листа; если на листе несколько разных, каждая до начала следующей
@@ -847,13 +1152,13 @@
         (setq segs (cons (list (sx:s (sx:c d sx:cBusName)) (sx:u d)) segs))))
     (setq segs (reverse segs) k 0)
     (foreach sg segs
-      (sx:bus (if (= k 0) us (- (cadr sg) 9.0))
+      (sx:bus (if (= k 0) busus (- (cadr sg) 9.0))
               (if (< (1+ k) (length segs)) (- (cadr (nth (1+ k) segs)) 11.0) ue)
               sx:vBus2L sx:vBus2N (car sg))
       (setq k (1+ k)))
     (if (vl-some '(lambda (d) (sx:is1 d sx:cXT)) onsheet)
-      (sx:line (+ us 3) sx:vPE (- ue 1) sx:vPE sx:PE))))
-    (strcat "sheet " (itoa (1+ s))))))
+      (sx:line (if input (+ left 7.0) (+ us 3)) sx:vPE (- ue 1) sx:vPE sx:PE))))
+    (strcat "sheet " (itoa (1+ s)))))))
 
 ;;; «2P С16А 30мА» -> (полюса номинал утечка)
 (defun sx:qf-parts (q / toks p a ma)
@@ -916,10 +1221,8 @@
   (if (sx:blk-p sx:bQF)
     (progn
       (setq ob (sx:insv sx:bQF u vIns 1.0 0.0 (list (sx:digits name) (nth 0 parts) (nth 1 parts) (nth 2 parts)) sx:BL))
-      ;; видимость: QFD — с N; 1P без модуля — QF_L+N (N показывает блок); через модуль — QF (N обходом)
-      (sx:dynset ob sx:pVis (cond ((sx:is1 q sx:cRcd) "QFD")
-                                  ((and (= (strcase (nth 0 parts)) "1P") (not nbyp)) "QF_L+N")
-                                  (t "QF")))
+      ;; Обычные отходящие автоматы — ваш вид QF_L+N, включая 3P.
+      (sx:dynset ob sx:pVis (if (sx:is1 q sx:cRcd) "QFD" "QF_L+N"))
       (setq r (sx:qf-align ob (cadr (sx:pt u busL))))
       (cond ((= r T) nil)
             ((sx:fit ob sx:pDist 1 (cadr (sx:pt u busL))) nil)
@@ -953,7 +1256,8 @@
 (defun sx:draw-groups (draw / gid u busN members feeds chF xtF chU xtU xts xN hi side devs lowv)
   (setq sx:tcount 0 sx:pcount 0)
   (foreach q draw
-   (sx:try (function (lambda ()
+   (if (and (sx:has q sx:cQFown) (sx:wantG (sx:i q)))
+   (sx:ttry (strcat "G|" (itoa (sx:i q))) (function (lambda ()
     (if (sx:has q sx:cQFown)
       (progn
         (setq gid (sx:s (sx:c q sx:cQFown)) u (sx:u q)
@@ -997,7 +1301,7 @@
             (sx:line xN busN xN sx:vXTN sx:LN)
             (sx:dot xN busN sx:LN)
             (sx:hline xN hi sx:vXTN sx:LN)))))))
-    (strcat "group " (sx:rowinfo q)))))
+    (strcat "group " (sx:rowinfo q))))))
 
 ;;; ёмкость модулей (модель -> число каналов) из именованного диапазона «Модули_спр»
 (defun sx:read-models ( / nms n rr r vals res)
@@ -1049,8 +1353,13 @@
         (if (setq item (assoc key segs))
           (setq segs (subst (cons key (append (cdr item) (list d))) item segs))
           (setq segs (cons (list key d) segs))))))
+  ;; шина KNX считается по всем модулям щита (и при выборочном обновлении)
   (foreach item segs
-   (sx:try (function (lambda ()
+    (setq knx (cons (list (- (apply 'min (mapcar 'sx:u (cdr item))) 4.3)
+                          (+ (apply 'max (mapcar 'sx:u (cdr item))) 6.9)) knx)))
+  (foreach item segs
+   (if (sx:wantM (car item))
+   (sx:ttry (strcat "M|" (car item)) (function (lambda ()
     (setq ds (cdr item)
           umin (apply 'min (mapcar 'sx:u ds))
           umax (apply 'max (mapcar 'sx:u ds))
@@ -1066,14 +1375,13 @@
       (sx:line xr sx:vBoxBot xr sx:vBoxTop sx:L))
     ;; шина KNX и подписи
     (sx:line (- umin 4.3) sx:vBoxTop (- umin 4.3) sx:vKNX sx:KNX)
-    (setq knx (cons (list (- umin 4.3) xr) knx))
     (sx:textr (- umin 4.7) (+ sx:vBoxTop 0.6) 2.2 "KNX" sx:KNX 90.0)
     (sx:text (- umin 6.2) (+ sx:vBoxBot 0.9) 2.5 (sx:s (sx:c (car ds) sx:cMod)) sx:KNX)
     (sx:text (+ umin 3.0) (- sx:vBoxTop 3.4) 2.2 (sx:s (sx:c (car ds) sx:cModel)) sx:KNX)))
-    (strcat "module " (car item))))
+    (strcat "module " (car item)))))
   ;; шина KNX — одна линия через все модули щита, между листами — разрыв со стрелками
-  (if knx
-    (sx:try (function (lambda ()
+  (if (and knx (or (not sx:part) sx:onlyM))
+    (sx:ttry "K" (function (lambda ()
       (sx:hline (apply 'min (mapcar 'car knx)) (apply 'max (mapcar 'cadr knx)) sx:vKNX sx:KNX)))
       "knx bus")))
 
@@ -1082,17 +1390,30 @@
   (and (= sym "BOX") (member (sx:s (sx:c d sx:cUgoRu)) '("" "0")) T))
 
 ;;; кабельный вывод: линия от клеммы к верху символа + блок «Вывод» (или простой значок SX_U_OUT)
-(defun sx:draw-outlet (d u / blk)
+(defun sx:draw-outlet (d u / blk ob)
   (setq blk (sx:blk sx:bOut "SX_U_OUT"))
   (sx:line u sx:xtb u sx:vOutTop sx:L)
-  (sx:insv blk u sx:vOutTop 1.0 0.0 nil sx:BL))
+  (setq ob (sx:insv blk u sx:vOutTop 1.0 0.0 nil sx:BL))
+  (sx:red ob)
+  ob)
+
+;;; Ввод от питающего щита слева: вниз, под рамкой щита, вверх к XT.
+;;; Кабель/фаза/ток остаются в том же столбце таблицы. УГО отходящей линии нет.
+(defun sx:draw-input (d u / xs)
+  (setq xs (- u sx:inDx))
+  (sx:line xs sx:inFeed xs sx:inLow sx:L)
+  (sx:hline xs u sx:inLow sx:L)
+  (sx:line u sx:inLow u sx:xtb sx:L))
 
 (defun sx:draw-ugo (d u / sym spec blk ob)
+  (if (sx:input-p d)
+    (sx:draw-input d u)
+    (progn
   (setq sym (sx:s (sx:c d sx:cSym)))
   (if (= sym "") (setq sym "BOX"))
   (if (or (sx:ugo-noby d sym)
           (and (not (assoc sym sx:ugo)) (not (sx:blk-p sym))))
-    ;; нет кода УГО или код неизвестен -> кабельный вывод (не красная заглушка)
+    ;; нет кода УГО или код неизвестен -> красный кабельный вывод
     (sx:draw-outlet d u)
     (progn
       (setq spec (cond ((assoc sym sx:ugo))
@@ -1106,7 +1427,7 @@
       (setq ob (sx:insv blk u (nth 4 spec) (nth 2 spec) (nth 3 spec)
                         (if (= sym "BOX") (list (sx:s (sx:c d sx:cLine))) (list "")) sx:BL))
       (if (/= sym "SOCKET") (sx:red ob))
-      ob)))
+      ob)))))
 
 ;;; подпись клеммы: справа от кружков, на уровне верхнего, ниже перемычки
 (setq sx:xtLblDx 2.2 sx:xtLblDv -1.0)
@@ -1150,8 +1471,16 @@
 (defun sx:draw-rows (draw / prev u bf xt two blkn ob xseen)
   (setq prev nil xseen nil)
   (foreach d draw
-   (sx:try (function (lambda ()
+   (if (not (sx:wantP (sx:i d)))
+    ;; место не перестраивается: только состояние для следующих строк (перемычки «=», повтор XT)
+    (if (sx:is1 d sx:cXT)
+      (progn (setq xt (sx:s (sx:c d sx:cXTtxt)))
+             (if (/= xt "") (setq xseen (cons (strcase xt) xseen)))
+             (setq prev d)))
+   (sx:ttry (strcat "R|" (itoa (sx:i d))) (function (lambda ()
     (setq u (sx:u d) bf (sx:s (sx:c d sx:cChT)) sx:xtb sx:vXTbot)
+    (if (and (sx:input-p d) (sx:is1 d sx:cHasLine) (not (sx:is1 d sx:cXT)) (not (sx:c d sx:cCh)))
+      (progn (setq sx:xtb sx:vIN0) (sx:draw-input d u)))
     (if (and (sx:c d sx:cCh) (/= bf "="))
       (progn
         (sx:ins "SX_CH" u sx:vChBase (list (cons "CH" (sx:s (sx:c d sx:cCh)))) sx:BL)
@@ -1195,7 +1524,7 @@
           ((sx:is1 d sx:cHasLine)
            (sx:draw-ugo d u)))
         (setq prev d)))))
-    (strcat "row " (sx:rowinfo d)))))
+    (strcat "row " (sx:rowinfo d))))))
 
 ;;; ---------------------------------------------------------------- диалог
 (defun sx:dcl-file ( / f)
@@ -1291,7 +1620,7 @@
     (foreach dv (sx:dev-list d)
       (setq spec (sx:dev-spec (car dv)))
       (if (not (member (nth 1 spec) res)) (setq res (append res (list (nth 1 spec))))))
-    (if (sx:is1 d sx:cHasLine)
+    (if (and (sx:is1 d sx:cHasLine) (not (sx:input-p d)))
       (progn
         (setq sym (sx:s (sx:c d sx:cSym)))
         (if (= sym "") (setq sym "BOX"))
@@ -1431,6 +1760,8 @@
 
 (defun c:SXDRAW () (sx:main nil))
 (defun c:SXUPDATE () (sx:main T))
+(defun c:SXUPDSEL () (sx:main 'sel))
+(defun c:SXUPDSHEET () (sx:main 'sheet))
 
 ;;; параметры построения, запомненные в самом чертеже (для SXUPDATE)
 (defun sx:save-params (panel)
@@ -1460,7 +1791,7 @@
               (princ (strcat "\nSXUPDATE: " xls " / " pan)) T)
        (progn (princ (strcat "\nSXUPDATE: panel not found in table: " pan)) nil)))))
 
-(defun sx:main (upd / *error* data recs panel pos i row draw oldcmd maxi sym probs xrow ridx)
+(defun sx:main (upd / *error* data recs panel pos i row draw oldcmd maxi sym probs xrow ridx pick dkeys ndel)
   (defun *error* (msg)
     (if sx:doc (vl-catch-all-apply 'vla-endundomark (list sx:doc)))
     (if oldcmd (setvar "CMDECHO" oldcmd))
@@ -1473,7 +1804,8 @@
         (vl-catch-all-apply 'sx:logdump nil)))
     (princ))
   (setq sx:logl nil sx:errs nil
-        sx:bbcache nil sx:cccache nil sx:blkcache nil sx:bbctx "" sx:pecache nil sx:nopos nil)
+        sx:bbcache nil sx:cccache nil sx:blkcache nil sx:bbctx "" sx:pecache nil sx:nopos nil
+        sx:part (member upd '(sel sheet)) sx:onlyP nil sx:onlyG nil sx:onlyM nil sx:onlyS nil)
   (sx:stg "init")
   (sx:log (strcat "SX_Schema " sx:ver))
   (sx:log (strcat "LISPSYS=" (sx:str (getvar "LISPSYS")) " ACADVER=" (getvar "ACADVER")
@@ -1484,6 +1816,21 @@
   (setvar "CMDECHO" 0)
   (setq sx:inspt (vlax-ldata-get "SX_Schema" "pt"))
   (if (null sx:lib) (setq sx:lib (getenv "SX_LibDwg")))
+  ;; SXUPDSEL: сначала выбор, Excel открывается только если есть что обновлять
+  (if sx:part
+    (progn
+      (sx:stg "pick")
+      (setq pick (sx:pick-keys))
+      (cond
+        ((null pick) (setvar "CMDECHO" oldcmd) (exit))
+        ((null (cadr pick))
+         (princ (strcat "\n" (sx:ru '(1057 1088 1077 1076 1080 32 1074 1099 1073 1088 1072 1085 1085 1099 1093 32 1085 1077 1090 32 1087 1086 1084 1077 1095 1077 1085 1085 1099 1093 32 1086 1073 1098 1077 1082 1090 1086 1074 46 32 1054 1076 1080 1085 32 1088 1072 1079 32 1074 1099 1087 1086 1083 1085 1080 1090 1077 32 83 88 85 80 68 65 84 69 32 40 118 51 46 49 53 32 1080 32 1085 1086 1074 1077 1077 41 32 8212 32 1087 1086 1089 1083 1077 32 1101 1090 1086 1075 1086 32 1084 1086 1078 1085 1086 32 1086 1073 1085 1086 1074 1083 1103 1090 1100 32 1095 1072 1089 1090 1103 1084 1080 46))))
+         (setvar "CMDECHO" oldcmd) (exit))
+        ((> (length (car pick)) 1)
+         (princ (strcat "\n" (sx:ru '(1042 1099 1073 1088 1072 1085 1099 32 1086 1073 1098 1077 1082 1090 1099 32 1088 1072 1079 1085 1099 1093 32 1097 1080 1090 1086 1074 32 8212 32 1074 1099 1073 1077 1088 1080 1090 1077 32 1086 1076 1080 1085 32 1097 1080 1090 46))))
+         (setvar "CMDECHO" oldcmd) (exit)))
+      (if (= upd 'sheet) (setq pick (list (car pick) (sx:keys->sheets (cadr pick)) (caddr pick))))
+      (sx:log (strcat "pick: panel=" (car (car pick)) " keys=" (sx:str (cadr pick)) " untagged=" (itoa (caddr pick))))))
   (if upd
     (progn
       (sx:stg "update params")
@@ -1498,7 +1845,13 @@
                   " pi=" (sx:str sx:pi) " pt=" (sx:str sx:inspt) " lib=" (sx:str sx:lib)
                   " nsheet=" (sx:str *sx-sheet*) " step=" (sx:str *sx-step*)))
   (sx:stg "after dialog")
-  (setq panel (nth sx:pi sx:panels))
+  ;; SXUPDSEL: щит — из меток выбранных объектов
+  (if sx:part
+    (if (member (car (car pick)) sx:panels)
+      (setq sx:pi (vl-position (car (car pick)) sx:panels))
+      (progn (princ (strcat "\n" (sx:ru '(1065 1080 1090 32 1080 1079 32 1084 1077 1090 1086 1082 32 1085 1077 32 1085 1072 1081 1076 1077 1085 32 1074 32 1090 1072 1073 1083 1080 1094 1077 58 32)) (car (car pick))))
+             (sx:xl-release) (setvar "CMDECHO" oldcmd) (exit))))
+  (setq panel (nth sx:pi sx:panels) sx:tagpanel (if panel panel ""))
   (if panel (setenv "SX_LastPanel" panel))
   (setenv "SX_LastXls" sx:path)
   (sx:save-params panel)
@@ -1508,6 +1861,8 @@
   (sx:log (strcat "style=" sx:style))
   (sx:stg "read excel")
   (setq data (sx:read-data))
+  (setq sx:summary (sx:read-summary panel))
+  (sx:log (strcat "summary=" (sx:str sx:summary)))
   (setq sx:models (vl-catch-all-apply 'sx:read-models nil))
   (if (vl-catch-all-error-p sx:models) (setq sx:models nil))
   (sx:log (strcat "models=" (sx:str sx:models)))
@@ -1530,11 +1885,19 @@
   (setq recs (vl-sort recs '(lambda (a b) (< (car a) (car b)))))
   (setq draw (vl-remove-if-not '(lambda (d) (sx:is1 d sx:cDraw)) recs))
   (sx:log (strcat "recs=" (itoa (length recs)) " draw=" (itoa (length draw))))
+  (if sx:part
+    (progn
+      (setq dkeys (sx:sel-units (cadr pick) draw))
+      (sx:log (strcat "part: sheets=" (sx:str sx:onlyS) " places=" (sx:str sx:onlyP) " qf=" (sx:str sx:onlyG) " modules=" (sx:str sx:onlyM)))))
   (if recs (sx:log (strcat "first " (sx:rowinfo (car recs)))))
   ;; проверка перед рисованием: все проблемы разом, до очистки и построения
   (sx:stg "validate")
   (sx:roles)
-  (setq probs (sx:validate panel recs draw))
+  (setq probs (if sx:part
+                  (if (vl-some '(lambda (d) (sx:wantP (sx:i d))) draw)
+                    (sx:validate panel (vl-remove-if-not '(lambda (d) (sx:wantP (sx:i d))) recs)
+                                       (vl-remove-if-not '(lambda (d) (sx:wantP (sx:i d))) draw)))
+                  (sx:validate panel recs draw)))
   (if probs
     (progn
       (sx:report probs)
@@ -1548,8 +1911,17 @@
           (exit))))
     (sx:log "check: OK"))
   ;; рисуем
+  (if (/= (vla-get-name sx:doc) (getvar "DWGNAME"))
+    (progn (sx:log "Drawing switched before generation; no objects changed.") (setvar "CMDECHO" oldcmd) (exit)))
   (vla-startundomark sx:doc)
-  (sx:stg "clear") (if sx:do-clear (sx:clear))
+  ;; Adopt the matching manual sample before clearing generated geometry.
+  (sx:layers) (sx:summary-capture)
+  (if (or sx:part sx:do-clear) (sx:adopt-inputs draw))
+  (sx:stg "clear")
+  (if sx:part
+    (setq ndel (sx:del-keys panel dkeys))
+    (if sx:do-clear (sx:clear)))
+  (sx:del-keys panel '("U"))
   (sx:stg "layers") (sx:layers)
   (sx:stg "roles") (sx:roles)
   (sx:stg "make-blocks") (sx:make-blocks T)
@@ -1573,14 +1945,22 @@
     (progn (princ (strcat "\n" (sx:ru '(1042 1085 1080 1084 1072 1085 1080 1077 58 32 1085 1077 32 1085 1072 1081 1076 1077 1085 1099 32 1074 1072 1096 1080 32 1073 1083 1086 1082 1080 32 40 81 70 49 44 32 88 84 46 46 46 41 32 8212 32 1085 1072 1088 1080 1089 1086 1074 1072 1085 1099 32 1079 1072 1084 1077 1085 1080 1090 1077 1083 1080 46 32 1055 1088 1086 1074 1077 1088 1100 1090 1077 32 1087 1091 1090 1100 32 1082 32 1073 1080 1073 1083 1080 1086 1090 1077 1082 1077 32 48 50 95 1054 1076 1085 1086 1083 1080 1085 1077 1081 1082 1072 46 100 119 103 44 32 1089 1084 46 32 83 88 95 108 111 103 46 116 120 116))))
            (setq sx:errs (cons "blocks: QF1 missing" sx:errs))))
   (sx:stg "table")   (sx:try (function (lambda () (sx:draw-table recs))) "table")
-  (sx:stg "sheets")  (sx:try (function (lambda () (sx:draw-sheets draw panel))) "sheets")
+  (if (or (not sx:part) sx:onlyS)
+    (progn (sx:stg "sheets") (sx:try (function (lambda () (sx:draw-sheets draw panel))) "sheets")))
   (sx:stg "groups")  (sx:try (function (lambda () (sx:draw-groups draw))) "groups")
   (sx:stg "modules") (sx:try (function (lambda () (sx:draw-modules draw))) "modules")
   (sx:stg "rows")    (sx:try (function (lambda () (sx:draw-rows draw))) "rows")
+  (sx:stg "summary") (sx:try 'sx:draw-summary "summary")
   (sx:stg "done")
   (vla-endundomark sx:doc)
   (setvar "CMDECHO" oldcmd)
-  (princ (strcat "\n" (sx:ru '(1043 1086 1090 1086 1074 1086 58 32 1089 1093 1077 1084 1072 32 1087 1086 1089 1090 1088 1086 1077 1085 1072 32 1085 1072 32 1089 1083 1086 1103 1093 32 83 88 95 42 46 32 1052 1077 1089 1090 58)) " " (itoa (length recs))))
+  (if sx:part
+    (princ (strcat "\n" (sx:ru '(1055 1077 1088 1077 1089 1090 1088 1086 1077 1085 1086 32 1074 1099 1073 1086 1088 1086 1095 1085 1086 58 32 1083 1080 1089 1090 1086 1074 32)) (itoa (length sx:onlyS))
+                   (sx:ru '(44 32 1084 1077 1089 1090 32)) (itoa (length (vl-remove-if-not '(lambda (d) (sx:wantP (sx:i d))) recs)))
+                   (sx:ru '(44 32 1072 1074 1090 1086 1084 1072 1090 1086 1074 32)) (itoa (length sx:onlyG))
+                   (sx:ru '(44 32 1084 1086 1076 1091 1083 1077 1081 32)) (itoa (length sx:onlyM))
+                   (sx:ru '(32 40 1091 1076 1072 1083 1077 1085 1086 32 1089 1090 1072 1088 1099 1093 32 1086 1073 1098 1077 1082 1090 1086 1074 58 32)) (itoa ndel) ")"))
+  (princ (strcat "\n" (sx:ru '(1043 1086 1090 1086 1074 1086 58 32 1089 1093 1077 1084 1072 32 1087 1086 1089 1090 1088 1086 1077 1085 1072 32 1085 1072 32 1089 1083 1086 1103 1093 32 83 88 95 42 46 32 1052 1077 1089 1090 58)) " " (itoa (length recs)))))
   (if sx:errs
     (progn
       (princ (strcat "\nErrors: " (itoa (length sx:errs))))
@@ -1588,6 +1968,6 @@
   (sx:logdump)
   (princ))
 
-(princ (strcat "\n" (sx:ru '(83 88 95 83 99 104 101 109 97 32 118 51 46 49 51 32 1079 1072 1075 1088 1091 1078 1077 1085 32 40 1074 1072 1096 1080 32 1073 1083 1086 1082 1080 41 58 32 83 88 68 82 65 87 32 8212 32 1087 1086 1089 1090 1088 1086 1080 1090 1100 32 1089 1093 1077 1084 1091 44 32 83 88 67 76 69 65 82 32 8212 32 1089 1090 1077 1088 1077 1090 1100 46))))
-(princ "\n[SX_Schema v3.14] SXDRAW / SXUPDATE / SXCLEAR")
+(princ (strcat "\n" (sx:ru '(83 88 95 83 99 104 101 109 97 32 118 51 46 49 55 32 1079 1072 1075 1088 1091 1078 1077 1085 32 40 1074 1072 1096 1080 32 1073 1083 1086 1082 1080 41 58 32 83 88 68 82 65 87 32 8212 32 1087 1086 1089 1090 1088 1086 1080 1090 1100 32 1089 1093 1077 1084 1091 44 32 83 88 67 76 69 65 82 32 8212 32 1089 1090 1077 1088 1077 1090 1100 46))))
+(princ "\n[SX_Schema v3.17] SXDRAW / SXUPDATE / SXUPDSEL / SXUPDSHEET / SXCLEAR")
 (princ)

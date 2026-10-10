@@ -1,0 +1,3 @@
+((LIST CP:VERSION (GETENV "CP_DclFile")) ("1.1" "C:/Users/user/Desktop/02_Справочники_CAD_Revit/odnolineyka/2_AutoCAD/Компоновка/SX_Panel.dcl"))
+((CP:DCL-FILE) "неверный тип аргумента: stringp T")
+((CP:DEFAULT-LIBRARY) "неверный тип аргумента: stringp T")

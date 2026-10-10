@@ -1,0 +1,4844 @@
+[
+  {
+    "name": "S201",
+    "origin": [
+      0.0,
+      0.0,
+      0.0
+    ],
+    "objects": [
+      {
+        "type": "AcDbPolyline"
+      },
+      {
+        "type": "AcDbCircle"
+      },
+      {
+        "type": "AcDbCircle"
+      },
+      {
+        "type": "AcDbPolyline"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbPolyline"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbSolid"
+      },
+      {
+        "type": "AcDbPolyline"
+      },
+      {
+        "type": "AcDbSolid"
+      },
+      {
+        "type": "AcDbPolyline"
+      },
+      {
+        "type": "AcDbHatch"
+      }
+    ],
+    "bbox": [
+      [
+        0.0,
+        -19.0,
+        0.0
+      ],
+      [
+        18.0,
+        66.0,
+        0.0
+      ]
+    ]
+  },
+  {
+    "name": "S203",
+    "origin": [
+      0.0,
+      0.0,
+      0.0
+    ],
+    "objects": [
+      {
+        "type": "AcDbPolyline"
+      },
+      {
+        "type": "AcDbPolyline"
+      },
+      {
+        "type": "AcDbPolyline"
+      },
+      {
+        "type": "AcDbPolyline"
+      },
+      {
+        "type": "AcDbPolyline"
+      },
+      {
+        "type": "AcDbPolyline"
+      },
+      {
+        "type": "AcDbPolyline"
+      },
+      {
+        "type": "AcDbPolyline"
+      },
+      {
+        "type": "AcDbPolyline"
+      },
+      {
+        "type": "AcDbPolyline"
+      },
+      {
+        "type": "AcDbPolyline"
+      },
+      {
+        "type": "AcDbCircle"
+      },
+      {
+        "type": "AcDbCircle"
+      },
+      {
+        "type": "AcDbCircle"
+      },
+      {
+        "type": "AcDbCircle"
+      },
+      {
+        "type": "AcDbCircle"
+      },
+      {
+        "type": "AcDbCircle"
+      },
+      {
+        "type": "AcDbPolyline"
+      },
+      {
+        "type": "AcDbPolyline"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbSolid"
+      },
+      {
+        "type": "AcDbPolyline"
+      },
+      {
+        "type": "AcDbSolid"
+      },
+      {
+        "type": "AcDbPolyline"
+      },
+      {
+        "type": "AcDbPolyline"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbPolyline"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbSolid"
+      },
+      {
+        "type": "AcDbPolyline"
+      },
+      {
+        "type": "AcDbSolid"
+      },
+      {
+        "type": "AcDbPolyline"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbPolyline"
+      },
+      {
+        "type": "AcDbPolyline"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbSolid"
+      },
+      {
+        "type": "AcDbPolyline"
+      },
+      {
+        "type": "AcDbSolid"
+      },
+      {
+        "type": "AcDbPolyline"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbSolid"
+      },
+      {
+        "type": "AcDbPolyline"
+      },
+      {
+        "type": "AcDbHatch"
+      }
+    ],
+    "bbox": [
+      [
+        0.0,
+        -19.0,
+        0.0
+      ],
+      [
+        54.0,
+        66.0,
+        1.0803860678255502e+293
+      ]
+    ]
+  },
+  {
+    "name": "DS201",
+    "origin": [
+      0.0,
+      0.0,
+      0.0
+    ],
+    "objects": [
+      {
+        "type": "AcDb2dPolyline"
+      },
+      {
+        "type": "AcDbCircle"
+      },
+      {
+        "type": "AcDbCircle"
+      },
+      {
+        "type": "AcDbCircle"
+      },
+      {
+        "type": "AcDbCircle"
+      },
+      {
+        "type": "AcDb2dPolyline"
+      },
+      {
+        "type": "AcDbSolid"
+      },
+      {
+        "type": "AcDb2dPolyline"
+      },
+      {
+        "type": "AcDb2dPolyline"
+      },
+      {
+        "type": "AcDbSolid"
+      },
+      {
+        "type": "AcDb2dPolyline"
+      },
+      {
+        "type": "AcDbSolid"
+      },
+      {
+        "type": "AcDb2dPolyline"
+      },
+      {
+        "type": "AcDbSolid"
+      },
+      {
+        "type": "AcDb2dPolyline"
+      },
+      {
+        "type": "AcDbSolid"
+      },
+      {
+        "type": "AcDb2dPolyline"
+      },
+      {
+        "type": "AcDb2dPolyline"
+      },
+      {
+        "type": "AcDbCircle"
+      },
+      {
+        "type": "AcDb2dPolyline"
+      },
+      {
+        "type": "AcDbHatch"
+      }
+    ],
+    "bbox": [
+      [
+        0.0,
+        -64.0,
+        0.0
+      ],
+      [
+        36.0,
+        19.000000000000004,
+        0.0
+      ]
+    ]
+  },
+  {
+    "name": "DS203",
+    "origin": [
+      0.0,
+      0.0,
+      0.0
+    ],
+    "objects": [
+      {
+        "type": "AcDbHatch"
+      },
+      {
+        "type": "AcDbPolyline"
+      },
+      {
+        "type": "AcDbPolyline"
+      },
+      {
+        "type": "AcDbSolid"
+      },
+      {
+        "type": "AcDbPolyline"
+      },
+      {
+        "type": "AcDbPolyline"
+      },
+      {
+        "type": "AcDbCircle"
+      },
+      {
+        "type": "AcDbCircle"
+      },
+      {
+        "type": "AcDbCircle"
+      },
+      {
+        "type": "AcDbCircle"
+      },
+      {
+        "type": "AcDbPolyline"
+      },
+      {
+        "type": "AcDbPolyline"
+      },
+      {
+        "type": "AcDbPolyline"
+      },
+      {
+        "type": "AcDbPolyline"
+      },
+      {
+        "type": "AcDbPolyline"
+      },
+      {
+        "type": "AcDbCircle"
+      },
+      {
+        "type": "AcDbCircle"
+      },
+      {
+        "type": "AcDbPolyline"
+      },
+      {
+        "type": "AcDbPolyline"
+      },
+      {
+        "type": "AcDbCircle"
+      },
+      {
+        "type": "AcDbPolyline"
+      },
+      {
+        "type": "AcDbCircle"
+      },
+      {
+        "type": "AcDbCircle"
+      },
+      {
+        "type": "AcDbPolyline"
+      },
+      {
+        "type": "AcDbPolyline"
+      },
+      {
+        "type": "AcDbCircle"
+      },
+      {
+        "type": "AcDbPolyline"
+      },
+      {
+        "type": "AcDbPolyline"
+      },
+      {
+        "type": "AcDbSolid"
+      },
+      {
+        "type": "AcDbPolyline"
+      },
+      {
+        "type": "AcDbSolid"
+      },
+      {
+        "type": "AcDbPolyline"
+      },
+      {
+        "type": "AcDbSolid"
+      },
+      {
+        "type": "AcDbPolyline"
+      },
+      {
+        "type": "AcDbPolyline"
+      },
+      {
+        "type": "AcDbPolyline"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbSolid"
+      },
+      {
+        "type": "AcDbPolyline"
+      },
+      {
+        "type": "AcDbSolid"
+      },
+      {
+        "type": "AcDbPolyline"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbSolid"
+      },
+      {
+        "type": "AcDbPolyline"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbPolyline"
+      },
+      {
+        "type": "AcDbPolyline"
+      },
+      {
+        "type": "AcDbPolyline"
+      },
+      {
+        "type": "AcDbPolyline"
+      },
+      {
+        "type": "AcDbPolyline"
+      },
+      {
+        "type": "AcDbPolyline"
+      },
+      {
+        "type": "AcDbPolyline"
+      },
+      {
+        "type": "AcDbPolyline"
+      },
+      {
+        "type": "AcDbPolyline"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbPolyline"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbSolid"
+      },
+      {
+        "type": "AcDbPolyline"
+      },
+      {
+        "type": "AcDbSolid"
+      },
+      {
+        "type": "AcDbPolyline"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbPolyline"
+      },
+      {
+        "type": "AcDbPolyline"
+      },
+      {
+        "type": "AcDbPolyline"
+      },
+      {
+        "type": "AcDbPolyline"
+      },
+      {
+        "type": "AcDbPolyline"
+      },
+      {
+        "type": "AcDbPolyline"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbPolyline"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbSolid"
+      },
+      {
+        "type": "AcDbPolyline"
+      },
+      {
+        "type": "AcDbSolid"
+      },
+      {
+        "type": "AcDbPolyline"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbPolyline"
+      },
+      {
+        "type": "AcDbPolyline"
+      },
+      {
+        "type": "AcDbPolyline"
+      },
+      {
+        "type": "AcDbSolid"
+      },
+      {
+        "type": "AcDbPolyline"
+      },
+      {
+        "type": "AcDbPolyline"
+      }
+    ],
+    "bbox": [
+      [
+        0.0,
+        -27.0,
+        0.0
+      ],
+      [
+        87.0,
+        66.0,
+        2.5898364469912208e-307
+      ]
+    ]
+  },
+  {
+    "name": "ABB S201",
+    "origin": [
+      0.0,
+      0.0,
+      0.0
+    ],
+    "objects": [
+      {
+        "type": "AcDbPolyline"
+      },
+      {
+        "type": "AcDbCircle"
+      },
+      {
+        "type": "AcDbCircle"
+      },
+      {
+        "type": "AcDbPolyline"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbPolyline"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbSolid"
+      },
+      {
+        "type": "AcDbPolyline"
+      },
+      {
+        "type": "AcDbSolid"
+      },
+      {
+        "type": "AcDbPolyline"
+      },
+      {
+        "type": "AcDbMText"
+      },
+      {
+        "type": "AcDbPolyline"
+      },
+      {
+        "type": "AcDbPolyline"
+      },
+      {
+        "type": "AcDbPolyline"
+      },
+      {
+        "type": "AcDbPolyline"
+      },
+      {
+        "type": "AcDbPolyline"
+      },
+      {
+        "type": "AcDbPolyline"
+      },
+      {
+        "type": "AcDbPolyline"
+      },
+      {
+        "type": "AcDbPolyline"
+      },
+      {
+        "type": "AcDbWipeout"
+      },
+      {
+        "type": "AcDbWipeout"
+      }
+    ],
+    "bbox": [
+      [
+        0.0,
+        -19.0,
+        0.0
+      ],
+      [
+        19.849969361979674,
+        66.0,
+        0.0
+      ]
+    ]
+  },
+  {
+    "name": "Дин",
+    "origin": [
+      0.0,
+      0.0,
+      0.0
+    ],
+    "objects": [
+      {
+        "type": "AcDbPolyline"
+      },
+      {
+        "type": "AcDbPolyline"
+      },
+      {
+        "type": "AcDbPolyline"
+      },
+      {
+        "type": "AcDbPolyline"
+      },
+      {
+        "type": "AcDbPolyline"
+      },
+      {
+        "type": "AcDbPolyline"
+      },
+      {
+        "type": "AcDbPolyline"
+      },
+      {
+        "type": "AcDbPolyline"
+      },
+      {
+        "type": "AcDbPolyline"
+      },
+      {
+        "type": "AcDbPolyline"
+      },
+      {
+        "type": "AcDbWipeout"
+      }
+    ],
+    "bbox": [
+      [
+        -0.7578357885213336,
+        -9.988151491475831e-05,
+        0.0
+      ],
+      [
+        228.89098809868847,
+        45.99999999998545,
+        0.0
+      ]
+    ]
+  },
+  {
+    "name": "3+1",
+    "origin": [
+      0.0,
+      0.0,
+      0.0
+    ],
+    "objects": [
+      {
+        "type": "AcDbBlockReference"
+      },
+      {
+        "type": "AcDbBlockReference"
+      },
+      {
+        "type": "AcDbBlockReference"
+      },
+      {
+        "type": "AcDbBlockReference"
+      },
+      {
+        "type": "AcDbBlockReference"
+      },
+      {
+        "type": "AcDbHatch"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbSpline"
+      },
+      {
+        "type": "AcDbSpline"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbSpline"
+      },
+      {
+        "type": "AcDbSpline"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbSpline"
+      },
+      {
+        "type": "AcDbSpline"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbSpline"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbSpline"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbSpline"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbArc"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbArc"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbArc"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbArc"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbArc"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbArc"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbArc"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbArc"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbSpline"
+      },
+      {
+        "type": "AcDbSpline"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbSpline"
+      },
+      {
+        "type": "AcDbSpline"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbSpline"
+      },
+      {
+        "type": "AcDbSpline"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbSpline"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbSpline"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbSpline"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbSpline"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbPolyline"
+      },
+      {
+        "type": "AcDbPolyline"
+      }
+    ],
+    "bbox": [
+      [
+        -3.9108272176235914e-10,
+        -37.1113578728864,
+        0.0
+      ],
+      [
+        42.95000437053535,
+        37.11135787292051,
+        0.0
+      ]
+    ]
+  },
+  {
+    "name": "Шина N",
+    "origin": [
+      0.0,
+      0.0,
+      0.0
+    ],
+    "objects": [
+      {
+        "type": "AcDbPolyline"
+      },
+      {
+        "type": "AcDbCircle"
+      },
+      {
+        "type": "AcDbCircle"
+      },
+      {
+        "type": "AcDbPolyline"
+      },
+      {
+        "type": "AcDbPolyline"
+      },
+      {
+        "type": "AcDbPolyline"
+      },
+      {
+        "type": "AcDbPolyline"
+      },
+      {
+        "type": "AcDbCircle"
+      },
+      {
+        "type": "AcDbCircle"
+      },
+      {
+        "type": "AcDbPolyline"
+      },
+      {
+        "type": "AcDbPolyline"
+      },
+      {
+        "type": "AcDbPolyline"
+      },
+      {
+        "type": "AcDbPolyline"
+      },
+      {
+        "type": "AcDbCircle"
+      },
+      {
+        "type": "AcDbCircle"
+      },
+      {
+        "type": "AcDbPolyline"
+      },
+      {
+        "type": "AcDbPolyline"
+      },
+      {
+        "type": "AcDbPolyline"
+      },
+      {
+        "type": "AcDbPolyline"
+      },
+      {
+        "type": "AcDbCircle"
+      },
+      {
+        "type": "AcDbCircle"
+      },
+      {
+        "type": "AcDbPolyline"
+      },
+      {
+        "type": "AcDbPolyline"
+      },
+      {
+        "type": "AcDbPolyline"
+      },
+      {
+        "type": "AcDbPolyline"
+      },
+      {
+        "type": "AcDbCircle"
+      },
+      {
+        "type": "AcDbCircle"
+      },
+      {
+        "type": "AcDbPolyline"
+      },
+      {
+        "type": "AcDbPolyline"
+      },
+      {
+        "type": "AcDbPolyline"
+      },
+      {
+        "type": "AcDbPolyline"
+      },
+      {
+        "type": "AcDbCircle"
+      },
+      {
+        "type": "AcDbCircle"
+      },
+      {
+        "type": "AcDbPolyline"
+      },
+      {
+        "type": "AcDbPolyline"
+      },
+      {
+        "type": "AcDbPolyline"
+      },
+      {
+        "type": "AcDbPolyline"
+      },
+      {
+        "type": "AcDbCircle"
+      },
+      {
+        "type": "AcDbCircle"
+      },
+      {
+        "type": "AcDbPolyline"
+      },
+      {
+        "type": "AcDbPolyline"
+      },
+      {
+        "type": "AcDbPolyline"
+      },
+      {
+        "type": "AcDbPolyline"
+      },
+      {
+        "type": "AcDbCircle"
+      },
+      {
+        "type": "AcDbCircle"
+      },
+      {
+        "type": "AcDbPolyline"
+      },
+      {
+        "type": "AcDbPolyline"
+      },
+      {
+        "type": "AcDbPolyline"
+      },
+      {
+        "type": "AcDbPolyline"
+      },
+      {
+        "type": "AcDbHatch"
+      },
+      {
+        "type": "AcDbWipeout"
+      }
+    ],
+    "bbox": [
+      [
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        9.0,
+        85.0,
+        0.0
+      ]
+    ]
+  },
+  {
+    "name": "VPR-2.5-3L-GY",
+    "origin": [
+      0.0,
+      0.0,
+      0.0
+    ],
+    "objects": [
+      {
+        "type": "AcDbHatch"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbSpline"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbSpline"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbSpline"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbSpline"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbSpline"
+      },
+      {
+        "type": "AcDbSpline"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbSpline"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbSpline"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbSpline"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbSpline"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbSpline"
+      },
+      {
+        "type": "AcDbSpline"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbSpline"
+      },
+      {
+        "type": "AcDbSpline"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbSpline"
+      },
+      {
+        "type": "AcDbSpline"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbSpline"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbSpline"
+      },
+      {
+        "type": "AcDbSpline"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbSpline"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbSpline"
+      },
+      {
+        "type": "AcDbSpline"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbSpline"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbSpline"
+      },
+      {
+        "type": "AcDbSpline"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbSpline"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbArc"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbArc"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbSpline"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbSpline"
+      },
+      {
+        "type": "AcDbArc"
+      },
+      {
+        "type": "AcDbSpline"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbSpline"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbSpline"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbSpline"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbSpline"
+      },
+      {
+        "type": "AcDbSpline"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbSpline"
+      },
+      {
+        "type": "AcDbSpline"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbSpline"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbSpline"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbSpline"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbSpline"
+      },
+      {
+        "type": "AcDbSpline"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbSpline"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbSpline"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbSpline"
+      },
+      {
+        "type": "AcDbSpline"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbArc"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbArc"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbSpline"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbSpline"
+      },
+      {
+        "type": "AcDbArc"
+      },
+      {
+        "type": "AcDbSpline"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbSpline"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbSpline"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbSpline"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbSpline"
+      },
+      {
+        "type": "AcDbSpline"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbSpline"
+      },
+      {
+        "type": "AcDbSpline"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbSpline"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbSpline"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbSpline"
+      },
+      {
+        "type": "AcDbSpline"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbSpline"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbHatch"
+      },
+      {
+        "type": "AcDbArc"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbArc"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbArc"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbArc"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbPolyline"
+      },
+      {
+        "type": "AcDbHatch"
+      },
+      {
+        "type": "AcDbArc"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbArc"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbArc"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbArc"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbPolyline"
+      },
+      {
+        "type": "AcDbHatch"
+      },
+      {
+        "type": "AcDbArc"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbArc"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbArc"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbArc"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbPolyline"
+      },
+      {
+        "type": "AcDbHatch"
+      },
+      {
+        "type": "AcDbArc"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbArc"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbArc"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbArc"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbPolyline"
+      },
+      {
+        "type": "AcDbHatch"
+      },
+      {
+        "type": "AcDbArc"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbArc"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbArc"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbArc"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbPolyline"
+      },
+      {
+        "type": "AcDbHatch"
+      },
+      {
+        "type": "AcDbArc"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbArc"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbArc"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbArc"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbPolyline"
+      },
+      {
+        "type": "AcDbPolyline"
+      }
+    ],
+    "bbox": [
+      [
+        -7.303242455236614e-10,
+        -51.29139537555761,
+        0.0
+      ],
+      [
+        5.1500001583899575,
+        51.29139537557239,
+        0.0
+      ]
+    ]
+  },
+  {
+    "name": "VPR-6-GY",
+    "origin": [
+      0.0,
+      0.0,
+      0.0
+    ],
+    "objects": [
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbSpline"
+      },
+      {
+        "type": "AcDbSpline"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbSpline"
+      },
+      {
+        "type": "AcDbSpline"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbSpline"
+      },
+      {
+        "type": "AcDbSpline"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbSpline"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbSpline"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbSpline"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbArc"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbArc"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbArc"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbArc"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbArc"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbArc"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbArc"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbArc"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbSpline"
+      },
+      {
+        "type": "AcDbSpline"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbSpline"
+      },
+      {
+        "type": "AcDbSpline"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbSpline"
+      },
+      {
+        "type": "AcDbSpline"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbPolyline"
+      },
+      {
+        "type": "AcDbHatch"
+      }
+    ],
+    "bbox": [
+      [
+        -1.964508555829525e-10,
+        -37.1113578728864,
+        0.0
+      ],
+      [
+        8.15000000091004,
+        37.11135787288595,
+        0.0
+      ]
+    ]
+  },
+  {
+    "name": "VPR-6-BU",
+    "origin": [
+      0.0,
+      0.0,
+      0.0
+    ],
+    "objects": [
+      {
+        "type": "AcDbHatch"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbSpline"
+      },
+      {
+        "type": "AcDbSpline"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbSpline"
+      },
+      {
+        "type": "AcDbSpline"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbSpline"
+      },
+      {
+        "type": "AcDbSpline"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbSpline"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbSpline"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbSpline"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbArc"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbArc"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbArc"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbArc"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbArc"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbArc"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbArc"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbArc"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbSpline"
+      },
+      {
+        "type": "AcDbSpline"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbSpline"
+      },
+      {
+        "type": "AcDbSpline"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbSpline"
+      },
+      {
+        "type": "AcDbSpline"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbSpline"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbSpline"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbSpline"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbSpline"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbPolyline"
+      }
+    ],
+    "bbox": [
+      [
+        -3.9108272176235914e-10,
+        -37.1113578728864,
+        0.0
+      ],
+      [
+        8.15000000084683,
+        37.11135787288595,
+        0.0
+      ]
+    ]
+  },
+  {
+    "name": "D-VPR-6",
+    "origin": [
+      0.0,
+      0.0,
+      0.0
+    ],
+    "objects": [
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbPoint"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbWipeout"
+      }
+    ],
+    "bbox": [
+      [
+        0.0,
+        -37.08250042757618,
+        0.0
+      ],
+      [
+        2.2000043671465974,
+        37.08250043698217,
+        0.0
+      ]
+    ]
+  },
+  {
+    "name": "БП DIN",
+    "origin": [
+      0.0,
+      0.0,
+      0.0
+    ],
+    "objects": [
+      {
+        "type": "AcDbPolyline"
+      },
+      {
+        "type": "AcDbPolyline"
+      },
+      {
+        "type": "AcDbPolyline"
+      },
+      {
+        "type": "AcDbCircle"
+      },
+      {
+        "type": "AcDbCircle"
+      },
+      {
+        "type": "AcDbCircle"
+      },
+      {
+        "type": "AcDbCircle"
+      },
+      {
+        "type": "AcDbMText"
+      },
+      {
+        "type": "AcDbPolyline"
+      },
+      {
+        "type": "AcDbPolyline"
+      },
+      {
+        "type": "AcDbPolyline"
+      },
+      {
+        "type": "AcDbPolyline"
+      },
+      {
+        "type": "AcDbWipeout"
+      },
+      {
+        "type": "AcDbPolyline"
+      },
+      {
+        "type": "AcDbPolyline"
+      },
+      {
+        "type": "AcDbPolyline"
+      },
+      {
+        "type": "AcDbPolyline"
+      },
+      {
+        "type": "AcDbPolyline"
+      },
+      {
+        "type": "AcDbPolyline"
+      }
+    ],
+    "bbox": [
+      [
+        0.0,
+        -45.0,
+        0.0
+      ],
+      [
+        42.13288246661432,
+        45.0,
+        0.0
+      ]
+    ]
+  },
+  {
+    "name": "ESB40",
+    "origin": [
+      0.0,
+      0.0,
+      0.0
+    ],
+    "objects": [
+      {
+        "type": "AcDbPolyline"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbCircle"
+      },
+      {
+        "type": "AcDbCircle"
+      },
+      {
+        "type": "AcDbCircle"
+      },
+      {
+        "type": "AcDbCircle"
+      },
+      {
+        "type": "AcDbCircle"
+      },
+      {
+        "type": "AcDbCircle"
+      },
+      {
+        "type": "AcDbCircle"
+      },
+      {
+        "type": "AcDbCircle"
+      },
+      {
+        "type": "AcDbCircle"
+      },
+      {
+        "type": "AcDbCircle"
+      },
+      {
+        "type": "AcDbPolyline"
+      },
+      {
+        "type": "AcDbSolid"
+      },
+      {
+        "type": "AcDbPolyline"
+      },
+      {
+        "type": "AcDbPolyline"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbPolyline"
+      },
+      {
+        "type": "AcDbHatch"
+      }
+    ],
+    "bbox": [
+      [
+        0.0,
+        -19.0,
+        0.0
+      ],
+      [
+        54.0,
+        66.0,
+        2.5898364469912208e-307
+      ]
+    ]
+  },
+  {
+    "name": "Кмка",
+    "origin": [
+      0.0,
+      0.0,
+      0.0
+    ],
+    "objects": [
+      {
+        "type": "AcDbPolyline"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbCircle"
+      },
+      {
+        "type": "AcDbCircle"
+      },
+      {
+        "type": "AcDbText",
+        "text": "А2"
+      },
+      {
+        "type": "AcDbText",
+        "text": "А1"
+      },
+      {
+        "type": "AcDbAttributeDefinition",
+        "text": "КМ1",
+        "tag": "КМ"
+      }
+    ],
+    "bbox": [
+      [
+        -6.0,
+        -0.574624038024147,
+        0.0
+      ],
+      [
+        6.0,
+        15.610392221772734,
+        0.0
+      ]
+    ]
+  },
+  {
+    "name": "3 ур. кламмы",
+    "origin": [
+      0.0,
+      0.0,
+      0.0
+    ],
+    "objects": [
+      {
+        "type": "AcDbCircle"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbCircle"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbCircle"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbAttributeDefinition",
+        "text": "1XT",
+        "tag": "1"
+      }
+    ],
+    "bbox": [
+      [
+        -1.0033153585667947,
+        -6.0033153585668515,
+        0.0
+      ],
+      [
+        1.0033153585668515,
+        0.0033153585668515007,
+        0.0
+      ]
+    ]
+  },
+  {
+    "name": "F204",
+    "origin": [
+      0.0,
+      0.0,
+      0.0
+    ],
+    "objects": [
+      {
+        "type": "AcDbPolyline"
+      },
+      {
+        "type": "AcDbCircle"
+      },
+      {
+        "type": "AcDbCircle"
+      },
+      {
+        "type": "AcDbCircle"
+      },
+      {
+        "type": "AcDbCircle"
+      },
+      {
+        "type": "AcDbCircle"
+      },
+      {
+        "type": "AcDbCircle"
+      },
+      {
+        "type": "AcDbCircle"
+      },
+      {
+        "type": "AcDbCircle"
+      },
+      {
+        "type": "AcDbPolyline"
+      },
+      {
+        "type": "AcDbPolyline"
+      },
+      {
+        "type": "AcDbLine"
+      },
+      {
+        "type": "AcDbSolid"
+      },
+      {
+        "type": "AcDbPolyline"
+      },
+      {
+        "type": "AcDbSolid"
+      },
+      {
+        "type": "AcDbPolyline"
+      },
+      {
+        "type": "AcDbSolid"
+      },
+      {
+        "type": "AcDbPolyline"
+      },
+      {
+        "type": "AcDbPolyline"
+      },
+      {
+        "type": "AcDbPolyline"
+      },
+      {
+        "type": "AcDbMText"
+      },
+      {
+        "type": "AcDbPolyline"
+      },
+      {
+        "type": "AcDbPolyline"
+      },
+      {
+        "type": "AcDbPolyline"
+      },
+      {
+        "type": "AcDbPolyline"
+      },
+      {
+        "type": "AcDbPolyline"
+      },
+      {
+        "type": "AcDbPolyline"
+      },
+      {
+        "type": "AcDbPolyline"
+      },
+      {
+        "type": "AcDbPolyline"
+      },
+      {
+        "type": "AcDbPolyline"
+      },
+      {
+        "type": "AcDbPolyline"
+      },
+      {
+        "type": "AcDbPolyline"
+      },
+      {
+        "type": "AcDbPolyline"
+      },
+      {
+        "type": "AcDbPolyline"
+      },
+      {
+        "type": "AcDbPolyline"
+      },
+      {
+        "type": "AcDbPolyline"
+      },
+      {
+        "type": "AcDbPolyline"
+      },
+      {
+        "type": "AcDbPolyline"
+      },
+      {
+        "type": "AcDbPolyline"
+      },
+      {
+        "type": "AcDbPolyline"
+      },
+      {
+        "type": "AcDbPolyline"
+      },
+      {
+        "type": "AcDbPolyline"
+      },
+      {
+        "type": "AcDbPolyline"
+      },
+      {
+        "type": "AcDbPolyline"
+      },
+      {
+        "type": "AcDbPolyline"
+      },
+      {
+        "type": "AcDbPolyline"
+      },
+      {
+        "type": "AcDbPolyline"
+      },
+      {
+        "type": "AcDbPolyline"
+      },
+      {
+        "type": "AcDbPolyline"
+      },
+      {
+        "type": "AcDbPolyline"
+      },
+      {
+        "type": "AcDbPolyline"
+      },
+      {
+        "type": "AcDbPolyline"
+      },
+      {
+        "type": "AcDbPolyline"
+      }
+    ],
+    "bbox": [
+      [
+        0.0,
+        -19.0,
+        0.0
+      ],
+      [
+        72.0,
+        66.0,
+        0.0
+      ]
+    ]
+  },
+  {
+    "name": "R5ISP",
+    "origin": [
+      0.0,
+      0.0,
+      0.0
+    ],
+    "objects": [
+      {
+        "type": "AcDbBlockReference"
+      },
+      {
+        "type": "AcDbBlockReference"
+      },
+      {
+        "type": "AcDbBlockReference"
+      },
+      {
+        "type": "AcDbBlockReference"
+      },
+      {
+        "type": "AcDbBlockReference"
+      },
+      {
+        "type": "AcDbBlockReference"
+      },
+      {
+        "type": "AcDbBlockReference"
+      },
+      {
+        "type": "AcDbBlockReference"
+      },
+      {
+        "type": "AcDbBlockReference"
+      },
+      {
+        "type": "AcDbBlockReference"
+      },
+      {
+        "type": "AcDbBlockReference"
+      },
+      {
+        "type": "AcDbBlockReference"
+      },
+      {
+        "type": "AcDbBlockReference"
+      },
+      {
+        "type": "AcDbBlockReference"
+      },
+      {
+        "type": "AcDbBlockReference"
+      },
+      {
+        "type": "AcDbBlockReference"
+      },
+      {
+        "type": "AcDbBlockReference"
+      },
+      {
+        "type": "AcDbBlockReference"
+      },
+      {
+        "type": "AcDbBlockReference"
+      },
+      {
+        "type": "AcDbBlockReference"
+      },
+      {
+        "type": "AcDbBlockReference"
+      },
+      {
+        "type": "AcDbBlockReference"
+      },
+      {
+        "type": "AcDbBlockReference"
+      },
+      {
+        "type": "AcDbBlockReference"
+      },
+      {
+        "type": "AcDbBlockReference"
+      },
+      {
+        "type": "AcDbBlockReference"
+      },
+      {
+        "type": "AcDbBlockReference"
+      },
+      {
+        "type": "AcDbBlockReference"
+      },
+      {
+        "type": "AcDbBlockReference"
+      },
+      {
+        "type": "AcDbBlockReference"
+      },
+      {
+        "type": "AcDbBlockReference"
+      },
+      {
+        "type": "AcDbBlockReference"
+      }
+    ],
+    "bbox": [
+      [
+        -22.504597121692655,
+        461.233751320671,
+        0.0
+      ],
+      [
+        737.9954034482766,
+        759.2337396530615,
+        0.0
+      ]
+    ]
+  }
+]

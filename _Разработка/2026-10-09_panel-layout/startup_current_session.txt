@@ -1,0 +1,1 @@
+(DRAWING "Однолинейка_проверка.dwg" VERSION "1.1" DCL "C:\\Users\\user\\Desktop\\02_Справочники_CAD_Revit\\odnolineyka\\2_AutoCAD\\Компоновка\\SX_Panel.dcl" LIBRARY "C:\\Users\\user\\Desktop\\02_Справочники_CAD_Revit\\odnolineyka\\2_AutoCAD\\Блоки\\SX_Компоновка_пользовательские.dwg" MODEL-ENTITIES 739)

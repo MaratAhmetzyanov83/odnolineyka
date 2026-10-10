@@ -1,0 +1,1 @@
+((VERSION . "v3.16") (ERRORS) (PLACES 5) (GROUPS 5) (SHEETS 0) (ADOPTED ("ып-1" "R|5") ("ып-1" "R|5") ("ып-1" "S|0")) (RELAY-CHANNELS . 0) (INPUT . T) (NORMAL))

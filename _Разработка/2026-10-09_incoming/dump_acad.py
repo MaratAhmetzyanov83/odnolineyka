@@ -1,0 +1,6 @@
+import pathlib, win32com.client as w
+p=pathlib.Path(__file__).resolve().parent
+fn=str(p/'acad_dump.txt').replace('\\','/')
+expr='''(progn (vl-load-com) (setq sxinspectf (open "%s" "w")) (vlax-for sxinspectob (vla-get-modelspace (vla-get-activedocument (vlax-get-acad-object))) (setq sxinspecte (vlax-vla-object->ename sxinspectob)) (prin1 (entget sxinspecte '("SX_SCHEMA")) sxinspectf) (write-line "" sxinspectf) (if (and (= (vla-get-objectname sxinspectob) "AcDbBlockReference") (= (vla-get-hasattributes sxinspectob) :vlax-true)) (foreach sxinspectat (vlax-invoke sxinspectob 'GetAttributes) (prin1 (entget (vlax-vla-object->ename sxinspectat)) sxinspectf) (write-line "" sxinspectf))) (if (and (= (vla-get-objectname sxinspectob) "AcDbBlockReference") (= (vla-get-isdynamicblock sxinspectob) :vlax-true)) (prin1 (list (vla-get-handle sxinspectob) (vla-get-effectivename sxinspectob) (mapcar '(lambda (pp) (list (vla-get-propertyname pp) (vlax-variant-value (vla-get-value pp)))) (vlax-invoke sxinspectob 'GetDynamicBlockProperties))) sxinspectf) (write-line "" sxinspectf))) (close sxinspectf) (setq sxinspectf nil sxinspecte nil) (princ))''' % fn
+w.GetActiveObject('AutoCAD.Application').ActiveDocument.SendCommand(expr+'\n')
+print('Read-only drawing dump requested')

@@ -1,3 +1,15 @@
 __pycache__/
 *.pyc
 ~$*
+*.bak
+Резервные копии/
+# дубль 2_AutoCAD/Блоки/SX_Компоновка_пользовательские.dwg
+База блоков компоновки (1).dwg
+# старые сборки кабельного журнала (актуальная — CableJournal_1.4.exe)
+2_AutoCAD/Кабельный_журнал/CableJournal.exe
+2_AutoCAD/Кабельный_журнал/CableJournal_1.1.exe
+2_AutoCAD/Кабельный_журнал/CableJournal_1.2.exe
+2_AutoCAD/Кабельный_журнал/CableJournal_1.3.exe
+2_AutoCAD/Кабельный_журнал/Кабельный_журнал_программа.zip
+_Разработка/2026-10-09_cable-journal/build/
+_Разработка/2026-10-09_cable-journal/release_v*/
