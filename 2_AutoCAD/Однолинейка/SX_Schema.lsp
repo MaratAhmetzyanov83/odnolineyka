@@ -1,5 +1,5 @@
 ;;; ============================================================================
-;;;  SX_Schema.lsp  v3.18 —  однолинейная схема из Excel на ВАШИХ блоках
+;;;  SX_Schema.lsp  v3.19 —  однолинейная схема из Excel на ВАШИХ блоках
 ;;;
 ;;;  Команды:
 ;;;    SXDRAW    — окно: файл Excel, лист «Однолинейка», щит, точка вставки,
@@ -32,13 +32,13 @@
 ;;; ============================================================================
 
 (vl-load-com)
-(setq sx:ver "v3.18")
+(setq sx:ver "v3.19")
 
 
 ;;; ---------------------------------------------------------------- настройки
 (if (null *sx-sheet*) (setq *sx-sheet* 17))   ; мест (столбцов) на один лист A3
 (if (null *sx-step*)  (setq *sx-step* 20.0))  ; шаг столбца, мм
-(setq *sx-range* "A3:BY1000")                  ; данные на листе «Однолинейка» (BY = «УГО (рус)», нужен для «кабельного вывода»)
+(setq *sx-range* "A3:BZ1000")                  ; данные на листе «Однолинейка» (BY = «УГО (рус)», BZ = «слаботочн.»)
 (setq *sx-style* "SX_GOST")                    ; текстовый стиль схемы (создаётся/обновляется при каждом запуске)
 (setq *sx-face* "GOST 2.304 type A")           ; шрифт (имя гарнитуры, как в окне «Текстовые стили»)
 (setq sx:red-rgb 10033950 sx:red-aci 244)       ; тёмно-красный 153,27,30 (как БП в вашем DWG)
@@ -78,7 +78,8 @@
       sx:cGrp 33 sx:cMod 34 sx:cModel 35 sx:cQFown 36 sx:cCh 15 sx:cXTtxt 16
       sx:cJoin 40 sx:cXT 51
       sx:cDraw 56 sx:cBus2 57 sx:cRcd 58 sx:cChT 59 sx:cDevC1 60 sx:cSym 63 sx:cHasLine 64
-      sx:cUgoRu 77)   ; BY: название УГО по-русски (пусто = у линии нет кода УГО)
+      sx:cUgoRu 77    ; BY: название УГО по-русски (пусто = у линии нет кода УГО)
+      sx:cLow 78)     ; BZ: 1 = слаботочная линия (DALI, KNX, датчики): клемма без PE
 (setq sx:cStat 31 sx:rowBase 3)   ; AE = status of the row; first Excel row of the range A3:BL
 
 
@@ -1529,7 +1530,8 @@
         ;; двухуровневая клемма (XT без земли) - только когда на клемму приходят два проводника:
         ;; параллельная линия «=» или повтор номера XT; обычная клемма - XT с кружком PE
         (setq xt (sx:s (sx:c d sx:cXTtxt))
-              two (or (and (= bf "=") prev) (and (/= xt "") (member (strcase xt) xseen)))
+              two (or (and (= bf "=") prev) (and (/= xt "") (member (strcase xt) xseen))
+                      (sx:is1 d sx:cLow))   ; слаботочная линия — клемма без PE
               blkn (if two (sx:blk sx:bXT2 "SX_XT2") (sx:blk sx:bXT "SX_XT")))
         (if (/= xt "") (setq xseen (cons (strcase xt) xseen)))
         (if two (setq sx:xtb (+ sx:vXTbot 2.0)))
@@ -2003,5 +2005,5 @@
   (princ))
 
 (princ (strcat "\n" (sx:ru '(83 88 95 83 99 104 101 109 97 32 118 51 46 49 55 32 1079 1072 1075 1088 1091 1078 1077 1085 32 40 1074 1072 1096 1080 32 1073 1083 1086 1082 1080 41 58 32 83 88 68 82 65 87 32 8212 32 1087 1086 1089 1090 1088 1086 1080 1090 1100 32 1089 1093 1077 1084 1091 44 32 83 88 67 76 69 65 82 32 8212 32 1089 1090 1077 1088 1077 1090 1100 46))))
-(princ "\n[SX_Schema v3.18] SXDRAW / SXUPDATE / SXUPDSEL / SXUPDSHEET / SXCLEAR")
+(princ "\n[SX_Schema v3.19] SXDRAW / SXUPDATE / SXUPDSEL / SXUPDSHEET / SXCLEAR")
 (princ)

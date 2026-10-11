@@ -110,8 +110,14 @@ place("ЩТ", ln("LED.1.01.1", 0.1, 10, N="мс", O=2, F=24, H=1, C="Подсв�
       "№11 Линия 24 В через блок питания: потери от 24 В (≤ 5 %)",
       lambda r: (f"U {v(r,'sAC')} В, S {v(r,'sV')}, ΔU {v(r,'sAB')} %",
                  num(v(r, "sAC")) == 24 and (num(v(r, "sAB")) or 99) <= 5))
-place("ЩТ", ln("DALI.1.01.1", 0, 30, N="мс", O=2, F=16, H=1), {"E": "авто", "N": "б/к"},
-      "№10 Шина DALI без клеммы (б/к)", lambda r: (f"клемма «{v(r,'P') or ''}»", True))
+place("ЩТ", ln("DALI.1.01.1", 0, 30), {"E": "авто", "I": "БП DALI", "N": "б/к"},
+      "Слаботочная: шина DALI от БП DALI (б/к) — без тока и нагрузки, статус чистый",
+      lambda r: (f"ток {v(r,'sT')}, слаб. {v(r,'BZ')}, статус «{v(r,'AE') or ''}»",
+                 num(v(r, "sT")) == 0 and num(v(r, "BZ")) == 1 and not v(r, "AE")))
+place("ЩТ", ln("KNX.1.01.1", 0, 40), {"E": "авто", "I": "PS-KNX 640мА", "P": "XT41"},
+      "Слаботочная: шина KNX от PS-KNX — кабель по коду, клемма без PE",
+      lambda r: (f"{v(r,'Q')}, ток {v(r,'sT')}, статус «{v(r,'AE') or ''}»",
+                 "J-Y" in str(v(r, "Q")) and num(v(r, "sT")) == 0 and not v(r, "AE")))
 place("ЩТ", ln("В.1.01.1", 0.06, 8, C="Вытяжной вентилятор с/у", **X), {"E": "авто", "I": "КМ", "P": "XT21"},
       "Двигатель (cos φ по справочнику) + контактор КМ после автомата",
       lambda r: (f"cos φ {v(r,'sP')}, {v(r,'I')}", bool(v(r, "sP"))))
@@ -144,6 +150,9 @@ place("ЩТ2", ln("R.3.01.1", 0.2, 10), {"P": "XT9"}, "ОШИБКА: клемм�
       lambda r: ("проверить в SXDRAW", None))
 place("ЩТ2", ln("R.3.01.2", 0.2, 10), {"E": "авто", "P": "XT1"}, "ОШИБКА: дубль клеммы XT1",
       lambda r: (f"статус «{v(r,'AE') or ''}»", "дубль" in str(v(r, "AE"))))
+place("ЩТ2", ln("KNX.1.01.2", 0, 20), {"E": "авто", "P": "XT5"},
+      "ОШИБКА: слаботочная линия с автоматом без промежуточного устройства",
+      lambda r: (f"статус «{v(r,'AE') or ''}»", "слаботочная" in str(v(r, "AE"))))
 place("ЩТ2", ln("R.3.01.3", 0, 10), {"E": "авто", "P": "XT1"}, "ОШИБКА: нет мощности (и та же XT1)",
       lambda r: (f"статус «{v(r,'AE') or ''}»", "мощност" in str(v(r, "AE"))))
 
@@ -152,6 +161,7 @@ ORPHAN = ln("R.9.01.1", 0.2, 10)
 
 ODN_COLS = ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T",
             "U", "V", "W", "X", "Y", "AE"]
+BZ = 77   # индекс «слаботочн.» (BZ) в прочитанном диапазоне A:BZ
 SRC_COLS = {"sT": "T", "sU": "U", "sV": "V", "sAB": "AB", "sAC": "AC", "sP": "P", "sK": "K", "sL": "L", "sAD": "AD"}
 
 
@@ -205,13 +215,14 @@ def build(out):
             nag.Range(f"E{3 + dcol.index('R.2.05.1')}").Value = 2
         app.CalculateFull()
         # прочитать результаты
-        oval = odn.Range(f"A{ODN0}:AE{ODN0 + len(PLACES) - 1}").Value
+        oval = odn.Range(f"A{ODN0}:BZ{ODN0 + len(PLACES) - 1}").Value
         sval = {n: src.Range(f"{c}{SRC0}:{c}{SRC0 + len(lines) - 1}").Value for n, c in SRC_COLS.items()}
         sidx = {d["D"]: i for i, d in enumerate(lines)}
         rows, nok = [], 0
         for i, (board, line, inp, what, check) in enumerate(PLACES):
             rec = {c: oval[i][j] for j, c in enumerate(ODN_COLS[:-1])}
             rec["AE"] = oval[i][30]
+            rec["BZ"] = oval[i][BZ]
             if line:
                 for n in SRC_COLS:
                     rec[n] = sval[n][sidx[line["D"]]][0]
