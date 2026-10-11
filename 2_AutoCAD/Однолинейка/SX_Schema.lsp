@@ -665,7 +665,7 @@
 ;;; запасная библиотека: 02_Однолинейка.dwg в папке выбранной (если выбрана другая)
 (defun sx:lib-fallback (path / f)
   (if (and path (/= path "") (findfile path)
-           (setq f (findfile (strcat (vl-filename-directory (findfile path)) "\\" (sx:ru '(48 50 95 1054 1076 1085 1086 1083 1080 1085 1077 1081 1082 1072 46 100 119 103))))))
+           (setq f (findfile (strcat (vl-filename-directory (findfile path)) "\\" (sx:ru '(48 50 95 1054 1076 1085 1086 1083 1080 1085 1077 1081 1082 1072 46 100 119 103)))))
            (/= (strcase f) (strcase (findfile path))))
     f))
 
@@ -1238,7 +1238,7 @@
     (setq vIns (+ sx:vSideB sx:qfBody))
     ;; аппараты под автоматом: автомат на своём уровне, аппараты — в свободное место до клеммы;
     ;; поднять автомат только на то, что не поместилось (у групп с модулем места нет — как раньше)
-    (setq side nil vIns (+ sx:vQFins (if sx:gHasCh H (max 0.0 (- H sx:devRoom)))))))
+    (setq side nil vIns (+ sx:vQFins (if sx:gHasCh H (max 0.0 (- H sx:devRoom))))))
   ;; автомат: точка подключения блока — ровно на шину
   (if (sx:blk-p sx:bQF)
     (progn
