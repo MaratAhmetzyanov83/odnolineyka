@@ -1,5 +1,5 @@
 ;;; ============================================================================
-;;;  SX_Schema.lsp  v3.19 —  однолинейная схема из Excel на ВАШИХ блоках
+;;;  SX_Schema.lsp  v3.20 —  однолинейная схема из Excel на ВАШИХ блоках
 ;;;
 ;;;  Команды:
 ;;;    SXDRAW    — окно: файл Excel, лист «Однолинейка», щит, точка вставки,
@@ -32,7 +32,7 @@
 ;;; ============================================================================
 
 (vl-load-com)
-(setq sx:ver "v3.19")
+(setq sx:ver "v3.20")
 
 
 ;;; ---------------------------------------------------------------- настройки
@@ -528,7 +528,9 @@
   ;; аппараты: (код блок масштаб вставка-сверху? высота)
   (setq sx:devs
     (list (list "T"  sx:bT  1.0 T   13.8)
-          (list "PS" sx:bPS 1.0 nil 13.7)
+          (list "PS" "SX_PSU" 1.0 T 12.0)
+          (list "PK" "SX_PSK" 1.0 T 12.0)
+          (list "DIM" "SX_DIM4" 1.0 T 12.0)
           (list "MK" sx:bMK 0.6111 T 9.35)
           (list "KM" "SX_KM" 1.0 T 10.0)
           (list "X"  "SX_DEV" 1.0 T 10.0))))
@@ -562,6 +564,19 @@
       (foreach e ents (entmake e))
       (entmake '((0 . "ENDBLK") (8 . "0"))))))
 
+;;; геометрия «преобразователя»: выводы, квадрат 9x9, диагональ, «~» слева сверху;
+;;; dim = T — диммер: вместо «=» стрелка регулирования через знак и число каналов «4»
+(defun sx:conv-ents (dim)
+  (append
+    (list (bL 0.0 0.0 0.0 -1.5) (bL 0.0 -10.5 0.0 -12.0))
+    (bR -4.5 -10.5 4.5 -1.5)
+    (list (bA -2.9 -3.9 0.8 0.0 pi) (bA -1.3 -3.9 0.8 pi (* 2 pi)))
+    (if dim
+      (list (bL -3.8 -9.8 3.8 -2.2) (bL 3.8 -2.2 2.3 -2.4) (bL 3.8 -2.2 3.6 -3.7)
+            (bT 2.4 -8.9 2.2 "4" nil 0.0))
+      (list (bL -4.5 -10.5 4.5 -1.5) (bL 1.0 -7.4 3.4 -7.4) (bL 1.0 -8.4 3.4 -8.4)))
+    (list (bAtt "POS" -5.6 -4.6 2.5 "R" 0.0 nil) (bAtt "N" -5.6 -8.4 2.0 "R" 0.0 nil))))
+
 (defun sx:make-blocks (force / hp)
   (setq hp (/ pi 2.0))
   ;; канал модуля — геометрия канала из вашего блока «24-1»; вставка в низ провода OUT
@@ -581,6 +596,10 @@
                             (bAtt "V" -8.8 -12.9 2.5 "L" 0.0 nil)) force)
   (sx:defblock "SX_PS" (append (list (bL 0.0 0.0 0.0 2.5) (bL 0.0 11.2 0.0 13.7)) (bR -2.2 2.5 2.2 11.2)
                                (list (bT 0.0 6.85 2.0 "=" "M" 0.0) (bAtt "N" -4.8 8.3 2.5 "L" 0.0 nil))) force)
+  ;; блок питания (ГОСТ 2.721: преобразователь ~/=), БП KNX, диммер 4-канальный: вставка сверху, высота 12
+  (sx:defblock "SX_PSU" (sx:conv-ents nil) force)
+  (sx:defblock "SX_PSK" (append (sx:conv-ents nil) (list (bT 5.6 -6.9 2.0 "KNX" nil 0.0))) force)
+  (sx:defblock "SX_DIM4" (sx:conv-ents T) force)
   (sx:defblock "SX_MKX" (append (list (bL 0.0 0.0 0.0 -3.0) (bL 0.0 -12.3 0.0 -15.3)) (bR -2.0 -12.3 2.0 -3.0)
                                 (list (bL -2.0 -12.3 2.0 -3.0) (bAtt "N" 3.0 -8.8 2.5 "L" 0.0 nil))) force)
   (sx:defblock "SX_KM" (list (bL 0.0 0.0 0.0 -1.5) (bL 0.0 -8.5 0.0 -10.0) (bL 0.0 -8.5 -3.0 -2.0)
@@ -1219,13 +1238,16 @@
        (cond ((wcmatch (strcase tk) "*W") (setq w (sx:digits tk)))
              ((wcmatch (strcase tk) "*V") (setq v (sx:digits tk)))))
      (setq n (list (itoa sx:tcount) w v)))
-    ((= (car dv) "PS") (setq sx:pcount (1+ sx:pcount) n (list (itoa sx:pcount))))
+    ((member (car dv) '("PS" "PK"))
+     (setq sx:pcount (1+ sx:pcount) n (list (strcat "U" (itoa sx:pcount)) (cadr dv))))
+    ((= (car dv) "DIM")
+     (setq sx:dcount (1+ sx:dcount) n (list (strcat "A" (itoa sx:dcount)) (cadr dv))))
     (t (setq n (list (cadr dv)))))
   (if (not (sx:blk-p blk))
     (setq blk (cdr (assoc blk (list (cons sx:bT "SX_T") (cons sx:bPS "SX_PS") (cons sx:bMK "SX_MKX")
                                     (cons "SX_KM" "SX_KM") (cons "SX_DEV" "SX_DEV"))))))
   (setq ob (sx:insv blk x (if (nth 3 spec) top (- top (nth 4 spec))) (if (= blk "SX_MKX") 0.6111 (nth 2 spec)) 0.0 n sx:BL))
-  (if (member (car dv) '("T" "PS")) (sx:red ob))
+  (if (and (member (car dv) '("T" "PS" "PK")) (not (wcmatch (strcase blk) "SX_*"))) (sx:red ob))
   ob)
 
 (defun sx:draw-qf (q u side nbyp / devs H top parts vIns busL ob name spec r xs xd vTop)
@@ -1280,7 +1302,7 @@
 (setq sx:devRoom 24.0)   ; мм под автоматом для аппаратов (до клеммы XT остаётся место для засечек)
 (defun sx:qf-low (u) (cond ((cdr (assoc u sx:qflow))) (t sx:vComb)))
 (defun sx:draw-groups (draw / gid u busN members feeds chF xtF chU xtU xts xN hi side devs lowv lo)
-  (setq sx:tcount 0 sx:pcount 0 sx:qflow nil)
+  (setq sx:tcount 0 sx:pcount 0 sx:dcount 0 sx:qflow nil)
   (foreach q draw
    (if (and (sx:has q sx:cQFown) (sx:wantG (sx:i q)))
    (sx:ttry (strcat "G|" (itoa (sx:i q))) (function (lambda ()
@@ -1290,7 +1312,7 @@
               busN (if (sx:is1 q sx:cBus2) sx:vBus2N sx:vBusN)
               devs (sx:dev-list q))
         ;; БП/трансформатор сбоку, если соседний справа столбец (на том же листе) без автомата
-        (setq lowv (and devs (not (vl-some '(lambda (dv) (not (member (car dv) '("T" "PS")))) devs))))
+        (setq lowv (and devs (not (vl-some '(lambda (dv) (not (member (car dv) '("T" "PS" "PK")))) devs))))
         (setq side (and lowv
                         (= (sx:sheet (1+ (sx:i q))) (sx:sheet (sx:i q)))
                         (not (vl-some '(lambda (d) (and (= (sx:i d) (1+ (sx:i q))) (sx:has d sx:cQFown))) draw))))
@@ -1451,11 +1473,15 @@
         (setq blk (cond ((= sym "SOCKET") "SX_U_SOCKET") ((= sym "LAMP") "SX_U_LAMP")
                         ((member sym '("MOTOR" "SERVO" "VALVE")) "SX_U_M") (t "SX_U_BOX"))
               spec (list sym blk 1.0 0.0 (nth 4 spec) (nth 5 spec))))
+      (if (wcmatch (strcase blk) "SX_U_*")
+        ;; своего блока УГО нет (рисовалась бы белая заглушка) -> красный кабельный вывод
+        (sx:draw-outlet d u)
+        (progn
       (sx:line u sx:xtb u (nth 5 spec) sx:L)
       (setq ob (sx:insv blk u (nth 4 spec) (nth 2 spec) (nth 3 spec)
                         (if (= sym "BOX") (list (sx:s (sx:c d sx:cLine))) (list "")) sx:BL))
       (if (/= sym "SOCKET") (sx:red ob))
-      ob)))))
+      ob)))))))
 
 ;;; подпись клеммы: справа от кружков, на уровне верхнего, ниже перемычки
 (setq sx:xtLblDx 2.2 sx:xtLblDv -1.0)
@@ -2005,5 +2031,5 @@
   (princ))
 
 (princ (strcat "\n" (sx:ru '(83 88 95 83 99 104 101 109 97 32 118 51 46 49 55 32 1079 1072 1075 1088 1091 1078 1077 1085 32 40 1074 1072 1096 1080 32 1073 1083 1086 1082 1080 41 58 32 83 88 68 82 65 87 32 8212 32 1087 1086 1089 1090 1088 1086 1080 1090 1100 32 1089 1093 1077 1084 1091 44 32 83 88 67 76 69 65 82 32 8212 32 1089 1090 1077 1088 1077 1090 1100 46))))
-(princ "\n[SX_Schema v3.19] SXDRAW / SXUPDATE / SXUPDSEL / SXUPDSHEET / SXCLEAR")
+(princ "\n[SX_Schema v3.20] SXDRAW / SXUPDATE / SXUPDSEL / SXUPDSHEET / SXCLEAR")
 (princ)
