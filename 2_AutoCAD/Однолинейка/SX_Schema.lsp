@@ -1,5 +1,5 @@
 ;;; ============================================================================
-;;;  SX_Schema.lsp  v3.17 —  однолинейная схема из Excel на ВАШИХ блоках
+;;;  SX_Schema.lsp  v3.18 —  однолинейная схема из Excel на ВАШИХ блоках
 ;;;
 ;;;  Команды:
 ;;;    SXDRAW    — окно: файл Excel, лист «Однолинейка», щит, точка вставки,
@@ -32,7 +32,7 @@
 ;;; ============================================================================
 
 (vl-load-com)
-(setq sx:ver "v3.17")
+(setq sx:ver "v3.18")
 
 
 ;;; ---------------------------------------------------------------- настройки
@@ -593,7 +593,7 @@
                               (bAtt "N" 1.7 0.1 2.5 "L" 0.0 nil)) force)
   (sx:defblock "SX_XTPE" (list (bCc 0.0 0.0 1.0 3) (bLc 1.003 0.753 -0.753 -1.003 3) (bLc 0.753 1.003 -1.003 -0.753 3)) force)
   ;; кабельный вывод (если блока «Вывод» нет): линия вниз со стрелкой, вставка в верхней точке
-  (sx:defblock "SX_U_OUT" (list (bL 0.0 0.0 0.0 -9.0) (bL 0.0 -9.0 -1.2 -6.6) (bL 0.0 -9.0 1.2 -6.6)) force)
+  (sx:defblock "SX_U_OUT" (list (bLc 0.0 0.0 0.0 -9.0 0) (bLc 0.0 -9.0 -1.2 -6.6 0) (bLc 0.0 -9.0 1.2 -6.6 0)) T)
   (sx:defblock "SX_U_HEAT" (append (list (bL 0.0 6.5 0.0 2.5)) (bR -3.0 -2.5 3.0 2.5)
                                    (list (bL -2.0 0.0 -1.0 1.2) (bL -1.0 1.2 0.0 -1.2) (bL 0.0 -1.2 1.0 1.2) (bL 1.0 1.2 2.0 0.0))) force)
   (sx:defblock "SX_U_BOX" (append (list (bL 0.0 6.5 0.0 2.5)) (bR -3.0 -2.5 3.0 2.5)
@@ -661,7 +661,22 @@
   sx:libsrc)
 
 ;;; какие из names есть в библиотеке (без копирования)
-(defun sx:lib-found (path names / src blks b res)
+;;; запасная библиотека: 02_Однолинейка.dwg в папке выбранной (если выбрана другая)
+(defun sx:lib-fallback (path / f)
+  (if (and path (/= path "") (findfile path)
+           (setq f (findfile (strcat (vl-filename-directory (findfile path)) "\\" (sx:ru '(48 50 95 1054 1076 1085 1086 1083 1080 1085 1077 1081 1082 1072 46 100 119 103))))))
+           (/= (strcase f) (strcase (findfile path))))
+    f))
+
+;;; какие из names есть в библиотеке или в запасной
+(defun sx:lib-found (path names / res rest fb)
+  (setq res (sx:lib-found1 path names)
+        rest (vl-remove-if '(lambda (n) (member n res)) names))
+  (if (and rest (setq fb (sx:lib-fallback path)))
+    (progn (sx:lib-close) (setq res (append res (sx:lib-found1 fb rest))) (sx:lib-close)))
+  res)
+
+(defun sx:lib-found1 (path names / src blks b res)
   (if (and names path (/= path "") (findfile path) (setq src (sx:lib-open path)))
     (progn
       (setq blks (vla-get-blocks src))
@@ -672,7 +687,7 @@
   (reverse res))
 
 ;;; скопировать недостающие блоки из DWG-библиотеки
-(defun sx:import-blocks (path names / src objs b sa r blks)
+(defun sx:import-blocks (path names / src objs b sa r blks fb)
   (setq names (vl-remove-if '(lambda (n) (tblsearch "BLOCK" n)) names))
   (cond
     ((null names) nil)
@@ -692,7 +707,11 @@
              (if (vl-catch-all-error-p r) (sx:log (strcat "lib: copy error " (vl-catch-all-error-message r))))
              (foreach b objs (vl-catch-all-apply 'vlax-release-object (list b))))))))
     (t (sx:log (strcat "lib: file not found: " (sx:str path)))))
-  (sx:lib-close))
+  (sx:lib-close)
+  ;; чего нет в выбранной библиотеке — из запасной (02_Однолинейка.dwg рядом)
+  (setq names (vl-remove-if '(lambda (n) (tblsearch "BLOCK" n)) names))
+  (if (and names (setq fb (sx:lib-fallback path)))
+    (progn (sx:log (strcat "lib: fallback " fb)) (sx:import-blocks fb names))))
 
 ;;; наличие блока в чертеже с кэшем (кэш сбрасывается в sx:main и после импорта)
 (defun sx:blk-p (n / hit)
@@ -1216,7 +1235,9 @@
         name (sx:s (sx:c q sx:cQFown)))
   (if (and side devs (> (- (if (sx:is1 q sx:cBus2) sx:vBus2N sx:vBusN) 3.0) (+ sx:vSideRet sx:sideLead H)))
     (setq vIns (+ sx:vSideB sx:qfBody))
-    (setq side nil vIns (+ sx:vQFins H)))
+    ;; аппараты под автоматом: автомат на своём уровне, аппараты — в свободное место до клеммы;
+    ;; поднять автомат только на то, что не поместилось (у групп с модулем места нет — как раньше)
+    (setq side nil vIns (+ sx:vQFins (if sx:gHasCh H (max 0.0 (- H sx:devRoom)))))))
   ;; автомат: точка подключения блока — ровно на шину
   (if (sx:blk-p sx:bQF)
     (progn
@@ -1251,10 +1272,14 @@
       (foreach dv devs
         (setq spec (sx:dev-spec (car dv)))
         (sx:dev-ins dv spec u top)
-        (setq top (- top (nth 4 spec)))))))
+        (setq top (- top (nth 4 spec))))
+      ;; низ последнего аппарата — отсюда спуск к клемме / УГО
+      (setq sx:qflow (cons (cons u (min sx:vComb top)) sx:qflow)))))
 
-(defun sx:draw-groups (draw / gid u busN members feeds chF xtF chU xtU xts xN hi side devs lowv)
-  (setq sx:tcount 0 sx:pcount 0)
+(setq sx:devRoom 24.0)   ; мм под автоматом для аппаратов (до клеммы XT остаётся место для засечек)
+(defun sx:qf-low (u) (cond ((cdr (assoc u sx:qflow))) (t sx:vComb)))
+(defun sx:draw-groups (draw / gid u busN members feeds chF xtF chU xtU xts xN hi side devs lowv lo)
+  (setq sx:tcount 0 sx:pcount 0 sx:qflow nil)
   (foreach q draw
    (if (and (sx:has q sx:cQFown) (sx:wantG (sx:i q)))
    (sx:ttry (strcat "G|" (itoa (sx:i q))) (function (lambda ()
@@ -1281,6 +1306,7 @@
               chU (mapcar 'sx:u chF)
               xtU (mapcar 'sx:u xtF))
         ;; N отдельной линией (обход модуля) — только у групп 230 В через модуль
+        (setq sx:gHasCh (if chU T nil))
         (sx:draw-qf q u side (and chU (not lowv)))
         ;; входы каналов: перемычки IN-IN с фасками
         (if chU (sx:chain (cons u chU) sx:vIN0 sx:L))
@@ -1288,8 +1314,9 @@
         (if xtU
           (progn
             (if (not (member u chU))
-              (progn (sx:line u sx:vComb u sx:vXTtop sx:L)
-                     (sx:ticks u sx:vTickQ (sx:nph q) sx:L)))
+              (progn (setq lo (sx:qf-low u))
+                     (sx:line u lo u sx:vXTtop sx:L)
+                     (sx:ticks u (min sx:vTickQ (/ (+ lo sx:vXTtop) 2.0)) (sx:nph q) sx:L)))
             (sx:chain (cons u xtU) sx:vXTtop sx:L)))
         ;; нейтраль: только у групп через модуль (230 В) — спуск слева от автомата, между блоками,
         ;; и вправо по клеммам N. У групп без модуля N показывает сам блок автомата.
@@ -1481,6 +1508,13 @@
     (setq u (sx:u d) bf (sx:s (sx:c d sx:cChT)) sx:xtb sx:vXTbot)
     (if (and (sx:input-p d) (sx:is1 d sx:cHasLine) (not (sx:is1 d sx:cXT)) (not (sx:c d sx:cCh)))
       (progn (setq sx:xtb sx:vIN0) (sx:draw-input d u)))
+    ;; линия без клеммы и канала (б/к: DALI, PE...) со своим автоматом: спуск от автомата прямо к УГО
+    (if (and (not (sx:input-p d)) (sx:is1 d sx:cHasLine) (not (sx:is1 d sx:cXT)) (not (sx:c d sx:cCh))
+             (sx:has d sx:cQFown))
+      (progn (setq sx:xtb (sx:qf-low u))
+             (sx:ticks u (/ (+ sx:xtb sx:vXTtop) 2.0) (sx:nph d) sx:L)
+             (sx:draw-ugo d u)
+             (setq sx:xtb sx:vXTbot)))
     (if (and (sx:c d sx:cCh) (/= bf "="))
       (progn
         (sx:ins "SX_CH" u sx:vChBase (list (cons "CH" (sx:s (sx:c d sx:cCh)))) sx:BL)
@@ -1969,5 +2003,5 @@
   (princ))
 
 (princ (strcat "\n" (sx:ru '(83 88 95 83 99 104 101 109 97 32 118 51 46 49 55 32 1079 1072 1075 1088 1091 1078 1077 1085 32 40 1074 1072 1096 1080 32 1073 1083 1086 1082 1080 41 58 32 83 88 68 82 65 87 32 8212 32 1087 1086 1089 1090 1088 1086 1080 1090 1100 32 1089 1093 1077 1084 1091 44 32 83 88 67 76 69 65 82 32 8212 32 1089 1090 1077 1088 1077 1090 1100 46))))
-(princ "\n[SX_Schema v3.17] SXDRAW / SXUPDATE / SXUPDSEL / SXUPDSHEET / SXCLEAR")
+(princ "\n[SX_Schema v3.18] SXDRAW / SXUPDATE / SXUPDSEL / SXUPDSHEET / SXCLEAR")
 (princ)
