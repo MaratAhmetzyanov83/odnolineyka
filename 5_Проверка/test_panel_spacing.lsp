@@ -35,7 +35,7 @@
   (defun set_tile (key value) (setq qa:status value))
   (defun done_dialog (result) (setq qa:result result))
   (setq cp:cfg nil cp:panels '("QA")
-        qa:tiles '(("nrows" . "2") ("slots" . "24") ("pitch" . "18") ("reserve" . "20") ("devh" . "90") ("railpitch" . "125,5") ("textheight" . "4") ("xttextheight" . "2") ("library" . "QA.dwg") ("panel" . "0")))
+        qa:tiles '(("nrows" . "2") ("slots" . "24") ("pitch" . "18") ("reserve" . "20") ("devh" . "90") ("railpitch" . "125,5") ("textheight" . "4") ("xttextheight" . "2") ("oneblock" . "1") ("library" . "QA.dwg") ("panel" . "0")))
   (cp:cfg-save)
   (qa:check "dialog_accepts_fraction_with_comma" (and (= qa:result 1) (equal (cp:g 'railpitch) 125.5 0.00001)))
   (foreach value '("0" "-10" "abc")

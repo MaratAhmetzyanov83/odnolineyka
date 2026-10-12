@@ -23,6 +23,7 @@ cp_main : dialog {
     : edit_box { key = "textheight"; label = "Высота подписей аппаратов, мм:"; edit_width = 6; }
     : edit_box { key = "xttextheight"; label = "Высота подписей клемм, мм:"; edit_width = 6; }
   }
+  : toggle { key = "oneblock"; label = "Создавать единым блоком"; }
   : text { key = "status"; width = 75; label = ""; }
   ok_cancel;
 }

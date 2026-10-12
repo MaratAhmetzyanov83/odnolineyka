@@ -16,7 +16,7 @@
   (defun done_dialog (result) (setq qa:result result))
   (setq cp:cfg nil cp:panels '("QA")
         qa:tiles '(("nrows" . "2") ("slots" . "24") ("pitch" . "18") ("reserve" . "20") ("devh" . "90") ("railpitch" . "150")
-                   ("textheight" . "5,5") ("xttextheight" . "2.5") ("library" . "QA.dwg") ("panel" . "0")))
+                   ("textheight" . "5,5") ("xttextheight" . "2.5") ("oneblock" . "1") ("library" . "QA.dwg") ("panel" . "0")))
   (cp:cfg-save)
   (qa:check "caption_input_accepts_comma_and_dot" (and (= qa:result 1) (= (cp:g 'textheight) 5.5) (= (cp:g 'xttextheight) 2.5)))
   (foreach key '("textheight" "xttextheight")
