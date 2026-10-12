@@ -1,9 +1,9 @@
-;;; SX_Panel v1.2 — внутренняя компоновка электрощита из Excel.
+;;; SX_Panel v1.3 — внутренняя компоновка электрощита из Excel.
 ;;; CPDRAW / CPUPDATE / CPEDIT / CPDELETE. Самостоятельный LISP, SX_Schema не нужен.
 ;;; Модульные аппараты и клеммы из пользовательской базы; корпус не рисуется.
 ;;; Excel только читается. Объекты создаются в одном блоке, слои CP_*.
 (vl-load-com)
-(setq cp:version "1.2" cp:app "SX_PANEL")
+(setq cp:version "1.3" cp:app "SX_PANEL")
 
 ;;; Unicode / CP1251: строки работают и при LISPSYS=0.
 (defun cp:cp (c)
@@ -16,6 +16,7 @@
 (defun cp:s (v)
   (cond ((null v) "") ((= (type v) 'STR) v) ((numberp v) (rtos v 2 2)) (t "")))
 (defun cp:fail (message)
+  (setq cp:failure T)
   ;; AutoLISP не содержит функцию ERROR. EXIT передаёт управление обработчику.
   (princ (strcat "\nCPDRAW: " message))
   (exit))
@@ -118,17 +119,12 @@
   (setq size (car (vl-remove-if '(lambda (n) (< n section)) sizes)))
   (if (null size) (cp:fail (strcat (cp:ru '(1044 1083 1103 32)) id (cp:ru '(32 1074 32 1073 1072 1079 1077 32 1085 1077 1090 32 1082 1083 1077 1084 1084 1099 32 1087 1086 1076 32 1089 1077 1095 1077 1085 1080 1077 32)) (cp:s section))))
   (setq phases (if (or (= (cp:at r 44) 3) (vl-string-search "," (cp:s (cp:at r 22)))) 3 1))
-  (if (= phases 1)
-    (progn
-      (if (> section 2.5)
-        (cp:fail (strcat (cp:ru '(1044 1083 1103 32)) id (cp:ru '(32 1085 1091 1078 1085 1072 32 1084 1085 1086 1075 1086 1091 1088 1086 1074 1085 1077 1074 1072 1103 32 1082 1083 1077 1084 1084 1072 32 1087 1086 1076 32)) (cp:s section) (cp:ru '(32 1084 1084 50 46 32 86 80 82 45 50 46 53 45 51 76 32 1074 32 1074 1072 1096 1077 1081 32 1073 1072 1079 1077 32 8212 32 1076 1086 32 50 44 53 32 1084 1084 50 46)))))
-      (setq model "VPR-2.5-3L-GY"
-            items (list (list id (strcat "XT|" model) model nil nil "XT" 0))))
-    (foreach pin '("L1" "L2" "L3" "N" "PE")
-      (setq color (cond ((= pin "N") "BU") ((= pin "PE") (if (= size 1.5) "PE" "PE-YG")) (t "GY"))
-            suffix (if (member size '(1.5 2.5)) (rtos size 2 1) (itoa (fix size)))
-            model (strcat "VPR-" suffix "-" color))
-      (setq items (append items (list (list (strcat id ":" pin) (strcat "XT|" model) model nil nil "XT" 0))))))
+  (setq pins (if (= phases 1) '("L" "N" "PE") '("L1" "L2" "L3" "N" "PE")))
+  (foreach pin pins
+    (setq color (cond ((= pin "N") "BU") ((= pin "PE") (if (= size 1.5) "PE" "PE-YG")) (t "GY"))
+          suffix (if (member size '(1.5 2.5)) (rtos size 2 1) (itoa (fix size)))
+          model (strcat "VPR-" suffix "-" color))
+    (setq items (append items (list (list (strcat id ":" pin) (strcat "XT|" model) model nil nil "XT" 0)))))
   (setq cp:terminalgroups (append cp:terminalgroups (list (list id items section)))))
 (defun cp:apply-terminals ( / groups group items d m bb)
   (setq cp:terminals nil groups nil)
@@ -600,13 +596,13 @@
                (setq cfg (vlax-ldata-get ob "settings")))
         (list ob cfg)
         (progn (princ (cp:ru '(1069 1090 1086 32 1085 1077 32 1082 1086 1084 1087 1086 1085 1086 1074 1082 1072 44 32 1089 1086 1079 1076 1072 1085 1085 1072 1103 32 67 80 68 82 65 87 46))) nil)))))
-(defun cp:run (update edit / *error* pick old new point undo path ready)
+(defun cp:run (update edit / *error* pick old new point undo path ready cp:failure)
   (defun *error* (msg)
     (cp:close-book) (cp:lib-close)
     (if (and cp:pendingnew (null new)) (vl-catch-all-apply 'vla-delete (list cp:pendingnew)))
     (if (and cp:newdef (null new)) (vl-catch-all-apply 'vla-delete (list cp:newdef)))
     (if undo (vl-catch-all-apply 'vla-endundomark (list cp:doc)))
-    (if (not (member msg '("Function cancelled" "quit / exit abort"))) (princ (strcat "\nCPDRAW: " msg)))
+    (if (and (not cp:failure) (not (member msg '("Function cancelled" "quit / exit abort")))) (princ (strcat "\nCPDRAW: " msg)))
     (princ))
   (setq cp:doc (vla-get-activedocument (vlax-get-acad-object)) cp:newdef nil cp:measure-cache nil cp:pendingnew nil)
   (if update
@@ -657,5 +653,5 @@
   (if (setq pick (cp:pick))
     (progn (setq doc (vla-get-activedocument (vlax-get-acad-object)))
       (vla-startundomark doc) (vla-delete (car pick)) (vla-endundomark doc))) (princ))
-(princ "\nSX_Panel v1.2: CPDRAW / CPUPDATE / CPEDIT / CPDELETE")
+(princ "\nSX_Panel v1.3: CPDRAW / CPUPDATE / CPEDIT / CPDELETE")
 (princ)
