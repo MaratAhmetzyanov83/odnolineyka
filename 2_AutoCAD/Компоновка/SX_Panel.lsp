@@ -1,9 +1,9 @@
-;;; SX_Panel v1.3 — внутренняя компоновка электрощита из Excel.
+;;; SX_Panel v1.4 — внутренняя компоновка электрощита из Excel.
 ;;; CPDRAW / CPUPDATE / CPEDIT / CPDELETE. Самостоятельный LISP, SX_Schema не нужен.
 ;;; Модульные аппараты и клеммы из пользовательской базы; корпус не рисуется.
 ;;; Excel только читается. Объекты создаются в одном блоке, слои CP_*.
 (vl-load-com)
-(setq cp:version "1.3" cp:app "SX_PANEL")
+(setq cp:version "1.4" cp:app "SX_PANEL")
 
 ;;; Unicode / CP1251: строки работают и при LISPSYS=0.
 (defun cp:cp (c)
@@ -113,18 +113,34 @@
   (setq norm (vl-string-translate (cp:ru '(1093 1061 88 215 44)) "xxxx." (cp:s text)) at (vl-string-search "x" norm))
   (if at (setq section (atof (substr norm (+ at 2)))))
   (if (and section (> section 0)) section))
-(defun cp:terminal-set (id r / section sizes size phases pins color model suffix pin items)
-  (setq section (cp:cable-section (cp:at r 17)) sizes '(1.5 2.5 4.0 6.0 10.0 16.0))
+(defun cp:cable-cores (text / norm at i ch digits count)
+  (setq norm (vl-string-translate (cp:ru '(1093 1061 88 215 44)) "xxxx." (cp:s text))
+        at (vl-string-search "x" norm) digits "")
+  (if at
+    (progn
+      (setq i at)
+      (while (and (> i 0) (= (substr norm i 1) " ")) (setq i (1- i)))
+      (while (and (> i 0) (wcmatch (setq ch (substr norm i 1)) "#"))
+        (setq digits (strcat ch digits) i (1- i)))
+      (setq count (atoi digits))))
+  (if (and count (> count 0)) count))
+(defun cp:terminal-set (id r / section cores sizes size phases pins color model suffix pin items)
+  (setq section (cp:cable-section (cp:at r 17)) cores (cp:cable-cores (cp:at r 17)) sizes '(1.5 2.5 4.0 6.0 10.0 16.0))
   (if (null section) (cp:fail (strcat (cp:ru '(1053 1077 32 1085 1072 1081 1076 1077 1085 1086 32 1089 1077 1095 1077 1085 1080 1077 32 1082 1072 1073 1077 1083 1103 32 1076 1083 1103 32)) id (cp:ru '(46 32 1055 1088 1086 1074 1077 1088 1100 1090 1077 32 1089 1090 1086 1083 1073 1077 1094 32 81 46)))))
   (setq size (car (vl-remove-if '(lambda (n) (< n section)) sizes)))
   (if (null size) (cp:fail (strcat (cp:ru '(1044 1083 1103 32)) id (cp:ru '(32 1074 32 1073 1072 1079 1077 32 1085 1077 1090 32 1082 1083 1077 1084 1084 1099 32 1087 1086 1076 32 1089 1077 1095 1077 1085 1080 1077 32)) (cp:s section))))
   (setq phases (if (or (= (cp:at r 44) 3) (vl-string-search "," (cp:s (cp:at r 22)))) 3 1))
-  (setq pins (if (= phases 1) '("L" "N" "PE") '("L1" "L2" "L3" "N" "PE")))
-  (foreach pin pins
-    (setq color (cond ((= pin "N") "BU") ((= pin "PE") (if (= size 1.5) "PE" "PE-YG")) (t "GY"))
-          suffix (if (member size '(1.5 2.5)) (rtos size 2 1) (itoa (fix size)))
-          model (strcat "VPR-" suffix "-" color))
-    (setq items (append items (list (list (strcat id ":" pin) (strcat "XT|" model) model nil nil "XT" 0)))))
+  (if (and (= cores 3) (<= section 2.5))
+    (progn
+      (setq model "VPR-2.5-3L-GY"
+            items (list (list id (strcat "XT|" model) model nil nil "XT" 0))))
+    (progn
+      (setq pins (if (= phases 1) '("L" "N" "PE") '("L1" "L2" "L3" "N" "PE")))
+      (foreach pin pins
+        (setq color (cond ((= pin "N") "BU") ((= pin "PE") (if (= size 1.5) "PE" "PE-YG")) (t "GY"))
+              suffix (if (member size '(1.5 2.5)) (rtos size 2 1) (itoa (fix size)))
+              model (strcat "VPR-" suffix "-" color))
+        (setq items (append items (list (list (strcat id ":" pin) (strcat "XT|" model) model nil nil "XT" 0)))))))
   (setq cp:terminalgroups (append cp:terminalgroups (list (list id items section)))))
 (defun cp:apply-terminals ( / groups group items d m bb)
   (setq cp:terminals nil groups nil)
@@ -256,7 +272,6 @@
     (foreach d (cadr group)
       (setq cp:xtpositions (append cp:xtpositions (list (list d xtrow xtx))) xtx (+ xtx (nth 3 d))))
     (setq closed (or (null (cdr remaining))
-                     (not (equal (nth 2 group) (nth 2 (cadr remaining)) 0.00001))
                      (/= (nth 7 cap) (nth 7 (cp:endcap (cadr remaining))))))
     (if closed
       (setq cp:xtpositions (append cp:xtpositions (list (list cap xtrow xtx))) cp:caps (cons cap cp:caps) xtx (+ xtx (nth 3 cap))))
@@ -450,15 +465,18 @@
   (cp:state-list (nth (atoi index) cp:blocknames) ""))
 
 
-(defun cp:default-block (d / parts name)
+(defun cp:default-block (d / parts name row)
   (setq name (nth 2 d))
+  (if (and (= (nth 5 d) "QF") (numberp (nth 6 d)) (>= (nth 6 d) 3)
+           (< (- (nth 6 d) 3) (length cp:rows)))
+    (setq row (nth (- (nth 6 d) 3) cp:rows)))
+  (setq parts (cp:qparts (if (and row (cp:at row 8)) (cp:at row 8) name)))
   (cond
+    ((and (= (nth 5 d) "QF") (caddr parts) (= (car parts) "2P")) "DA_1PN_36")
     ((member name cp:blocknames) name)
     ((member (strcat name "_FRONT") cp:blocknames) (strcat name "_FRONT"))
     ((= (nth 5 d) "QF")
-     (setq parts (cp:qparts name))
-     (cond ((and (caddr parts) (= (car parts) "2P")) "DS201")
-           ((and (caddr parts) (member (car parts) '("3P" "4P"))) "DA_4P_135")
+     (cond ((and (caddr parts) (member (car parts) '("3P" "4P"))) "DA_4P_135")
            ((= (car parts) "1P") "AV_1P_18") ((= (car parts) "2P") "AV_2P_36")
            ((= (car parts) "3P") "AV_3P_54") ((= (car parts) "4P") "AV_4P_72")))
     ((= (nth 5 d) "KM") "CT_ACDC_4P_63A_FRONT")
@@ -653,5 +671,5 @@
   (if (setq pick (cp:pick))
     (progn (setq doc (vla-get-activedocument (vlax-get-acad-object)))
       (vla-startundomark doc) (vla-delete (car pick)) (vla-endundomark doc))) (princ))
-(princ "\nSX_Panel v1.3: CPDRAW / CPUPDATE / CPEDIT / CPDELETE")
+(princ "\nSX_Panel v1.4: CPDRAW / CPUPDATE / CPEDIT / CPDELETE")
 (princ)

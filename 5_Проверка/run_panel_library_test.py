@@ -53,7 +53,8 @@ def main():
             text = data.decode("cp1251")
         print(text)
         if "FAIL" in text or "DONE" not in text or text.count("=PASS") != args.expected:
-            raise RuntimeError("Library path regression failed")
+            print(run.stdout.decode("utf-16le", errors="replace")[-5000:])
+            raise RuntimeError("Panel regression failed")
 
 
 if __name__ == "__main__":
