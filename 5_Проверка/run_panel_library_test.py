@@ -35,14 +35,18 @@ def main():
         code += '(setq qa:panel-report (open ' + lisp_string(report) + ' "w"))\n'
         code += '(load ' + lisp_string(local_tests) + ')\n'
         code += '(write-line (strcat "native_findfile_restored=" (if (findfile ' + lisp_string(local_source) + ') "PASS" "FAIL")) qa:panel-report)\n'
-        code += '(write-line "DONE" qa:panel-report) (close qa:panel-report) (princ)\n_QUIT\n'
+        code += '(write-line "DONE" qa:panel-report) (close qa:panel-report) (princ)\n_QUIT\n' + ("_N" if args.library else "_Y") + "\n"
         script.write_text(code, encoding="ascii")
         command = [str(args.console), "/s", str(script), "/l", "en-US"]
         if args.library:
             local_library = folder / "library.dwg"
             shutil.copyfile(args.library, local_library)
             command.extend(["/i", str(local_library)])
-        run = subprocess.run(command, cwd=folder, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=60)
+        try:
+            run = subprocess.run(command, cwd=folder, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=60)
+        except subprocess.TimeoutExpired as error:
+            print((error.stdout or b"").decode("utf-16le", errors="replace")[-5000:])
+            raise
         if not report.exists():
             print(run.stdout.decode("utf-16le", errors="replace")[-3000:])
             raise RuntimeError("AutoCAD did not produce a test report")

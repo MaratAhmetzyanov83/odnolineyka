@@ -17,9 +17,9 @@ cp_main : dialog {
       : edit_box { key = "pitch"; label = "Шаг модуля, мм:"; edit_width = 5; }
       : edit_box { key = "reserve"; label = "Свободное место, %:"; edit_width = 5; }
     }
-    : edit_box { key = "gap"; label = "Зазор между аппаратами соседних рядов, мм:"; edit_width = 6; }
+    : edit_box { key = "railpitch"; label = "Межосевое расстояние DIN-реек, мм:"; edit_width = 6; }
     : edit_box { key = "devh"; label = "Минимальная высота аппаратов, мм:"; edit_width = 6; }
-    : text { label = "Ваши аппараты и клеммы XT; клеммы размещаются отдельным нижним рядом."; }
+    : text { label = "Шаг между осями одинаковый для рядов аппаратов и клемм."; }
   }
   : text { key = "status"; width = 75; label = ""; }
   ok_cancel;

@@ -1,9 +1,9 @@
-;;; SX_Panel v1.4 — внутренняя компоновка электрощита из Excel.
+;;; SX_Panel v1.5 — внутренняя компоновка электрощита из Excel.
 ;;; CPDRAW / CPUPDATE / CPEDIT / CPDELETE. Самостоятельный LISP, SX_Schema не нужен.
 ;;; Модульные аппараты и клеммы из пользовательской базы; корпус не рисуется.
 ;;; Excel только читается. Объекты создаются в одном блоке, слои CP_*.
 (vl-load-com)
-(setq cp:version "1.4" cp:app "SX_PANEL")
+(setq cp:version "1.5" cp:app "SX_PANEL")
 
 ;;; Unicode / CP1251: строки работают и при LISPSYS=0.
 (defun cp:cp (c)
@@ -279,16 +279,21 @@
   (if cp:terminals (setq cp:xtrows (1+ xtrow)))
   (setq cp:totalrows (+ (cp:g 'nrows) cp:xtrows)
         maxh (apply 'max (append (list (cp:g 'devh)) (mapcar '(lambda (d) (nth 4 d)) cp:terminals) (mapcar '(lambda (d) (nth 4 d)) cp:caps) (mapcar '(lambda (d) (nth 4 d)) cp:devices)))
-        cp:rowpitch (+ maxh (cp:g 'gap))
+        cp:rowpitch (if (cp:g 'railpitch) (cp:g 'railpitch) (+ maxh (cp:g 'gap)))
         cp:rowtop (+ (/ maxh 2.0) (* (1- cp:totalrows) cp:rowpitch)))
   (cp:put 'w cp:railw)
   (cp:put 'h (+ maxh (* (1- cp:totalrows) cp:rowpitch)))
   (null cp:problem))
 
+(defun cp:railpitch-default (cfg / value height gap)
+  (setq value (cdr (assoc 'railpitch cfg)) height (cdr (assoc 'devh cfg)) gap (cdr (assoc 'gap cfg)))
+  (if (and (numberp value) (> value 0)) value
+    (+ (if (numberp height) height 90.0) (if (numberp gap) gap 60.0))))
 (defun cp:defaults ( / cfg last)
   (setq cfg '((nrows . 3) (slots . 24) (pitch . 18.0) (reserve . 20.0)
               (gap . 60.0) (devh . 90.0)))
   (if (setq last (vlax-ldata-get "SX_PANEL" "last")) (setq cfg last))
+  (if (null (assoc 'railpitch cfg)) (setq cfg (cons (cons 'railpitch (cp:railpitch-default cfg)) cfg)))
   (if (null (assoc 'gap cfg)) (setq cfg (cons '(gap . 60.0) cfg)))
   (if (null (assoc 'library cfg)) (setq cfg (cons (cons 'library (cp:default-library)) cfg)))
   (if (null (assoc 'path cfg)) (setq cfg (cons (cons 'path (getenv "SX_LastXls")) cfg)))
@@ -297,7 +302,7 @@
 
 (defun cp:cfg-save ( / key val good)
   (setq good T)
-  (foreach key '(nrows slots pitch reserve gap devh)
+  (foreach key '(nrows slots pitch reserve railpitch devh)
     (setq val (cp:num (get_tile (strcase (vl-symbol-name key) T))))
     (if (or (null val) (if (= key 'reserve) (or (< val 0) (>= val 100)) (<= val 0))
             (and (member key '(nrows slots)) (not (equal val (fix val) 0.000001))))
@@ -307,6 +312,7 @@
     (progn (cp:put 'library (get_tile "library")) (cp:put 'panel (nth (atoi (get_tile "panel")) cp:panels)) (done_dialog 1))
     (set_tile "status" (cp:ru '(1055 1088 1086 1074 1077 1088 1100 1090 1077 32 1088 1072 1079 1084 1077 1088 1099 32 1080 32 1094 1077 1083 1086 1077 32 1082 1086 1083 1080 1095 1077 1089 1090 1074 1086 32 1088 1077 1077 1082 47 1084 1086 1076 1091 1083 1077 1081 46 32 1056 1077 1079 1077 1088 1074 58 32 48 8211 57 57 32 37 46)))))
 (defun cp:dialog ( / id res key path)
+  (cp:put 'railpitch (cp:railpitch-default cp:cfg))
   (if (null (setq path (cp:dcl-file))) (exit))
   (if (or (null (cp:g 'library)) (= (cp:g 'library) "") (not (findfile (cp:g 'library))))
     (cp:put 'library (cp:default-library)))
@@ -318,7 +324,7 @@
     (set_tile "library" (cp:s (cp:g 'library)))
     (start_list "panel") (mapcar 'add_list cp:panels) (end_list)
     (set_tile "panel" (itoa (if (member (cp:g 'panel) cp:panels) (vl-position (cp:g 'panel) cp:panels) 0)))
-    (foreach key '(nrows slots pitch reserve gap devh)
+    (foreach key '(nrows slots pitch reserve railpitch devh)
       (set_tile (strcase (vl-symbol-name key) T) (cp:s (cp:g key))))
     (action_tile "browse" "(done_dialog 2)")
     (action_tile "accept" "(cp:cfg-save)") (action_tile "cancel" "(done_dialog 0)")
@@ -671,5 +677,5 @@
   (if (setq pick (cp:pick))
     (progn (setq doc (vla-get-activedocument (vlax-get-acad-object)))
       (vla-startundomark doc) (vla-delete (car pick)) (vla-endundomark doc))) (princ))
-(princ "\nSX_Panel v1.4: CPDRAW / CPUPDATE / CPEDIT / CPDELETE")
+(princ "\nSX_Panel v1.5: CPDRAW / CPUPDATE / CPEDIT / CPDELETE")
 (princ)
