@@ -199,6 +199,8 @@ def take_shots(model, tmp):
                     ws.Outline.ShowLevels(0, 1)          # уровень «Только ввод»
                 except Exception:
                     pass
+            if sheet == "Исходные данные":
+                ws.Rows("3:20").Hidden = True               # служебные пустые строки шаблона — не на снимок (книга не сохраняется)
             ps = ws.PageSetup
             ps.PrintArea = rng
             ps.Orientation = 2
