@@ -9,6 +9,16 @@ for /r %%f in (~$*) do set OPEN=%%~nxf
 for /r %%f in (*.dwl) do set OPEN=%%~nxf
 if defined OPEN goto opened
 
+set GDRIVE=G:\Мой диск\odnolineyka
+if not exist "G:\Мой диск\" goto nogdrive
+echo Копирую папку на Google Диск...
+robocopy "%CD%" "%GDRIVE%" /MIR /XD .git /XF ~$* *.dwl *.dwl2 /R:1 /W:2 /NFL /NDL /NJH /NJS /NP >nul
+if errorlevel 8 (echo Не все файлы скопировались на Google Диск - запустите позже.) else (echo Google Диск: копия обновлена.)
+goto gitstep
+:nogdrive
+echo Google Диск не найден (диск G:) - копия не обновлена. Запустите Google Drive.
+:gitstep
+
 echo Сохраняю изменения этого ПК...
 git add -A
 powershell -NoProfile -Command "[Console]::OutputEncoding=[Text.Encoding]::UTF8; $n=0; git -c core.quotepath=false diff --cached --name-only --diff-filter=AM | %%{ if ((Test-Path -LiteralPath $_) -and ((Get-Item -LiteralPath $_).Length -gt 95MB)) { git reset -q -- $_; Write-Host ('   ' + $_); $n++ } }; exit $n"
