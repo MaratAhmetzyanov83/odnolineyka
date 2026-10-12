@@ -1,9 +1,9 @@
-;;; SX_Panel v1.1 — внутренняя компоновка электрощита из Excel.
+;;; SX_Panel v1.2 — внутренняя компоновка электрощита из Excel.
 ;;; CPDRAW / CPUPDATE / CPEDIT / CPDELETE. Самостоятельный LISP, SX_Schema не нужен.
 ;;; Модульные аппараты и клеммы из пользовательской базы; корпус не рисуется.
 ;;; Excel только читается. Объекты создаются в одном блоке, слои CP_*.
 (vl-load-com)
-(setq cp:version "1.1" cp:app "SX_PANEL")
+(setq cp:version "1.2" cp:app "SX_PANEL")
 
 ;;; Unicode / CP1251: строки работают и при LISPSYS=0.
 (defun cp:cp (c)
@@ -372,11 +372,13 @@
 
 
 ;;; Импортируются именно пользовательские определения блоков, без их перерисовки.
-(defun cp:default-library ( / base)
+(defun cp:default-library ( / base file)
   (setq base (cond ((findfile "SX_Panel.lsp"))
-                   ((and (getenv "CP_DclFile") (findfile (getenv "CP_DclFile"))))))
-  ;; база рядом (2_AutoCAD/Блоки), иначе Google Диск: G:/Мой диск/Однолинейка_базы (базы > 100 МБ не в GitHub)
-  (cond ((and base (findfile (strcat (vl-filename-directory base) (cp:ru '(47 46 46 47 1041 1083 1086 1082 1080 47 83 88 95 1050 1086 1084 1087 1086 1085 1086 1074 1082 1072 95 1087 1086 1083 1100 1079 1086 1074 1072 1090 1077 1083 1100 1089 1082 1080 1077 46 100 119 103))))))
+                   ((and (getenv "CP_DclFile")
+                         (setq file (findfile (getenv "CP_DclFile")))) file)))
+  ;; AND в AutoLISP возвращает T. Путь возвращаем отдельным выражением.
+  ;; База рядом (2_AutoCAD/Блоки), иначе Google Диск.
+  (cond ((and base (setq file (findfile (strcat (vl-filename-directory base) (cp:ru '(47 46 46 47 1041 1083 1086 1082 1080 47 83 88 95 1050 1086 1084 1087 1086 1085 1086 1074 1082 1072 95 1087 1086 1083 1100 1079 1086 1074 1072 1090 1077 1083 1100 1089 1082 1080 1077 46 100 119 103)))))) file)
         ((findfile (cp:ru '(71 58 47 1052 1086 1081 32 1076 1080 1089 1082 47 1054 1076 1085 1086 1083 1080 1085 1077 1081 1082 1072 95 1073 1072 1079 1099 47 83 88 95 1050 1086 1084 1087 1086 1085 1086 1074 1082 1072 95 1087 1086 1083 1100 1079 1086 1074 1072 1090 1077 1083 1100 1089 1082 1080 1077 46 100 119 103))))))
 
 (defun cp:lib-close ()
@@ -655,5 +657,5 @@
   (if (setq pick (cp:pick))
     (progn (setq doc (vla-get-activedocument (vlax-get-acad-object)))
       (vla-startundomark doc) (vla-delete (car pick)) (vla-endundomark doc))) (princ))
-(princ "\nSX_Panel v1.1: CPDRAW / CPUPDATE / CPEDIT / CPDELETE")
+(princ "\nSX_Panel v1.2: CPDRAW / CPUPDATE / CPEDIT / CPDELETE")
 (princ)
