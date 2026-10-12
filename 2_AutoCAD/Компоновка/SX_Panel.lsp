@@ -1,9 +1,9 @@
-;;; SX_Panel v1.5 — внутренняя компоновка электрощита из Excel.
+;;; SX_Panel v1.6 — внутренняя компоновка электрощита из Excel.
 ;;; CPDRAW / CPUPDATE / CPEDIT / CPDELETE. Самостоятельный LISP, SX_Schema не нужен.
 ;;; Модульные аппараты и клеммы из пользовательской базы; корпус не рисуется.
 ;;; Excel только читается. Объекты создаются в одном блоке, слои CP_*.
 (vl-load-com)
-(setq cp:version "1.5" cp:app "SX_PANEL")
+(setq cp:version "1.6" cp:app "SX_PANEL")
 
 ;;; Unicode / CP1251: строки работают и при LISPSYS=0.
 (defun cp:cp (c)
@@ -289,11 +289,16 @@
   (setq value (cdr (assoc 'railpitch cfg)) height (cdr (assoc 'devh cfg)) gap (cdr (assoc 'gap cfg)))
   (if (and (numberp value) (> value 0)) value
     (+ (if (numberp height) height 90.0) (if (numberp gap) gap 60.0))))
+(defun cp:label-height (key fallback / value)
+  (setq value (cp:g key))
+  (if (and (numberp value) (> value 0)) value fallback))
 (defun cp:defaults ( / cfg last)
   (setq cfg '((nrows . 3) (slots . 24) (pitch . 18.0) (reserve . 20.0)
               (gap . 60.0) (devh . 90.0)))
   (if (setq last (vlax-ldata-get "SX_PANEL" "last")) (setq cfg last))
   (if (null (assoc 'railpitch cfg)) (setq cfg (cons (cons 'railpitch (cp:railpitch-default cfg)) cfg)))
+  (if (null (assoc 'textheight cfg)) (setq cfg (cons '(textheight . 4.0) cfg)))
+  (if (null (assoc 'xttextheight cfg)) (setq cfg (cons '(xttextheight . 2.0) cfg)))
   (if (null (assoc 'gap cfg)) (setq cfg (cons '(gap . 60.0) cfg)))
   (if (null (assoc 'library cfg)) (setq cfg (cons (cons 'library (cp:default-library)) cfg)))
   (if (null (assoc 'path cfg)) (setq cfg (cons (cons 'path (getenv "SX_LastXls")) cfg)))
@@ -302,7 +307,7 @@
 
 (defun cp:cfg-save ( / key val good)
   (setq good T)
-  (foreach key '(nrows slots pitch reserve railpitch devh)
+  (foreach key '(nrows slots pitch reserve railpitch devh textheight xttextheight)
     (setq val (cp:num (get_tile (strcase (vl-symbol-name key) T))))
     (if (or (null val) (if (= key 'reserve) (or (< val 0) (>= val 100)) (<= val 0))
             (and (member key '(nrows slots)) (not (equal val (fix val) 0.000001))))
@@ -313,6 +318,8 @@
     (set_tile "status" (cp:ru '(1055 1088 1086 1074 1077 1088 1100 1090 1077 32 1088 1072 1079 1084 1077 1088 1099 32 1080 32 1094 1077 1083 1086 1077 32 1082 1086 1083 1080 1095 1077 1089 1090 1074 1086 32 1088 1077 1077 1082 47 1084 1086 1076 1091 1083 1077 1081 46 32 1056 1077 1079 1077 1088 1074 58 32 48 8211 57 57 32 37 46)))))
 (defun cp:dialog ( / id res key path)
   (cp:put 'railpitch (cp:railpitch-default cp:cfg))
+  (cp:put 'textheight (cp:label-height 'textheight 4.0))
+  (cp:put 'xttextheight (cp:label-height 'xttextheight 2.0))
   (if (null (setq path (cp:dcl-file))) (exit))
   (if (or (null (cp:g 'library)) (= (cp:g 'library) "") (not (findfile (cp:g 'library))))
     (cp:put 'library (cp:default-library)))
@@ -324,7 +331,7 @@
     (set_tile "library" (cp:s (cp:g 'library)))
     (start_list "panel") (mapcar 'add_list cp:panels) (end_list)
     (set_tile "panel" (itoa (if (member (cp:g 'panel) cp:panels) (vl-position (cp:g 'panel) cp:panels) 0)))
-    (foreach key '(nrows slots pitch reserve railpitch devh)
+    (foreach key '(nrows slots pitch reserve railpitch devh textheight xttextheight)
       (set_tile (strcase (vl-symbol-name key) T) (cp:s (cp:g key))))
     (action_tile "browse" "(done_dialog 2)")
     (action_tile "accept" "(cp:cfg-save)") (action_tile "cancel" "(done_dialog 0)")
@@ -565,7 +572,7 @@
               ((= tag "CURVE") (vla-put-textstring at (if curve curve "")))
               ((= tag "POLES") (vla-put-textstring at (car part)))
               ((= tag "DESCRIPTION") (vla-put-textstring at (nth 2 d)))))))
-  (cp:text (+ x (/ w 2.0)) (+ y (/ h 2.0) 8.0) 4.0 (car d) (- w 2.0) "CP_TEXT"))
+  (cp:text (+ x (/ w 2.0)) (+ y (/ h 2.0) 8.0) (cp:label-height 'textheight 4.0) (car d) (- w 2.0) "CP_TEXT"))
 (defun cp:draw-geometry ( / w h pos xti tr y x ob)
   (setq w (cp:g 'w) h (cp:g 'h))
   (cp:text (/ w 2.0) (+ h 22.0) 6.0 (strcat (cp:ru '(1050 1086 1084 1087 1086 1085 1086 1074 1082 1072 32 1072 1087 1087 1072 1088 1072 1090 1086 1074 32)) (cp:g 'panel)) w "CP_TEXT")
@@ -575,7 +582,7 @@
     (cp:place-block (list (nth 7 d) (nth 8 d) (nth 9 d) (nth 10 d)) x y "CP_DEVICES" (car d))
     (if (/= (nth 5 d) "CAP")
       (progn
-        (setq ob (cp:text (+ x (/ (nth 3 d) 2.0)) (+ y (/ (nth 4 d) 2.0) 17.0) 2.0 (car d) 33.0 "CP_TEXT"))
+        (setq ob (cp:text (+ x (/ (nth 3 d) 2.0)) (+ y (/ (nth 4 d) 2.0) 17.0) (cp:label-height 'xttextheight 2.0) (car d) 33.0 "CP_TEXT"))
         (vla-put-rotation ob (/ pi 2.0)))))
   (cp:draw-list (+ w 35.0) h)
   (cp:text (/ w 2.0) -22.0 4.0
@@ -677,5 +684,5 @@
   (if (setq pick (cp:pick))
     (progn (setq doc (vla-get-activedocument (vlax-get-acad-object)))
       (vla-startundomark doc) (vla-delete (car pick)) (vla-endundomark doc))) (princ))
-(princ "\nSX_Panel v1.5: CPDRAW / CPUPDATE / CPEDIT / CPDELETE")
+(princ "\nSX_Panel v1.6: CPDRAW / CPUPDATE / CPEDIT / CPDELETE")
 (princ)
