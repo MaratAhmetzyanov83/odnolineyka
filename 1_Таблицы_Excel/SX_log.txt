@@ -1,0 +1,48 @@
+== init
+SX_Schema v3.20
+LISPSYS=1 ACADVER=26.0s (LMS Tech) DWG=C:\Users\marat\Documents\Чертеж2.dwg
+== update params
+path="C:\\Users\\marat\\Desktop\\odnolineyka\\1_Таблицы_Excel\\Однолинейка_тест_сценарии.xlsx" sheet#=4 panels=("ЩТ" "ЩТ2" "ЩС") pi=0 pt=(2257.26 1852.11 0.0) lib="C:\\Users\\marat\\Desktop\\odnolineyka\\2_AutoCAD\\Блоки\\SX_База_блоков.dwg" nsheet=17 step=20.0
+== after dialog
+style=SX_GOST
+== read excel
+summary=(27.1 16.9122 37.2813 0.949779 0.624066 4.81987 3.91498 8.17735)
+models=nil
+rows read=998
+== filter rows
+recs=52 draw=46
+first place 1 row=("ЩТ" 1.0 1.0 nil nil nil nil nil nil nil nil nil nil nil nil nil nil nil nil nil nil nil) helpers=(nil nil nil nil nil nil 0.0 0.0 nil nil nil nil nil nil nil nil nil nil 0.0 nil 0.0 0.0 nil 0.0 0.0 0.0 nil nil nil nil nil 0.0)
+== validate
+CHECK problems: 3
+CHECK строка Excel 13, место 11: статус: розетка без 30 мА
+CHECK строка Excel 24, место 22: статус: ДУБЛЬ КАНАЛА
+CHECK строка Excel 25, место 23: статус: ДУБЛЬ КАНАЛА
+== clear
+== layers
+== roles
+== make-blocks
+== import-blocks
+block QF1 OK
+block Шина OK
+block _Боковик_схема Юником OK
+block XT OK
+block XT без земли OK
+block Вывод OK
+block БП OK
+block Драйвер OK
+block MK-5-1 OK
+block Розетка1 OK
+block $RECOVER_230831092053-0 OK
+block Сервопривод-1 OK
+block EK.1 OK
+block Привод OK
+block SX_U_HEAT OK
+block SX_U_BOX OK
+== table
+== sheets
+sheets=(3 2 1 0)
+== groups
+== modules
+== rows
+== summary
+== done

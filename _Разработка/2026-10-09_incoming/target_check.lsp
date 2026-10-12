@@ -1,7 +1,0 @@
-(setq zzf (open "C:/Users/user/Desktop/02_Справочники_CAD_Revit/odnolineyka/_Разработка/2026-10-09_incoming/target_check.txt" "w"))
-(prin1 (getvar "DWGNAME") zzf) (write-line "" zzf)
-(setq zzss (ssget "_X" '((8 . "SX_*"))))
-(if zzss (progn (setq zzk (sslength zzss))
-(repeat zzk (setq zze (ssname zzss (setq zzk (1- zzk))))
-(prin1 (list (cdr (assoc 5 (entget zze))) (cdr (assoc 8 (entget zze))) (sx:xd-get zze)) zzf) (write-line "" zzf))))
-(close zzf) (princ)

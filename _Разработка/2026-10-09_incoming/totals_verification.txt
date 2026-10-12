@@ -1,1 +1,0 @@
-(("source totals" "PASS") ("empty table with default cos" "PASS") ("invalid filled table skipped" "PASS") ("two decimals with DIMZIN=8" "PASS") ("exactly one totals table" "PASS") ("all fallback outlets red" "PASS") ("table location and dimensions" "PASS") ("summary values and formatting" "PASS") ("summary-only selection" "PASS") ("remove stale table when no totals" "PASS"))

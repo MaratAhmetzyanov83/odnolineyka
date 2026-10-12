@@ -23,6 +23,7 @@ ROUND = 6
 
 # ---- листы и адреса (определены по книге v3.11 и документации) --------------------------------
 S_GUIDE = "Краткое руководство"
+S_GUIDE2 = "История_версий"     # то же после tidy_book.py
 S_REF = "Справочная"            # итоги: BE8:BF15, мест на лист: BF4
 S_SRC = "Исходные данные"       # линии: D - номер линии, строки с данными
 S_ODN = "Однолинейка"           # рисуемые строки: BD=1
@@ -30,6 +31,8 @@ S_LOAD = "Нагрузка_щитов"       # блоки «РАСЧЁТ Рр» 
 S_PZ = "Расчёт_нагрузок"
 S_POW = "Питание_щита"
 S_SUB = "Нижестоящие_щиты"
+S_NET = "Сеть_щита"             # после merge_network.py: раздел А = «Питание_щита», раздел Б = «Нижестоящие» со строки 90
+NET_SUB_OFF, NET_SUB_ROWS = 89, 40
 S_SPEC = "Спецификация_авто"
 S_ACAD = "В Акад"              # таблица нагрузок для AutoCAD (Data Link): P:U, 3 блока
 S_MODES = "Режимы"            # v3.12: режимы × источники, категории, необеспеченные линии, сверка
@@ -87,9 +90,33 @@ def nv(v):
     return v
 
 
+class Shifted:
+    """Часть листа как отдельный лист: строка r -> r + off, всего n строк (раздел Б «Сети_щита»)."""
+
+    def __init__(self, base, off, n):
+        self.base, self.off = base, off
+        self.name, self.r0, self.c0, self.nc = base.name, 1, base.c0, base.nc
+        self.nr = n
+
+    def get(self, r, c):
+        return self.base.get(r + self.off, c) if 1 <= r <= self.nr else None
+
+    def rows(self):
+        return range(1, self.nr + 1)
+
+
 class Book:
     def __init__(self, grids):
         self.g = grids
+
+    def pow(self):
+        return self.g.get(S_POW) or self.g.get(S_NET)
+
+    def sub(self):
+        if S_SUB in self.g:
+            return self.g[S_SUB]
+        net = self.g.get(S_NET)
+        return Shifted(net, NET_SUB_OFF, NET_SUB_ROWS) if net else None
 
     def has(self, sheet):
         return sheet in self.g
@@ -122,7 +149,7 @@ def put(d, key, fields):
 # ---- разделы снимка ---------------------------------------------------------------------------
 def sec_meta(b, backend, src):
     ver = None
-    gr = b.g.get(S_GUIDE)
+    gr = b.g.get(S_GUIDE) or b.g.get(S_GUIDE2)
     if gr:
         for r in gr.rows():
             v = gr.get(r, CI("E"))
@@ -336,7 +363,7 @@ def sec_pz(b):
 
 
 def sec_power(b):
-    gr = b.g.get(S_POW)
+    gr = b.pow()
     out = OrderedDict()
     if not gr:
         return out
@@ -354,7 +381,7 @@ def sec_power(b):
 
 
 def sec_sub(b):
-    gr = b.g.get(S_SUB)
+    gr = b.sub()
     out = OrderedDict()
     if not gr:
         return out
@@ -417,7 +444,7 @@ def sec_categories(b):
 
 def sec_scheme(b):
     """v3.12: «Питание_щита» - схема щита (C65:E69), таблица «Шины щита» (B73:D82), итоги для вышестоящего щита (J44:S47)."""
-    gr = b.g.get(S_POW)
+    gr = b.pow()
     out = OrderedDict()
     if not gr:
         return out
@@ -505,7 +532,7 @@ def sec_modes(b):
 
 def sec_rollup(b):
     """v3.12, сборка в ГРЩ: «Нижестоящие_щиты» P:BG - служебные столбцы, связи U:BE (составляющие), проверка категории фидера."""
-    gr = b.g.get(S_SUB)
+    gr = b.sub()
     out = OrderedDict()
     if not gr or nv(gr.get(4, CI("P"))) != "Щит (этой книги)":
         return out

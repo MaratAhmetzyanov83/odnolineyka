@@ -100,6 +100,26 @@ Private Type DiffResult
     LogN As Long
 End Type
 
+' Тихий режим (для проверки программой): окна не показываются, вопрос = «Да»,
+' текст последнего сообщения — SX_GetSpecMsg. Включает SX_SetQuiet надстройки.
+Public SX_SpecQuiet As Boolean
+Public SX_SpecLastMsg As String
+
+Public Function SX_GetSpecMsg() As String
+    SX_GetSpecMsg = SX_SpecLastMsg
+End Function
+
+Private Function SpecMsg(ByVal prompt As String, Optional ByVal style As VbMsgBoxStyle = vbOKOnly, _
+                         Optional ByVal title As String = "") As VbMsgBoxResult
+    SX_SpecLastMsg = prompt
+    If SX_SpecQuiet Then
+        Debug.Print prompt
+        SpecMsg = vbYes
+    Else
+        SpecMsg = MsgBox(prompt, style, title)
+    End If
+End Function
+
 ' ----------------------------------------------------------------------------
 ' Русские псевдонимы макросов (для окна Alt+F8 и кнопок)
 ' ----------------------------------------------------------------------------
@@ -135,12 +155,12 @@ Public Sub SX_UpdateSpec()
     Set wb = ActiveWorkbook
     On Error GoTo 0
     If wb Is Nothing Then
-        MsgBox "Нет открытой книги.", vbExclamation, "Обновить спецификацию"
+        SpecMsg "Нет открытой книги.", vbExclamation, "Обновить спецификацию"
         Exit Sub
     End If
     problem = CheckBook(wb)
     If Len(problem) > 0 Then
-        MsgBox problem, vbExclamation, "Обновить спецификацию"
+        SpecMsg problem, vbExclamation, "Обновить спецификацию"
         Exit Sub
     End If
 
@@ -171,7 +191,7 @@ Public Sub SX_UpdateSpec()
 
     If lastRow = 0 Then
         Application.ScreenUpdating = True
-        ans = MsgBox("Черновик «Спецификация_авто» пуст. Очистить итоговую область " & _
+        ans = SpecMsg("Черновик «Спецификация_авто» пуст. Очистить итоговую область " & _
                      "B4:J160 в листе «Спецификация»?", vbYesNo + vbQuestion + vbDefaultButton2, _
                      "Обновить спецификацию")
         Application.ScreenUpdating = False
@@ -266,11 +286,11 @@ Fin:
 
     Select Case kind
         Case 0
-            MsgBox msg, vbInformation, "Обновить спецификацию"
+            SpecMsg msg, vbInformation, "Обновить спецификацию"
         Case 2
-            MsgBox msg, vbInformation, "Обновить спецификацию"
+            SpecMsg msg, vbInformation, "Обновить спецификацию"
         Case Else
-            MsgBox "Не удалось обновить спецификацию." & vbCrLf & vbCrLf & errText & vbCrLf & vbCrLf & _
+            SpecMsg "Не удалось обновить спецификацию." & vbCrLf & vbCrLf & errText & vbCrLf & vbCrLf & _
                    "Настройки Excel (пересчёт, события, обновление экрана, защита листа) восстановлены. " & _
                    "Книга могла остаться в промежуточном состоянии: проверьте лист «Спецификация».", _
                    vbCritical, "Обновить спецификацию"
@@ -300,22 +320,22 @@ Public Sub SX_AcceptChanges()
     Set wb = ActiveWorkbook
     On Error GoTo 0
     If wb Is Nothing Then
-        MsgBox "Нет открытой книги.", vbExclamation, "Принять изменения"
+        SpecMsg "Нет открытой книги.", vbExclamation, "Принять изменения"
         Exit Sub
     End If
     problem = CheckBook(wb)
     If Len(problem) > 0 Then
-        MsgBox problem, vbExclamation, "Принять изменения"
+        SpecMsg problem, vbExclamation, "Принять изменения"
         Exit Sub
     End If
     Set wsSnap = SheetOf(wb, SH_SNAP)
     If wsSnap Is Nothing Then
-        MsgBox "Принятого снимка ещё нет. Сначала выполните «Обновить спецификацию» " & _
+        SpecMsg "Принятого снимка ещё нет. Сначала выполните «Обновить спецификацию» " & _
                "(при первом запуске снимок создаётся автоматически).", vbExclamation, "Принять изменения"
         Exit Sub
     End If
     If Not SnapValid(wsSnap) Then
-        MsgBox "Лист «" & SH_SNAP & "» повреждён (нет метки в A1). Принять изменения нельзя.", _
+        SpecMsg "Лист «" & SH_SNAP & "» повреждён (нет метки в A1). Принять изменения нельзя.", _
                vbExclamation, "Принять изменения"
         Exit Sub
     End If
@@ -354,7 +374,7 @@ Public Sub SX_AcceptChanges()
         GoTo Fin
     End If
 
-    ans = MsgBox("Принять ревизию " & (rev + 1) & "?" & vbCrLf & vbCrLf & _
+    ans = SpecMsg("Принять ревизию " & (rev + 1) & "?" & vbCrLf & vbCrLf & _
                  "Изменено позиций: " & d.NChanged & " (ячеек: " & d.NCells & ")" & vbCrLf & _
                  "Добавлено: " & d.NNew & vbCrLf & _
                  "Удалено: " & d.NDel & vbCrLf & vbCrLf & _
@@ -404,9 +424,9 @@ Fin:
 
     Select Case kind
         Case 0, 2
-            MsgBox msg, vbInformation, "Принять изменения"
+            SpecMsg msg, vbInformation, "Принять изменения"
         Case Else
-            MsgBox "Не удалось принять изменения." & vbCrLf & vbCrLf & errText & vbCrLf & vbCrLf & _
+            SpecMsg "Не удалось принять изменения." & vbCrLf & vbCrLf & errText & vbCrLf & vbCrLf & _
                    "Настройки Excel восстановлены. Выполните «Обновить спецификацию» и проверьте " & _
                    "листы «" & SH_LOG & "» и «Спецификация».", vbCritical, "Принять изменения"
     End Select

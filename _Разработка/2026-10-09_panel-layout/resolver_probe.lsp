@@ -1,5 +1,0 @@
-(setq cppr:f (open "C:/Users/user/Desktop/02_Справочники_CAD_Revit/odnolineyka/_Разработка/2026-10-09_panel-layout/resolver_probe.txt" "w"))
-(foreach cppr:expr '((list cp:version (getenv "CP_DclFile")) (cp:dcl-file) (cp:default-library))
- (setq cppr:r (vl-catch-all-apply 'eval (list cppr:expr)))
- (prin1 (list cppr:expr (if (vl-catch-all-error-p cppr:r) (vl-catch-all-error-message cppr:r) cppr:r)) cppr:f) (write-line "" cppr:f))
-(close cppr:f) (princ)

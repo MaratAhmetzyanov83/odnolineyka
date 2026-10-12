@@ -1,3 +1,0 @@
-System.IO.FileNotFoundException: Не удается найти указанный файл. (0x80070002)
-   at Autodesk.AutoCAD.Interop.IAcSmSubset.AddNewSheet(String name, String desc)
-   at SsmUpdate.Run() in C:\Users\user\Desktop\02_Справочники_CAD_Revit\odnolineyka\_Разработка\stamps\ssmupdate\Update.cs:line 14

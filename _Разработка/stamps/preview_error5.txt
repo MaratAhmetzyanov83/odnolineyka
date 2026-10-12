@@ -1,3 +1,0 @@
-System.Exception: Attribute value or field changed: ВК цоколь СКВОЗНАЯ_НУМЕРЦИЯ
-   at StampApply.Apply(Database db, FilePlan plan, Dictionary`2 sources) in C:\Users\user\Desktop\02_Справочники_CAD_Revit\odnolineyka\_Разработка\stamps\apply\StampApply.cs:line 61
-   at StampApply.Preview() in C:\Users\user\Desktop\02_Справочники_CAD_Revit\odnolineyka\_Разработка\stamps\apply\StampApply.cs:line 80

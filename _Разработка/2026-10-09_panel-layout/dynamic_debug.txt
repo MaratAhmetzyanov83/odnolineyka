@@ -1,3 +1,0 @@
-:vlax-true
-"VARIANT"("AV_1P_18" "AV_1PN_36" "AV_2P_36" "AV_3P_54" "AV_3PN_72" "AV_4P_72")
-"MODEL_VARIANT"("allowed" "ActiveX Server возвратил ошибку: Неверный индекс")

@@ -1,5 +1,0 @@
-(vl-load-com)
-(load "C:/Users/user/Desktop/02_Справочники_CAD_Revit/odnolineyka/2_AutoCAD/Компоновка/SX_Panel.lsp")
-(setq cppr:f (open "C:/Users/user/Desktop/02_Справочники_CAD_Revit/odnolineyka/_Разработка/2026-10-09_panel-layout/startup_current_session.txt" "w"))
-(prin1 (list 'drawing (getvar "DWGNAME") 'version cp:version 'dcl (cp:dcl-file) 'library (cp:default-library) 'model-entities (vla-get-count (vla-get-modelspace (vla-get-activedocument (vlax-get-acad-object))))) cppr:f)
-(close cppr:f) (princ)

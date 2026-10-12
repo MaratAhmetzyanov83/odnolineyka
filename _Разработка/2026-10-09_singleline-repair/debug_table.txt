@@ -1,4 +1,0 @@
-("_Боковик_схема Юником" T)
-head inserted
-head tagged
-column inserted
