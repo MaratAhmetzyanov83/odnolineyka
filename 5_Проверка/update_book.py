@@ -13,6 +13,7 @@
   7. patch_review.py       — замечания 19–22: двигатели (КПД, пуск, D), Icu, освещение МОП (LM), мощность ввода
   8. patch_feeder.py       — данные фидера для схемы (QF, автомат, кабель, L, щит-источник), селективность ввода (QS)
   9. patch_categories.py   — категория шины по цепочке источников: ввод(ы), ДГУ, ИБП (блок «ДГУ и ИБП»)
+ 10. patch_assembly.py     — лист «Сборка_щита» (CPDRAW v2.0), «Каталог» N для провода / шин / корпуса, столбец Q
 После объединения листов старые ручные связи между файлами рвутся: в каждом щите — «Связать с вышестоящим».
 """
 import os
@@ -21,7 +22,8 @@ import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 STEPS = ["tidy_book.py", "fix_text_format.py", "patch_audit.py", "merge_network.py", "patch_inputs.py",
-         "patch_validation.py", "patch_review.py", "patch_feeder.py", "patch_categories.py"]
+         "patch_validation.py", "patch_review.py", "patch_feeder.py", "patch_categories.py",
+         "patch_assembly.py"]
 
 
 def main(paths):

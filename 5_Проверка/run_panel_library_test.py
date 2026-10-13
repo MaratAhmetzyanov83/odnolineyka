@@ -43,7 +43,7 @@ def main():
             shutil.copyfile(args.library, local_library)
             command.extend(["/i", str(local_library)])
         try:
-            run = subprocess.run(command, cwd=folder, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=60)
+            run = subprocess.run(command, cwd=folder, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=600)
         except subprocess.TimeoutExpired as error:
             print((error.stdout or b"").decode("utf-16le", errors="replace")[-5000:])
             raise

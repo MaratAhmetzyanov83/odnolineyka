@@ -10,7 +10,7 @@ cp_main : dialog {
   : boxed_column {
     label = "Размещение модульных аппаратов по рядам";
     : row {
-      : edit_box { key = "nrows"; label = "Количество рядов:"; edit_width = 5; }
+      : edit_box { key = "nrows"; label = "Рядов (0 — авто):"; edit_width = 5; }
       : edit_box { key = "slots"; label = "Модулей в ряду:"; edit_width = 5; }
     }
     : row {
@@ -22,6 +22,20 @@ cp_main : dialog {
     : text { label = "Шаг между осями одинаковый для рядов аппаратов и клемм."; }
     : edit_box { key = "textheight"; label = "Высота подписей аппаратов, мм:"; edit_width = 6; }
     : edit_box { key = "xttextheight"; label = "Высота подписей клемм, мм:"; edit_width = 6; }
+  }
+  : boxed_column {
+    label = "Сборка щита";
+    : row {
+      : toggle { key = "comb"; label = "Фазы L1-L2-L3 и гребёнки, провода"; }
+      : toggle { key = "dense"; label = "Плотная раскладка"; }
+    }
+    : row {
+      : toggle { key = "npe"; label = "Кросс-модуль N и PE"; }
+      : toggle { key = "excel"; label = "Записать в Excel (лист «Сборка_щита»)"; }
+    }
+    : toggle { key = "rails"; label = "Рисовать DIN-рейки и корпус"; }
+    : edit_box { key = "case"; label = "Корпус: артикул (пусто — подбор, «-» — без корпуса):"; edit_width = 16; }
+    : edit_box { key = "caseseries"; label = "Серия для подбора (ST, STE, CQE N, RAM Base, FRAME; пусто — все):"; edit_width = 12; }
   }
   : toggle { key = "oneblock"; label = "Создавать единым блоком"; }
   : text { key = "status"; width = 75; label = ""; }
