@@ -1,5 +1,5 @@
 ;;; ============================================================================
-;;;  SX_Schema.lsp  v3.20 —  однолинейная схема из Excel на ВАШИХ блоках
+;;;  SX_Schema.lsp  v3.21 —  однолинейная схема из Excel на ВАШИХ блоках
 ;;;
 ;;;  Команды:
 ;;;    SXDRAW    — окно: файл Excel, лист «Однолинейка», щит, точка вставки,
@@ -32,7 +32,7 @@
 ;;; ============================================================================
 
 (vl-load-com)
-(setq sx:ver "v3.20")
+(setq sx:ver "v3.21")
 
 
 ;;; ---------------------------------------------------------------- настройки
@@ -71,6 +71,13 @@
 ;;; ввод: геометрия кабельной петли и отступ щита из образца 09.10.2026.
 ;;; Питающий щит слева — пользовательские блоки, его аппарат не выводится из QF ввода.
 (setq sx:inDx 80.0 sx:inLow 71.70 sx:inFeed 159.66 sx:inLeft 45.93 sx:inBus 6.63)
+;;; ввод по образцу «ЩР-1.1» (v3.21): над вводным аппаратом — рамка питающего щита (шина, автомат фидера),
+;;; кабель фидера вниз в QS, от QS петля вниз-вправо-вверх к началу шины щита.
+;;; Первый ввод листа — рамка от верха листа (наша граница обходит её), остальные — ниже основной шины.
+(setq sx:fdL 25.0 sx:fdR 11.0       ; рамка питающего щита: влево / вправо от столбца ввода
+      sx:fdD1 40.0 sx:fdD2 36.0     ; длина автомата фидера (шина -> низ): 1-й ввод листа / следующие
+      sx:fdQsBot 123.5 sx:fdLoop 121.5   ; низ QS и петля к шине (выше шины PE и клемм)
+      sx:fdTxt1 7.0 sx:fdTxt2 11.0) ; подписи кабеля фидера (повёрнуты) справа от столбца
 
 ;;; столбцы листа «Однолинейка» (A = 1)
 (setq sx:cPanel 1 sx:cPos 2 sx:cBusName 4 sx:cQFtxt 8 sx:cDev1 9
@@ -1164,7 +1171,7 @@
       (sx:line (+ us 3) vL (- ue 1) vL sx:L) (sx:line (+ us 3) vN (- ue 1) vN sx:LN)
       (sx:text (+ us 4) (+ vL 1) 2.5 name sx:T) (sx:text (+ us 4) (+ vN 1) 2.5 "N" sx:T))))
 
-(defun sx:draw-sheets (draw panel / sheets s us ue onsheet b2 segs k input left busus)
+(defun sx:draw-sheets (draw panel / sheets s us ue onsheet b2 segs k input left busus fd g xr notch q bus2us)
   (setq sheets '())
   (foreach d draw
     (if (and (sx:content-p d) (not (member (sx:sheet (sx:i d)) sheets)))
@@ -1174,15 +1181,32 @@
    (if (sx:wantS s)
    (sx:ttry (strcat "S|" (itoa s)) (function (lambda ()
     (setq us (* s *sx-sheet* *sx-step*) ue (* (1+ s) *sx-sheet* *sx-step*))
-    (setq input (sx:sheet-input draw s)
-          left (if input (- (sx:u input) sx:inLeft) (+ us 2.0))
-          busus (if input (+ left sx:inBus -5.0) us))
-    (sx:bus busus ue sx:vBusL sx:vBusN "L1,L2,L3")
-    (sx:text left (+ sx:vTop 1.5) 2.5 panel sx:T)
-    (sx:line left sx:vTop (- ue 2) sx:vTop sx:B)
-    (sx:line left sx:vBottom (- ue 2) sx:vBottom sx:B)   ; граница щита снизу
-    (if input (sx:line left sx:vTop left sx:vBottom sx:B))
-    (setq onsheet (vl-remove-if-not '(lambda (d) (= (sx:sheet (sx:i d)) s)) draw))
+    (setq onsheet (vl-remove-if-not '(lambda (d) (= (sx:sheet (sx:i d)) s)) draw)
+          fd (sx:sheet-feed draw s))
+    (if fd
+      ;; ввод с питающим щитом: шина начинается от петли ввода, граница обходит рамку питающего щита
+      (progn
+        (setq g (cadr fd) left (nth 1 g) xr (+ (nth 2 g) 3.5) notch (- (nth 7 g) 6.0) input fd
+              q (car (vl-remove-if-not '(lambda (d) (and (sx:feed-p d) (not (sx:is1 d sx:cBus2)))) onsheet))
+              busus (- (nth 3 (if q (sx:feed-geo q draw) g)) 5.0)
+              q (car (vl-remove-if-not '(lambda (d) (and (sx:feed-p d) (sx:is1 d sx:cBus2))) onsheet))
+              bus2us (if q (- (nth 3 (sx:feed-geo q draw)) 5.0)))
+        (sx:bus busus ue sx:vBusL sx:vBusN "L1,L2,L3")
+        (sx:text (+ xr 1.0) (+ sx:vTop 1.5) 2.5 panel sx:T)
+        (sx:line xr sx:vTop (- ue 2) sx:vTop sx:B)
+        (sx:line xr sx:vTop xr notch sx:B)
+        (sx:line left notch xr notch sx:B)
+        (sx:line left notch left sx:vBottom sx:B)
+        (sx:line left sx:vBottom (- ue 2) sx:vBottom sx:B))
+      (progn
+        (setq input (sx:sheet-input draw s)
+              left (if input (- (sx:u input) sx:inLeft) (+ us 2.0))
+              busus (if input (+ left sx:inBus -5.0) us) bus2us nil)
+        (sx:bus busus ue sx:vBusL sx:vBusN "L1,L2,L3")
+        (sx:text left (+ sx:vTop 1.5) 2.5 panel sx:T)
+        (sx:line left sx:vTop (- ue 2) sx:vTop sx:B)
+        (sx:line left sx:vBottom (- ue 2) sx:vBottom sx:B)   ; граница щита снизу
+        (if input (sx:line left sx:vTop left sx:vBottom sx:B))))
     (setq b2 (vl-remove-if-not '(lambda (d) (and (sx:has d sx:cQFown) (sx:is1 d sx:cBus2))) onsheet))
     ;; вторые шины — до конца листа; если на листе несколько разных, каждая до начала следующей
     (setq segs '())
@@ -1191,7 +1215,7 @@
         (setq segs (cons (list (sx:s (sx:c d sx:cBusName)) (sx:u d)) segs))))
     (setq segs (reverse segs) k 0)
     (foreach sg segs
-      (sx:bus (if (= k 0) busus (- (cadr sg) 9.0))
+      (sx:bus (if (= k 0) (if bus2us bus2us busus) (- (cadr sg) 9.0))
               (if (< (1+ k) (length segs)) (- (cadr (nth (1+ k) segs)) 11.0) ue)
               sx:vBus2L sx:vBus2N (car sg))
       (setq k (1+ k)))
@@ -1306,6 +1330,8 @@
   (foreach q draw
    (if (and (sx:has q sx:cQFown) (sx:wantG (sx:i q)))
    (sx:ttry (strcat "G|" (itoa (sx:i q))) (function (lambda ()
+    (if (sx:feed-p q)
+      (sx:draw-feed q draw)
     (if (sx:has q sx:cQFown)
       (progn
         (setq gid (sx:s (sx:c q sx:cQFown)) u (sx:u q)
@@ -1350,7 +1376,7 @@
                   hi (apply 'max (mapcar 'sx:u xts)))
             (sx:line xN busN xN sx:vXTN sx:LN)
             (sx:dot xN busN sx:LN)
-            (sx:hline xN hi sx:vXTN sx:LN)))))))
+            (sx:hline xN hi sx:vXTN sx:LN))))))))
     (strcat "group " (sx:rowinfo q))))))
 
 ;;; ёмкость модулей (модель -> число каналов) из именованного диапазона «Модули_спр»
@@ -1450,10 +1476,151 @@
 ;;; Ввод от питающего щита слева: вниз, под рамкой щита, вверх к XT.
 ;;; Кабель/фаза/ток остаются в том же столбце таблицы. УГО отходящей линии нет.
 (defun sx:draw-input (d u / xs)
-  (setq xs (- u sx:inDx))
-  (sx:line xs sx:inFeed xs sx:inLow sx:L)
-  (sx:hline xs u sx:inLow sx:L)
-  (sx:line u sx:inLow u sx:xtb sx:L))
+  ;; ввод со своим аппаратом рисует sx:draw-feed (вместе с группами)
+  (if (not (sx:feed-p d))
+    (progn
+      (setq xs (- u sx:inDx))
+      (sx:line xs sx:inFeed xs sx:inLow sx:L)
+      (sx:hline xs u sx:inLow sx:L)
+      (sx:line u sx:inLow u sx:xtb sx:L))))
+
+;;; ---------------------------------------------------------------- ввод с питающим щитом (v3.21)
+(defun sx:feed-p (d) (and (sx:input-p d) (sx:has d sx:cQFown)))
+
+;;; «Сеть_щита»: по каждому вводу щита (n QF-фидера автомат кабель L щит-источник).
+;;; Ввод 1 — строка щита 6..8, столбцы H:L (раздел А) или ручной раздел 2; вводы 2, 3 — AL:AP.
+(defun sx:read-feeds (panel / sh rg vals cell idx k r c res src mark sec cores len in ch row)
+  (setq res nil)
+  (if (setq sh (cdr (assoc (sx:ru '(1057 1077 1090 1100 95 1097 1080 1090 1072)) sx:sheets)))
+    (progn
+      (setq rg (vlax-get-property sh 'Range "A1:AP30"))
+      (setq vals (vl-catch-all-apply
+                   '(lambda () (vlax-safearray->list (vlax-variant-value (vlax-get-property rg 'Value2)))) nil))
+      (sx:rel rg)
+      (if (not (vl-catch-all-error-p vals))
+        (progn
+          (setq vals (mapcar '(lambda (rw) (mapcar 'sx:v rw)) vals))
+          (defun cell (r c) (nth (1- c) (nth (1- r) vals)))
+          (setq k 1)
+          (repeat 3
+            (if (and (null idx) (= (sx:s (cell (+ 5 k) 2)) panel)) (setq idx k))
+            (setq k (1+ k)))
+          (if idx
+            (progn
+              (setq row (+ 5 idx))
+              (setq res (list (list 1 (sx:s (cell row 8)) (sx:s (cell row 9)) (sx:s (cell row 10))
+                                    (sx:s (cell row 11)) (sx:s (cell row 12)))))
+              ;; раздел 1 пуст — питающая линия вручную (раздел 2, столбец щита C/D/E)
+              (if (= (strcat (nth 2 (car res)) (nth 3 (car res)) (nth 5 (car res))) "")
+                (progn
+                  (setq c (+ 2 idx)
+                        src (sx:s (cell 12 c)) mark (sx:s (cell 18 c)) sec (sx:s (cell 19 c))
+                        cores (sx:s (cell 20 c)) len (sx:s (cell 22 c)) in (sx:s (cell 24 c)) ch (sx:s (cell 25 c)))
+                  (if (= cores "") (setq cores "5"))
+                  (if (= ch "") (setq ch (sx:ru '(1057))))
+                  (setq res (list (list 1 ""
+                                        (if (/= in "") (strcat "3P " ch in (sx:ru '(1040))) "")
+                                        (if (/= mark "") (strcat mark (if (/= sec "") (strcat " (" cores (sx:ru '(1093)) sec ")") "")) "")
+                                        len src)))))
+              (setq k 2)
+              (repeat 2
+                (setq row (+ 6 (* (1- idx) 2) (- k 2)))
+                (setq res (append res (list (list k (sx:s (cell row 38)) (sx:s (cell row 39)) (sx:s (cell row 40))
+                                                    (sx:s (cell row 41)) (sx:s (cell row 42))))))
+                (setq k (1+ k)))))))))
+  res)
+
+;;; номер ввода строки: «Ввод.2» -> 2 (иначе 1)
+(defun sx:feed-n (d / line k)
+  (setq line (sx:s (sx:c d sx:cLine)) k (vl-string-search "." line))
+  (if (and k (> (atoi (substr line (+ k 2))) 0)) (atoi (substr line (+ k 2))) 1))
+
+;;; данные фидера ввода: (QF автомат кабель L источник); кабель — из строки ввода, если в «Сеть_щита» пусто
+(defun sx:feed-data (d / f cab k)
+  (setq f (cdr (assoc (sx:feed-n d) sx:feeds)))
+  ;; вводы 2, 3: пусто = как Ввод 1 («Сеть_щита»)
+  (if (or (null f) (= (apply 'strcat f) "")) (setq f (cdr (assoc 1 sx:feeds))))
+  (if (null f) (setq f (list "" "" "" "" "")))
+  (if (= (nth 2 f) "")
+    (progn
+      (setq cab (sx:s (sx:c d sx:cCab)) k (vl-string-search " L=" cab))
+      (setq f (list (nth 0 f) (nth 1 f) (if k (substr cab 1 k) cab) (nth 3 f) (nth 4 f)))))
+  f)
+
+;;; геометрия ввода: (уровень xl xr xb верх-рамки шинаL шинаN низ-фидера верх-QS)
+;;; уровень 1 — первый ввод листа (рамка от верха листа), 2 — следующие (рамка под основной шиной).
+;;; xb — куда петля от QS поднимается к шине (с неё начинается шина щита).
+(defun sx:feed-geo (q draw / s us u ins lev xl xr xb top busL busN fb)
+  (setq s (sx:sheet (sx:i q)) us (* s *sx-sheet* *sx-step*) u (sx:u q)
+        ins (vl-remove-if-not '(lambda (d) (and (sx:feed-p d) (= (sx:sheet (sx:i d)) s))) draw)
+        lev (if (vl-some '(lambda (d) (< (sx:u d) u)) ins) 2 1))
+  ;; следующее место свободно — петля через его середину, иначе по границе мест
+  (setq xb (if (vl-some '(lambda (d) (and (= (sx:i d) (1+ (sx:i q))) (or (sx:content-p d) (sx:has d sx:cQFown)))) draw)
+             (+ u (/ *sx-step* 2.0))
+             (+ u *sx-step*)))
+  (if (= (sx:sheet (1+ (sx:i q))) s) nil (setq xb (+ u (/ *sx-step* 2.0))))
+  (setq xl (max (+ us 1.0) (- u sx:fdL))
+        xr (min (+ u sx:fdR) (- xb 3.0)))
+  (if (= lev 1)
+    (setq top sx:vTop busL sx:vBusL busN sx:vBusN fb (- sx:vBusL sx:fdD1))
+    (setq top (- sx:vBusN 6.0) busL sx:vBus2N busN (- sx:vBus2N 5.0) fb (- sx:vBus2N sx:fdD2)))
+  (list lev xl xr xb top busL busN fb (- fb 9.0)))
+
+;;; первый ввод листа (рамка от верха): (запись геометрия) или nil
+(defun sx:sheet-feed (draw s / q)
+  (setq q (car (vl-sort (vl-remove-if-not '(lambda (d) (and (sx:feed-p d) (= (sx:sheet (sx:i d)) s))) draw)
+                        '(lambda (a b) (< (sx:u a) (sx:u b))))))
+  (if q (list q (sx:feed-geo q draw))))
+
+;;; автомат QF1 между низом bot и точкой подключения top (вид «QF», длина подгоняется)
+(defun sx:feed-qf (u bot top vals vis / ob r p sts)
+  (if (sx:blk-p sx:bQF)
+    (progn
+      (setq ob (sx:insv sx:bQF u (+ bot sx:qfBody) 1.0 0.0 vals sx:BL))
+      (if (and (null sx:qfvis) (setq p (sx:dynprop ob sx:pVis)))
+        (progn
+          (setq sts (vl-catch-all-apply '(lambda () (mapcar 'sx:v (vlax-safearray->list (vlax-variant-value (vla-get-allowedvalues p))))) nil))
+          (setq sx:qfvis (if (vl-catch-all-error-p sts) '("?") sts))
+          (sx:log (strcat "QF1 visibility states: " (sx:str sx:qfvis)))))
+      (sx:dynset ob sx:pVis (if (member vis sx:qfvis) vis "QF"))
+      (setq r (sx:qf-align ob (cadr (sx:pt u top))))
+      (if (numberp r) (sx:line u top u (- r (cadr sx:P0)) sx:L))
+      ob)
+    (progn
+      (sx:insv "SX_QF" u (+ bot sx:qfBody) 1.0 0.0 vals sx:BL)
+      (sx:line u top u (- (+ bot sx:qfBody) sx:vQFcontact) sx:L))))
+
+(defun sx:qf-vals (name txt / toks p a ma)
+  (setq toks (sx:split txt) p "" a "" ma "")
+  (foreach tk toks
+    (cond ((wcmatch (strcase tk) "#P") (setq p tk))
+          ((wcmatch (strcase tk) "Q@,Q@@") nil)   ; «QS 3P 80А»: буквы аппарата — не номинал
+          ((= a "") (setq a tk))
+          (t (setq ma (if (= ma "") tk (strcat ma " " tk))))))
+  (list (sx:digits name) p a ma))
+
+(defun sx:draw-feed (q draw / g f u lev xl xr xb top busL busN fb qsTop tgt)
+  (setq g (sx:feed-geo q draw) f (sx:feed-data q) u (sx:u q)
+        lev (nth 0 g) xl (nth 1 g) xr (nth 2 g) xb (nth 3 g) top (nth 4 g)
+        busL (nth 5 g) busN (nth 6 g) fb (nth 7 g) qsTop (nth 8 g))
+  (sx:log (strcat "feed " (sx:rowinfo q) " lev=" (itoa lev) " data=" (sx:str f)))
+  ;; питающий щит: рамка, имя, шина, автомат фидера
+  (sx:rect xl top xr (- fb 3.0) sx:B)
+  (sx:text xl (+ top 1.5) 2.5 (nth 4 f) sx:T)
+  (sx:bus (- xl 3.0) (- xr 2.0) busL busN "L1,L2,L3")
+  (sx:feed-qf u fb busL (sx:qf-vals (nth 0 f) (nth 1 f)) "QF")
+  ;; кабель фидера и подписи (марка, длина)
+  (sx:line u fb u qsTop sx:L)
+  (sx:textr (+ u sx:fdTxt1) (+ sx:fdQsBot 1.0) 2.5 (nth 2 f) sx:T 90.0)
+  (if (/= (nth 3 f) "")
+    (sx:textr (+ u sx:fdTxt2) (+ sx:fdQsBot 1.0) 2.5 (strcat "L=" (nth 3 f) (sx:ru '(1084))) sx:T 90.0))
+  ;; вводной аппарат щита и петля к началу шины
+  (sx:feed-qf u sx:fdQsBot qsTop (sx:qf-vals (sx:s (sx:c q sx:cQFown)) (sx:s (sx:c q sx:cQFtxt)))
+              (if (wcmatch (strcase (sx:s (sx:c q sx:cQFown))) "QS*") "QS" "QF"))   ; вид «QS» — если он есть в вашем блоке QF1
+  (setq tgt (if (sx:is1 q sx:cBus2) sx:vBus2L sx:vBusL))
+  (sx:line u sx:fdQsBot u sx:fdLoop sx:L)
+  (sx:hline u xb sx:fdLoop sx:L)
+  (sx:line xb sx:fdLoop xb tgt sx:L))
 
 (defun sx:draw-ugo (d u / sym spec blk ob)
   (if (sx:input-p d)
@@ -1551,7 +1718,7 @@
           ((sx:is1 d sx:cHasLine)
            (sx:line u sx:vChBase u sx:vXTbot sx:L)
            (sx:draw-ugo d u)))))
-    (if (sx:is1 d sx:cXT)
+    (if (and (sx:is1 d sx:cXT) (not (sx:feed-p d)))   ; у ввода с питающим щитом клеммы нет
       (progn
         ;; двухуровневая клемма (XT без земли) - только когда на клемму приходят два проводника:
         ;; параллельная линия «=» или повтор номера XT; обычная клемма - XT с кружком PE
@@ -1866,7 +2033,7 @@
         (vl-catch-all-apply 'sx:logdump nil)))
     (princ))
   (setq sx:logl nil sx:errs nil
-        sx:bbcache nil sx:cccache nil sx:blkcache nil sx:bbctx "" sx:pecache nil sx:nopos nil
+        sx:bbcache nil sx:cccache nil sx:blkcache nil sx:qfvis nil sx:bbctx "" sx:pecache nil sx:nopos nil
         sx:part (member upd '(sel sheet)) sx:onlyP nil sx:onlyG nil sx:onlyM nil sx:onlyS nil)
   (sx:stg "init")
   (sx:log (strcat "SX_Schema " sx:ver))
@@ -1924,6 +2091,9 @@
   (sx:stg "read excel")
   (setq data (sx:read-data))
   (setq sx:summary (sx:read-summary panel))
+  (setq sx:feeds (vl-catch-all-apply 'sx:read-feeds (list panel)))
+  (if (vl-catch-all-error-p sx:feeds) (setq sx:feeds nil))
+  (sx:log (strcat "feeds=" (sx:str sx:feeds)))
   (sx:log (strcat "summary=" (sx:str sx:summary)))
   (setq sx:models (vl-catch-all-apply 'sx:read-models nil))
   (if (vl-catch-all-error-p sx:models) (setq sx:models nil))
@@ -2031,5 +2201,5 @@
   (princ))
 
 (princ (strcat "\n" (sx:ru '(83 88 95 83 99 104 101 109 97 32 118 51 46 49 55 32 1079 1072 1075 1088 1091 1078 1077 1085 32 40 1074 1072 1096 1080 32 1073 1083 1086 1082 1080 41 58 32 83 88 68 82 65 87 32 8212 32 1087 1086 1089 1090 1088 1086 1080 1090 1100 32 1089 1093 1077 1084 1091 44 32 83 88 67 76 69 65 82 32 8212 32 1089 1090 1077 1088 1077 1090 1100 46))))
-(princ "\n[SX_Schema v3.20] SXDRAW / SXUPDATE / SXUPDSEL / SXUPDSHEET / SXCLEAR")
+(princ "\n[SX_Schema v3.21] SXDRAW / SXUPDATE / SXUPDSEL / SXUPDSHEET / SXCLEAR")
 (princ)
