@@ -45,7 +45,7 @@ Public Sub SX_OnAction(control As Object)
         Case "sxLinksUpd": SX_UpdateLinks
         Case "sxTree": SX_Tree
         Case "sxPZ": SX_PZ
-        Case "sxKJ": SX_KJ
+        Case "sxKJ": SX_KJMake
         Case "sxKJFile": SX_KJFile
         Case "sxKJStamp": SX_KJStamp
         Case "sxHelp": SX_Help

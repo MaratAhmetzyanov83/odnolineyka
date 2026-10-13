@@ -20,7 +20,7 @@ Private kjStamp As String                       ' полный путь к DWG �
 Private kjDrop As Collection                    ' лишние вкладки: в фоне (ObjectDBX) AutoCAD их не удаляет
 
 ' ---------------------------------------------------------------- кнопки
-Public Sub SX_KJ()
+Public Sub SX_KJMake()
     KJ_Run "", False
 End Sub
 
