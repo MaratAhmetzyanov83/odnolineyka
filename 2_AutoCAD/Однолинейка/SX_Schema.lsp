@@ -1135,6 +1135,93 @@
         (vla-put-textstring a (cdr (assoc (strcase (vla-get-tagstring a)) pairs))))
       (vla-update ob))))
 
+;;; ---- таблицы по источникам (v3.21): рядом с итогами щита, по одной на источник с нагрузкой.
+;;; Цифры — лист «Режимы», нормальный режим (Руст, Кс, cos, Рр, Iр); категория — «Сеть_щита» I69:K71
+;;; (блок «ДГУ и ИБП», patch_categories.py). Рисуются, если источников с нагрузкой два и больше или есть ДГУ / ИБП.
+(defun sx:read-sources (panel / sh rg vals cell net idx k res nm ust cat)
+  (setq res nil)
+  (if (and (setq sh (cdr (assoc (sx:ru '(1056 1077 1078 1080 1084 1099)) sx:sheets)))
+           (setq net (cdr (assoc (sx:ru '(1057 1077 1090 1100 95 1097 1080 1090 1072)) sx:sheets))))
+    (progn
+      (setq rg (vlax-get-property sh 'Range "B4:G21"))
+      (setq vals (vl-catch-all-apply
+                   '(lambda () (vlax-safearray->list (vlax-variant-value (vlax-get-property rg 'Value2)))) nil))
+      (sx:rel rg)
+      (if (and (not (vl-catch-all-error-p vals))
+               (= (sx:s (sx:v (nth 1 (car vals)))) panel))     ; «Режимы» C4 — этот щит
+        (progn
+          (setq vals (mapcar '(lambda (rw) (mapcar 'sx:v rw)) vals))
+          (defun cell (r c) (nth c (nth (- r 4) vals)))         ; r — строка листа, c — 0 = B, 1 = C ...
+          ;; категории шин щита: «Сеть_щита» B6:B8 (щит), I69:K71 (Ввод, ДГУ, ИБП)
+          (setq rg (vlax-get-property net 'Range "B6:K71"))
+          (setq net (vl-catch-all-apply
+                      '(lambda () (vlax-safearray->list (vlax-variant-value (vlax-get-property rg 'Value2)))) nil))
+          (sx:rel rg)
+          (if (not (vl-catch-all-error-p net))
+            (progn
+              (setq net (mapcar '(lambda (rw) (mapcar 'sx:v rw)) net) k 0)
+              (repeat 3 (if (and (null idx) (= (sx:s (nth 0 (nth k net))) panel)) (setq idx k)) (setq k (1+ k)))))
+          (setq k 1)
+          (repeat 5
+            (setq nm (sx:s (cell 11 k)) ust (cell 14 k))
+            (if (and (numberp ust) (> ust 0.0))
+              (progn
+                (setq cat (if (and idx (listp net))
+                            (sx:s (nth (+ 7 idx) (nth (cond ((wcmatch (strcase nm) (strcase (sx:ru '(1044 1043 1059 42)))) 64)
+                                                             ((wcmatch (strcase nm) (strcase (sx:ru '(1048 1041 1055 42)))) 65)
+                                                             (t 63))
+                                                       net)))
+                            ""))
+                (setq res (append res (list (list nm ust (cell 15 k) (cell 16 k) (cell 18 k) (cell 21 k) cat))))))
+            (setq k (1+ k)))))))
+  (if (or (> (length res) 1)
+          (vl-some '(lambda (r) (not (wcmatch (strcase (car r)) (strcase (sx:ru '(1042 1074 1086 1076 42)))))) res))
+    res))
+
+;;; блок таблицы источника 60 x 40 мм: заголовок над таблицей, Руст, Рр, Iр, cos, Кс
+(defun sx:source-block ( / ents y r labels tags)
+  (setq ents (append (bR 0.0 -40.0 60.0 0.0)
+                     (list (bL 0.0 -8.0 60.0 -8.0) (bL 0.0 -16.0 60.0 -16.0) (bL 0.0 -24.0 60.0 -24.0)
+                           (bL 0.0 -32.0 60.0 -32.0) (bL 20.0 0.0 20.0 -40.0) (bL 45.0 0.0 45.0 -24.0)
+                           (bAtt "TITLE" 0.0 1.5 2.5 "L" 0.0 nil))))
+  (setq labels (list (sx:ru '(1056 1091 1089 1090 61)) (sx:ru '(1056 1088 61)) (sx:ru '(73 1088 61))
+                     (sx:ru '(67 111 115 40 1092 41 61)) (sx:ru '(1050 1089 61)))
+        tags '("PUST" "PR" "IR" "COS" "KS") r 0)
+  (foreach lab labels
+    (setq y (- -4.0 (* r 8.0))
+          ents (append ents (list (bT 10.0 y 2.5 lab "M" 0.0)
+                                  (bAtt (nth r tags) (if (< r 3) 32.5 40.0) y 2.5 "M" 0.0 nil))))
+    (if (< r 3)
+      (setq ents (append ents (list (bT 52.5 y 2.5 (if (= r 2) (sx:ru '(1040)) (sx:ru '(1082 1042 1090))) "M" 0.0)))))
+    (setq r (1+ r)))
+  (sx:defblock "SX_SOURCE" ents T))
+
+(defun sx:draw-sources ( / k x ob pairs src ttl)
+  (if (and sx:sources sx:summary)
+    (progn
+      (sx:source-block)
+      ;; над итогами щита — подпись «щит в целом»
+      (setq ob (entmake (list '(0 . "TEXT") (cons 8 sx:TB) (cons 10 (list (car sx:sumpt) (+ (cadr sx:sumpt) 1.5) 0.0))
+                              (cons 40 2.5) (cons 1 (strcat sx:tagpanel (sx:ru '(32 8212 32 1074 1077 1089 1100 32 1097 1080 1090))))
+                              (cons 50 0.0) (cons 7 sx:style))))
+      (if ob (sx:xd-set (entlast) "U"))
+      (setq k 0)
+      (foreach src sx:sources
+        (setq x (+ (car sx:sumpt) (* (+ 125.0 (* k 65.0)) (car sx:sumscale)))
+              ttl (strcat (nth 0 src) (sx:ru '(32 8212 32)) (nth 6 src)
+                          (if (/= (nth 6 src) "") (sx:ru '(32 1082 1072 1090 1077 1075 1086 1088 1080 1103)) "")))
+        (setq ob (vla-insertblock sx:ms (vlax-3d-point (list x (cadr sx:sumpt) 0.0)) "SX_SOURCE"
+                   (nth 0 sx:sumscale) (nth 1 sx:sumscale) (nth 2 sx:sumscale) 0.0))
+        (vla-put-layer ob sx:TB) (sx:xd-set (vlax-vla-object->ename ob) "U")
+        (setq pairs (list (cons "TITLE" ttl)
+                          (cons "PUST" (sx:summary-num (sx:n (nth 1 src)))) (cons "KS" (sx:summary-num (sx:n (nth 2 src))))
+                          (cons "COS" (sx:summary-num (sx:n (nth 3 src)))) (cons "PR" (sx:summary-num (sx:n (nth 4 src))))
+                          (cons "IR" (sx:summary-num (sx:n (nth 5 src))))))
+        (foreach a (vlax-invoke ob 'GetAttributes)
+          (vla-put-textstring a (cdr (assoc (strcase (vla-get-tagstring a)) pairs))))
+        (vla-update ob)
+        (setq k (1+ k))))))
+
 ;;; ---------------------------------------------------------------- очистка
 (defun sx:clear ( / ss k)
   (if (setq ss (ssget "_X" '((8 . "SX_*"))))
@@ -2113,6 +2200,9 @@
   (sx:stg "read excel")
   (setq data (sx:read-data))
   (setq sx:summary (sx:read-summary panel))
+  (setq sx:sources (vl-catch-all-apply 'sx:read-sources (list panel)))
+  (if (vl-catch-all-error-p sx:sources) (setq sx:sources nil))
+  (sx:log (strcat "sources=" (sx:str sx:sources)))
   (setq sx:feeds (vl-catch-all-apply 'sx:read-feeds (list panel)))
   (if (vl-catch-all-error-p sx:feeds) (setq sx:feeds nil))
   (sx:log (strcat "feeds=" (sx:str sx:feeds)))
@@ -2205,6 +2295,7 @@
   (sx:stg "modules") (sx:try (function (lambda () (sx:draw-modules draw))) "modules")
   (sx:stg "rows")    (sx:try (function (lambda () (sx:draw-rows draw))) "rows")
   (sx:stg "summary") (sx:try 'sx:draw-summary "summary")
+  (sx:stg "sources") (sx:try 'sx:draw-sources "sources")
   (sx:stg "done")
   (vla-endundomark sx:doc)
   (setvar "CMDECHO" oldcmd)
