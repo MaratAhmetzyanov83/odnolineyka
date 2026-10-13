@@ -15,6 +15,9 @@
   69–71 итог: категория шины «Ввод», «ДГУ», «ИБП».
 C68:E68 (СХ_кат_ввод) = строка 69; C69:E69 — «ДГУ / ИБП» для справки. Имена СХ_кат_ДГУ, СХ_кат_ИБП.
 «Исходные данные» BU «Категория обеспечена» — по типу шины линии из этих итогов.
+«Исходные данные» BP «Категория (итог)»: BN (вручную), пусто — категория шины линии (BU). Отсюда «Нагрузка_щитов» AS
+  и «Режимы», блок «По категориям».
+«Однолинейка» CA «Категория» и CB «Категория: проверка» — то же по строке линии (сами).
 Свой скрытый экземпляр Excel; закрывается только он. COM — только позиционные аргументы.
 """
 import os
@@ -119,6 +122,48 @@ def patch_bu(wb, log):
     log.append(f"«{SRC}» BU: категория шины ДГУ / ИБП — по цепочке источников")
 
 
+BP = ('=IF($D3="","",IF(TRIM($BN3&"")="",IF($BU3="","III",$BU3),'
+      'IFERROR(INDEX({"I особая","I","II","III"},MATCH(TRIM($BN3&""),{"I особая","I","II","III"},0)),"III")))')
+BP_HDR = "Категория (итог: BN, пусто = по шине)"
+
+
+def patch_bp(wb, log):
+    ws = wb.Worksheets(SRC)
+    if "$BU3" in (ws.Range("BP3").Formula or ""):
+        return
+    ws.Range("BP3:BP1000").Formula = BP
+    ws.Range("BP2").Value = BP_HDR
+    log.append(f"«{SRC}» BP: пусто в BN = категория по шине (BU)")
+
+
+ODN = "Однолинейка"
+ODN_HDR = ("КАТЕГОРИЯ", "Категория\n(сама: по шине;\nвручную — «Исходные\nданные» BN)", "Категория:\nпроверка")
+
+
+def patch_odn(wb, log):
+    ws = wb.Worksheets(ODN)
+    if ws.Range("CA1").Value == ODN_HDR[0]:
+        return False
+    if wb.Application.WorksheetFunction.CountA(ws.Range("CA1:CB1000")) > 0:
+        raise RuntimeError(f"«{ODN}» CA:CB занято")
+    look = "MATCH($R3,'Исходные данные'!$D$3:$D$1000,0)"
+    ws.Range("CA1").Value = ODN_HDR[0]
+    ws.Range("CA2").Value = ODN_HDR[1]
+    ws.Range("CB2").Value = ODN_HDR[2]
+    ws.Range("CA3:CA1000").Formula = f"=IF($R3=\"\",\"\",IFERROR(INDEX('Исходные данные'!$BP$3:$BP$1000,{look}),\"\"))"
+    ws.Range("CB3:CB1000").Formula = f"=IF($R3=\"\",\"\",IFERROR(INDEX('Исходные данные'!$BV$3:$BV$1000,{look}),\"\"))"
+    ws.Range("CA1:CB2").Font.Bold = True
+    ws.Range("CA2:CB2").WrapText = True
+    ws.Range("CA2:CB2").Interior.Color = rgb((221, 235, 247))
+    fc = ws.Range("CB3:CB1000").FormatConditions.Add(1, 3, '="НЕ ОБЕСПЕЧЕНА"')
+    fc.Font.Color = rgb((192, 0, 0))
+    fc.Font.Bold = True
+    ws.Columns("CA").ColumnWidth = 14
+    ws.Columns("CB").ColumnWidth = 14
+    log.append(f"«{ODN}» CA:CB: категория линии и проверка (сами)")
+    return True
+
+
 def unprot(ws):
     """снять защиту; вернуть её параметры (как в patch_audit.py) или None"""
     if not ws.ProtectContents:
@@ -144,9 +189,11 @@ def run(path):
             wb.Worksheets(NET)
         except Exception:
             raise RuntimeError(f"нет листа «{NET}» — сначала merge_network.py")
-        pr = [(ws, unprot(ws)) for ws in (wb.Worksheets(NET), wb.Worksheets(SRC))]
+        pr = [(ws, unprot(ws)) for ws in (wb.Worksheets(NET), wb.Worksheets(SRC), wb.Worksheets(ODN))]
         build(wb, log)
         patch_bu(wb, log)
+        patch_bp(wb, log)
+        patch_odn(wb, log)
         for ws, opts in pr:
             if opts:
                 ws.Protect(PWD, *opts)

@@ -1139,7 +1139,7 @@
 ;;; Цифры — лист «Режимы», нормальный режим (Руст, Кс, cos, Рр, Iр); категория — «Сеть_щита» I69:K71
 ;;; (блок «ДГУ и ИБП», patch_categories.py). Рисуются, если источников с нагрузкой два и больше или есть ДГУ / ИБП.
 (defun sx:read-sources (panel / sh rg vals cell net idx k res nm ust cat)
-  (setq res nil)
+  (setq res nil sx:cats nil)
   (if (and (setq sh (cdr (assoc (sx:ru '(1056 1077 1078 1080 1084 1099)) sx:sheets)))
            (setq net (cdr (assoc (sx:ru '(1057 1077 1090 1100 95 1097 1080 1090 1072)) sx:sheets))))
     (progn
@@ -1173,10 +1173,25 @@
                                                        net)))
                             ""))
                 (setq res (append res (list (list nm ust (cell 15 k) (cell 16 k) (cell 18 k) (cell 21 k) cat))))))
-            (setq k (1+ k)))))))
+            (setq k (1+ k)))
+          (setq sx:cats (sx:read-cats sh))))))
   (if (or (> (length res) 1)
           (vl-some '(lambda (r) (not (wcmatch (strcase (car r)) (strcase (sx:ru '(1042 1074 1086 1076 42)))))) res))
     res))
+
+;;; «Режимы» B103:G106 «По категориям»: (категория Руст Кс cos Рр Iр «») по категориям с нагрузкой.
+;;; Iр = Sр / (√3 · 0,38 кВ), cos = Рр / Sр, Кс = Рр / Руст. Нужны две категории и больше.
+(defun sx:read-cats (sh / rg vals res ust pr sr)
+  (setq rg (vlax-get-property sh 'Range "B103:G106"))
+  (setq vals (vl-catch-all-apply
+               '(lambda () (vlax-safearray->list (vlax-variant-value (vlax-get-property rg 'Value2)))) nil))
+  (sx:rel rg)
+  (if (not (vl-catch-all-error-p vals))
+    (foreach rw (mapcar '(lambda (r) (mapcar 'sx:v r)) vals)
+      (setq ust (nth 2 rw) pr (nth 3 rw) sr (nth 5 rw))
+      (if (and (numberp ust) (> ust 0.0) (numberp pr) (numberp sr) (> sr 0.0))
+        (setq res (append res (list (list (sx:s (nth 0 rw)) ust (/ pr ust) (/ pr sr) pr (/ sr (* (sqrt 3.0) 0.38)) "")))))))
+  (if (> (length res) 1) res))
 
 ;;; блок таблицы источника 60 x 40 мм: заголовок над таблицей, Руст, Рр, Iр, cos, Кс
 (defun sx:source-block ( / ents y r labels tags)
@@ -1197,7 +1212,7 @@
   (sx:defblock "SX_SOURCE" ents T))
 
 (defun sx:draw-sources ( / k x ob pairs src ttl)
-  (if (and sx:sources sx:summary)
+  (if (and (or sx:sources sx:cats) sx:summary)
     (progn
       (sx:source-block)
       ;; над итогами щита — подпись «щит в целом»
@@ -1206,10 +1221,14 @@
                               (cons 50 0.0) (cons 7 sx:style))))
       (if ob (sx:xd-set (entlast) "U"))
       (setq k 0)
-      (foreach src sx:sources
-        (setq x (+ (car sx:sumpt) (* (+ 125.0 (* k 65.0)) (car sx:sumscale)))
-              ttl (strcat (nth 0 src) (sx:ru '(32 8212 32)) (nth 6 src)
-                          (if (/= (nth 6 src) "") (sx:ru '(32 1082 1072 1090 1077 1075 1086 1088 1080 1103)) "")))
+      (foreach src (append sx:sources (mapcar '(lambda (c) (cons 'cat c)) sx:cats))
+        ;; категория: заголовок «I особая категория — итого»
+        (setq ttl (if (= (car src) 'cat)
+                    (strcat (nth 1 src) (sx:ru '(32 1082 1072 1090 1077 1075 1086 1088 1080 1103 32 8212 32 1080 1090 1086 1075 1086)))
+                    (strcat (nth 0 src) (sx:ru '(32 8212 32)) (nth 6 src)
+                            (if (/= (nth 6 src) "") (sx:ru '(32 1082 1072 1090 1077 1075 1086 1088 1080 1103)) "")))
+              src (if (= (car src) 'cat) (cdr src) src)
+              x (+ (car sx:sumpt) (* (+ 125.0 (* k 65.0)) (car sx:sumscale))))
         (setq ob (vla-insertblock sx:ms (vlax-3d-point (list x (cadr sx:sumpt) 0.0)) "SX_SOURCE"
                    (nth 0 sx:sumscale) (nth 1 sx:sumscale) (nth 2 sx:sumscale) 0.0))
         (vla-put-layer ob sx:TB) (sx:xd-set (vlax-vla-object->ename ob) "U")
@@ -2201,8 +2220,8 @@
   (setq data (sx:read-data))
   (setq sx:summary (sx:read-summary panel))
   (setq sx:sources (vl-catch-all-apply 'sx:read-sources (list panel)))
-  (if (vl-catch-all-error-p sx:sources) (setq sx:sources nil))
-  (sx:log (strcat "sources=" (sx:str sx:sources)))
+  (if (vl-catch-all-error-p sx:sources) (setq sx:sources nil sx:cats nil))
+  (sx:log (strcat "sources=" (sx:str sx:sources) " cats=" (sx:str sx:cats)))
   (setq sx:feeds (vl-catch-all-apply 'sx:read-feeds (list panel)))
   (if (vl-catch-all-error-p sx:feeds) (setq sx:feeds nil))
   (sx:log (strcat "feeds=" (sx:str sx:feeds)))
