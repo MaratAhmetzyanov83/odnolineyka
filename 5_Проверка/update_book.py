@@ -12,6 +12,7 @@
   6. patch_validation.py   — валидация, ошибки 15–18: ввод от Iр щита, 120 мм², фазы без «Нет», дыры I/K/L
   7. patch_review.py       — замечания 19–22: двигатели (КПД, пуск, D), Icu, освещение МОП (LM), мощность ввода
   8. patch_feeder.py       — данные фидера для схемы (QF, автомат, кабель, L, щит-источник), селективность ввода (QS)
+  9. patch_categories.py   — категория шины по цепочке источников: ввод(ы), ДГУ, ИБП (блок «ДГУ и ИБП»)
 После объединения листов старые ручные связи между файлами рвутся: в каждом щите — «Связать с вышестоящим».
 """
 import os
@@ -20,7 +21,7 @@ import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 STEPS = ["tidy_book.py", "fix_text_format.py", "patch_audit.py", "merge_network.py", "patch_inputs.py",
-         "patch_validation.py", "patch_review.py", "patch_feeder.py"]
+         "patch_validation.py", "patch_review.py", "patch_feeder.py", "patch_categories.py"]
 
 
 def main(paths):
