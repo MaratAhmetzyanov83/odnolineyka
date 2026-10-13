@@ -598,6 +598,15 @@
           (bT -6.2 -27.4 2.5 "QF" "L" 0.0)
           (bAtt "N" -3.2 -27.4 2.5 "L" 0.0 nil) (bAtt "P" -6.6 -30.4 2.5 "L" 0.0 nil)
           (bAtt "A" -7.6 -33.3 2.5 "L" 0.0 nil) (bAtt "MA" -9.4 -36.1 2.5 "L" 0.0 nil)) force)
+  ;; выключатель-разъединитель QS в стиле QF1 (нож и подписи как у QF1; у неподвижного контакта
+  ;; кружок и черта, как в виде QSD; без расцепителя и УЗО). Вставка — как QF1: низ на -54.31,
+  ;; верхний вывод (-36.27) до точки подключения тянет программа.
+  (sx:defblock "SX_QS"
+    (list (bL 0.0 -54.31 0.0 -42.79) (bL 0.0 -42.79 -3.51 -36.72)
+          (bC 0.0 -36.77 0.5) (bL -0.5 -36.27 0.5 -36.27)
+          (bT -6.21 -27.4 2.5 "QS" "L" 0.0)
+          (bAtt "N" -3.15 -27.4 2.5 "L" 0.0 nil) (bAtt "P" -3.4 -30.43 2.5 "R" 0.0 nil)
+          (bAtt "A" -1.7 -33.28 2.5 "R" 0.0 nil)) force)
   (sx:defblock "SX_T" (list (bL 0.0 0.0 0.0 -2.5) (bC 0.0 -5.0 2.5) (bC 0.0 -8.8 2.5) (bL 0.0 -11.3 0.0 -13.8)
                             (bAtt "N" -6.2 -5.5 2.5 "L" 0.0 nil) (bAtt "W" -10.3 -9.1 2.5 "L" 0.0 nil)
                             (bAtt "V" -8.8 -12.9 2.5 "L" 0.0 nil)) force)
@@ -1574,6 +1583,19 @@
 
 ;;; автомат QF1 между низом bot и точкой подключения top (вид «QF», длина подгоняется)
 (defun sx:feed-qf (u bot top vals vis / ob r p sts)
+  ;; QS: вид «QS» вашего QF1, если он есть; иначе свой блок SX_QS
+  (if (and (= vis "QS") (sx:blk-p sx:bQF) (null sx:qfvis))
+    (progn (setq ob (sx:insv sx:bQF u (+ bot sx:qfBody) 1.0 0.0 nil sx:BL))
+           (setq p (sx:dynprop ob sx:pVis)
+                 sts (if p (vl-catch-all-apply '(lambda () (mapcar 'sx:v (vlax-safearray->list (vlax-variant-value (vla-get-allowedvalues p))))) nil)))
+           (setq sx:qfvis (if (or (null sts) (vl-catch-all-error-p sts)) '("?") sts))
+           (vla-delete ob)))
+  (if (and (= vis "QS") (not (member "QS" sx:qfvis)))
+    (progn
+      (setq ob (sx:insv "SX_QS" u (+ bot sx:qfBody) 1.0 0.0 vals sx:BL))
+      (sx:line u top u (+ bot (- sx:qfBody 36.27)) sx:L)
+      (sx:dot u top sx:L)
+      ob)
   (if (sx:blk-p sx:bQF)
     (progn
       (setq ob (sx:insv sx:bQF u (+ bot sx:qfBody) 1.0 0.0 vals sx:BL))
@@ -1588,7 +1610,7 @@
       ob)
     (progn
       (sx:insv "SX_QF" u (+ bot sx:qfBody) 1.0 0.0 vals sx:BL)
-      (sx:line u top u (- (+ bot sx:qfBody) sx:vQFcontact) sx:L))))
+      (sx:line u top u (- (+ bot sx:qfBody) sx:vQFcontact) sx:L)))))
 
 (defun sx:qf-vals (name txt / toks p a ma)
   (setq toks (sx:split txt) p "" a "" ma "")
@@ -1616,7 +1638,7 @@
     (sx:textr (+ u sx:fdTxt2) (+ sx:fdQsBot 1.0) 2.5 (strcat "L=" (nth 3 f) (sx:ru '(1084))) sx:T 90.0))
   ;; вводной аппарат щита и петля к началу шины
   (sx:feed-qf u sx:fdQsBot qsTop (sx:qf-vals (sx:s (sx:c q sx:cQFown)) (sx:s (sx:c q sx:cQFtxt)))
-              (if (wcmatch (strcase (sx:s (sx:c q sx:cQFown))) "QS*") "QS" "QF"))   ; вид «QS» — если он есть в вашем блоке QF1
+              (if (or (wcmatch (strcase (sx:s (sx:c q sx:cQFtxt))) "QS*") (wcmatch (strcase (sx:s (sx:c q 7))) "QS*")) "QS" "QF"))   ; вид «QS» — если он есть в вашем блоке QF1
   (setq tgt (if (sx:is1 q sx:cBus2) sx:vBus2L sx:vBusL))
   (sx:line u sx:fdQsBot u sx:fdLoop sx:L)
   (sx:hline u xb sx:fdLoop sx:L)
