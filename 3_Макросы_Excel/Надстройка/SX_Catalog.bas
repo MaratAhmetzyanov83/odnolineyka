@@ -55,13 +55,25 @@ Private Function NormKey(a As Variant, b As Variant, c As Variant, g As Variant)
               LCase$(Trim$(CStr(c))) & "|" & LCase$(Trim$(CStr(g)))
 End Function
 
+' Текст сравнивается как текст (артикул «001234» <> «1234»), числа — как числа.
 Private Function Same(x As Variant, y As Variant) As Boolean
     If IsError(x) Or IsError(y) Then Same = False: Exit Function
+    If VarType(x) = vbString Or VarType(y) = vbString Then
+        Same = (Trim$(CStr(x)) = Trim$(CStr(y))): Exit Function
+    End If
     If IsNumeric(x) And IsNumeric(y) And Not IsEmpty(x) And Not IsEmpty(y) Then
         If Trim$(CStr(x)) <> "" And Trim$(CStr(y)) <> "" Then Same = (CDbl(x) = CDbl(y)): Exit Function
     End If
     Same = (Trim$(CStr(x)) = Trim$(CStr(y)))
 End Function
+
+' Записать значение; текст, похожий на число («001234»), остаётся текстом.
+Private Sub PutVal(cel As Range, v As Variant)
+    If VarType(v) = vbString Then
+        If IsNumeric(v) Then cel.Value = "'" & v: Exit Sub
+    End If
+    cel.Value = v
+End Sub
 
 ' ---------------------------------------------------------------- путь к общему каталогу
 Private Function CatPath(forced As String) As String
@@ -80,21 +92,50 @@ Private Function CatPath(forced As String) As String
     CatPath = CStr(f)
 End Function
 
-' Прочитать общий каталог (A3:Q…). Открытый файл не закрывается.
-Private Function ReadCommon(path As String, ByRef hdrRow As Variant) As Variant
-    Dim wb As Workbook, opened As Boolean, ws As Worksheet, last As Long, nm As String
-    nm = Mid$(path, InStrRev(path, "\") + 1)
+' Уже открытая книга с этим путём -> wbOut. False — открыт одноимённый файл из другой папки (его путь в other).
+Private Function FindOpen(path As String, ByRef wbOut As Workbook, ByRef other As String) As Boolean
+    Dim fso As Object
+    Set wbOut = Nothing
     On Error Resume Next
-    Set wb = Workbooks(nm)
+    Set wbOut = Workbooks(Mid$(path, InStrRev(path, "\") + 1))
     On Error GoTo 0
+    FindOpen = True
+    If wbOut Is Nothing Then Exit Function
+    Set fso = CreateObject("Scripting.FileSystemObject")
+    If LCase$(fso.GetAbsolutePathName(wbOut.FullName)) <> LCase$(fso.GetAbsolutePathName(path)) Then
+        other = wbOut.FullName
+        Set wbOut = Nothing
+        FindOpen = False
+    End If
+End Function
+
+' Прочитать общий каталог (A3:Q…). Открытый пользователем файл не закрывается. Ошибка -> errTxt.
+Private Function ReadCommon(path As String, ByRef hdrRow As Variant, ByRef errTxt As String) As Variant
+    Dim wb As Workbook, opened As Boolean, ws As Worksheet, last As Long, other As String
+    If Not FindOpen(path, wb, other) Then
+        errTxt = "Открыт другой файл с тем же именем:" & vbLf & other & vbLf & "Закройте его и повторите."
+        Exit Function
+    End If
+    On Error GoTo fail
     If wb Is Nothing Then
         Set wb = Workbooks.Open(path, UpdateLinks:=0, ReadOnly:=True)
         opened = True
     End If
+    On Error Resume Next
     Set ws = wb.Worksheets(CAT)
-    last = ws.Cells(ws.Rows.Count, 1).End(xlUp).Row
-    hdrRow = ws.Range(ws.Cells(HDR, 1), ws.Cells(HDR, NCOL)).Value
-    If last > HDR Then ReadCommon = ws.Range(ws.Cells(R0, 1), ws.Cells(last, NCOL)).Value
+    On Error GoTo fail
+    If ws Is Nothing Then
+        errTxt = "В общем каталоге нет листа «" & CAT & "»: " & path
+    Else
+        last = ws.Cells(ws.Rows.Count, 1).End(xlUp).Row
+        hdrRow = ws.Range(ws.Cells(HDR, 1), ws.Cells(HDR, NCOL)).Value
+        If last > HDR Then ReadCommon = ws.Range(ws.Cells(R0, 1), ws.Cells(last, NCOL)).Value
+    End If
+    If opened Then wb.Close False
+    Exit Function
+fail:
+    errTxt = "Не удалось прочитать общий каталог: " & Err.Description & vbLf & path
+    On Error Resume Next
     If opened Then wb.Close False
 End Function
 
@@ -105,9 +146,9 @@ Private Sub Cat_Run(forced As String)
     Dim idx As Object, seen As Object, k As String
     Dim i As Long, c As Long, r As Long, nSrc As Long
     Dim addRows As Collection, updCells As Collection, upd As Object
-    Dim freeRow As Long, onlyBook As Long, onlyList As String, dupList As String
-    Dim addList As String, updList As String, msg As String, item As Variant
-    Dim calc As XlCalculation, prot As Boolean
+    Dim freeRows As Collection, onlyBook As Long, onlyList As String, dupList As String
+    Dim addList As String, updList As String, msg As String, item As Variant, errTxt As String
+    Dim calc As XlCalculation, prot As Boolean, su As Boolean, j As Long, blank As Boolean
 
     Set wb = ActiveWorkbook
     If wb Is Nothing Then CSay "Откройте таблицу однолинейки.", vbExclamation: Exit Sub
@@ -121,10 +162,12 @@ Private Sub Cat_Run(forced As String)
     If path = "" Then CSay "Общий каталог не найден: " & CAT_FILE, vbExclamation: Exit Sub
     If Dir(path) = "" Then CSay "Нет файла: " & path, vbExclamation: Exit Sub
 
+    su = Application.ScreenUpdating
     Application.ScreenUpdating = False
-    src = ReadCommon(path, sh)
+    src = ReadCommon(path, sh, errTxt)
     wb.Activate
-    Application.ScreenUpdating = True
+    Application.ScreenUpdating = su
+    If errTxt <> "" Then CSay errTxt & vbLf & "Ничего не изменено.", vbExclamation: Exit Sub
     If IsEmpty(src) Then CSay "Общий каталог пуст: " & path, vbExclamation: Exit Sub
 
     ' шапки должны совпадать по столбцам данных
@@ -147,9 +190,19 @@ Private Sub Cat_Run(forced As String)
     For i = 1 To UBound(bk, 1)
         If Trim$(CStr(bk(i, 1))) <> "" Then
             k = NormKey(bk(i, 1), bk(i, 2), bk(i, 3), bk(i, 7))
-            If Not idx.Exists(k) Then idx.Add k, i
+            If idx.Exists(k) Then
+                If Len(dupList) < 400 Then dupList = dupList & vbLf & "  строки " & (R0 + idx(k) - 1) & " и " & _
+                    (R0 + i - 1) & ": " & bk(i, 3) & " — " & bk(i, 7)
+            Else
+                idx.Add k, i
+            End If
         End If
     Next i
+    If dupList <> "" Then
+        CSay "В «Каталоге» книги повторяется позиция (Категория + Производитель + Модель + Наименование):" & _
+             dupList & vbLf & vbLf & "Уберите повтор или измените Наименование. Ничего не изменено.", vbExclamation
+        Exit Sub
+    End If
 
     ' план: что добавить, что изменить
     Set seen = CreateObject("Scripting.Dictionary")
@@ -162,7 +215,17 @@ Private Sub Cat_Run(forced As String)
             nSrc = nSrc + 1
             k = NormKey(src(i, 1), src(i, 2), src(i, 3), src(i, 7))
             If seen.Exists(k) Then
-                If Len(dupList) < 400 Then dupList = dupList & vbLf & "  " & src(i, 3) & " — " & src(i, 7)
+                ' повтор в общем: одинаковые данные — пропустить, разные — остановиться
+                r = seen(k)
+                For c = 1 To NCOL
+                    If DataCol(c) Then
+                        If Not Same(src(i, c), src(r, c)) Then
+                            If Len(dupList) < 400 Then dupList = dupList & vbLf & "  строки " & (R0 + r - 1) & _
+                                " и " & (R0 + i - 1) & ": " & src(i, 3) & " — " & src(i, 7)
+                            Exit For
+                        End If
+                    End If
+                Next c
             Else
                 seen.Add k, i
                 If idx.Exists(k) Then
@@ -187,6 +250,12 @@ Private Sub Cat_Run(forced As String)
         End If
     Next i
 
+    If dupList <> "" Then
+        CSay "В общем каталоге одна позиция записана дважды с разными данными:" & dupList & vbLf & vbLf & _
+             "Исправьте " & path & ". Ничего не изменено.", vbExclamation
+        Exit Sub
+    End If
+
     ' только в книге
     For Each item In idx.Keys
         If Not seen.Exists(item) Then
@@ -196,16 +265,23 @@ Private Sub Cat_Run(forced As String)
         End If
     Next item
 
-    ' место для новых строк
+    ' место для новых строк: строки, где все столбцы данных A–M, Q пусты (также пропуски внутри списка)
+    Set freeRows = New Collection
     If addRows.Count > 0 Then
-        r = 0
-        For i = UBound(bk, 1) To 1 Step -1
-            If Trim$(CStr(bk(i, 1))) <> "" Then r = i: Exit For
+        For i = 1 To UBound(bk, 1)
+            blank = True
+            For c = 1 To NCOL
+                If DataCol(c) Then
+                    If IsError(bk(i, c)) Then blank = False: Exit For
+                    If Trim$(CStr(bk(i, c))) <> "" Then blank = False: Exit For
+                End If
+            Next c
+            If blank Then freeRows.Add i
+            If freeRows.Count >= addRows.Count Then Exit For
         Next i
-        freeRow = r + 1                              ' индекс в bk, после последней заполненной
-        If freeRow + addRows.Count - 1 > UBound(bk, 1) Then
+        If freeRows.Count < addRows.Count Then
             CSay "В «Каталоге» не хватает строк: нужно " & addRows.Count & ", свободно до строки " & R1 & _
-                 " — " & (UBound(bk, 1) - freeRow + 1) & "." & vbLf & "Ничего не изменено.", vbExclamation
+                 " — " & freeRows.Count & "." & vbLf & "Ничего не изменено.", vbExclamation
             Exit Sub
         End If
     End If
@@ -221,7 +297,6 @@ Private Sub Cat_Run(forced As String)
     If addRows.Count > 0 Then msg = msg & "Добавить позиций: " & addRows.Count & addList & vbLf & vbLf
     If upd.Count > 0 Then msg = msg & "Изменить позиций: " & upd.Count & " (ячеек " & updCells.Count & ")" & updList & vbLf & vbLf
     If onlyBook > 0 Then msg = msg & "Только в книге (не трогаю): " & onlyBook & onlyList & vbLf & vbLf
-    If dupList <> "" Then msg = msg & "Повтор в общем каталоге (взята первая строка):" & dupList & vbLf & vbLf
     If Not SX_Quiet Then
         If MsgBox(msg & "Запас (O) и формулы не меняются. Отменить через Ctrl+Z нельзя." & vbLf & _
                   "Обновить?", vbQuestion + vbYesNo, "Каталог") <> vbYes Then Exit Sub
@@ -229,24 +304,25 @@ Private Sub Cat_Run(forced As String)
 
     ' запись
     calc = Application.Calculation
-    Application.ScreenUpdating = False
-    Application.Calculation = xlCalculationManual
     prot = ws.ProtectContents
     On Error GoTo fail
+    Application.ScreenUpdating = False
+    Application.Calculation = xlCalculationManual
     If prot Then ws.Unprotect PWD
     For Each item In updCells
-        ws.Cells(R0 + item(0) - 1, item(1)).Value = item(2)
+        PutVal ws.Cells(R0 + item(0) - 1, item(1)), item(2)
     Next item
-    r = freeRow
+    j = 0
     For Each item In addRows
+        j = j + 1
+        r = freeRows(j)
         For c = 1 To NCOL
-            If DataCol(c) Then ws.Cells(R0 + r - 1, c).Value = src(item, c)
+            If DataCol(c) Then PutVal ws.Cells(R0 + r - 1, c), src(item, c)
         Next c
-        r = r + 1
     Next item
     If prot Then ws.Protect PWD, DrawingObjects:=True, Contents:=True, Scenarios:=True, AllowFiltering:=True
     Application.Calculation = calc
-    Application.ScreenUpdating = True
+    Application.ScreenUpdating = su
 
     msg = "Каталог обновлён: добавлено " & addRows.Count & ", изменено " & upd.Count & "."
     If onlyBook > 0 Then msg = msg & vbLf & "Только в книге: " & onlyBook & "."
@@ -259,7 +335,7 @@ fail:
     On Error Resume Next
     If prot Then ws.Protect PWD, DrawingObjects:=True, Contents:=True, Scenarios:=True, AllowFiltering:=True
     Application.Calculation = calc
-    Application.ScreenUpdating = True
+    Application.ScreenUpdating = su
     CSay msg, vbCritical
 End Sub
 
@@ -268,7 +344,7 @@ Private Sub Cat_Push(forced As String, withChanged As Boolean)
     Dim wb As Workbook, ws As Worksheet, cwb As Workbook, cws As Worksheet, path As String, nm As String
     Dim bk As Variant, bh As Variant, src As Variant, sh As Variant
     Dim idx As Object, seen As Object, k As String
-    Dim i As Long, c As Long, r As Long, last As Long, opened As Boolean
+    Dim i As Long, c As Long, r As Long, last As Long, opened As Boolean, su As Boolean
     Dim addRows As Collection, updCells As Collection, upd As Object
     Dim addList As String, updList As String, msg As String, item As Variant, doChanged As Boolean
 
@@ -284,23 +360,34 @@ Private Sub Cat_Push(forced As String, withChanged As Boolean)
     If path = "" Then CSay "Общий каталог не найден: " & CAT_FILE, vbExclamation: Exit Sub
     If Dir(path) = "" Then CSay "Нет файла: " & path, vbExclamation: Exit Sub
 
+    If Not FindOpen(path, cwb, nm) Then
+        CSay "Открыт другой файл с тем же именем:" & vbLf & nm & vbLf & "Закройте его и повторите. Ничего не изменено.", vbExclamation
+        Exit Sub
+    End If
+    su = Application.ScreenUpdating
     Application.ScreenUpdating = False
-    nm = Mid$(path, InStrRev(path, "\") + 1)
-    On Error Resume Next
-    Set cwb = Workbooks(nm)
-    On Error GoTo 0
     If cwb Is Nothing Then
+        On Error Resume Next
         Set cwb = Workbooks.Open(path, UpdateLinks:=0)
+        On Error GoTo 0
         opened = True
     End If
     wb.Activate
-    Application.ScreenUpdating = True
+    Application.ScreenUpdating = su
+    If cwb Is Nothing Then CSay "Не удалось открыть общий каталог: " & path, vbExclamation: Exit Sub
+    On Error Resume Next
+    Set cws = cwb.Worksheets(CAT)
+    On Error GoTo 0
+    If cws Is Nothing Then
+        If opened Then cwb.Close False
+        CSay "В общем каталоге нет листа «" & CAT & "». Ничего не изменено.", vbExclamation
+        Exit Sub
+    End If
     If cwb.ReadOnly Then
         If opened Then cwb.Close False
         CSay "Общий каталог открыт только для чтения (занят?): " & path & vbLf & "Ничего не изменено.", vbExclamation
         Exit Sub
     End If
-    Set cws = cwb.Worksheets(CAT)
     last = cws.Cells(cws.Rows.Count, 1).End(xlUp).Row
     If last < HDR Then last = HDR
     sh = cws.Range(cws.Cells(HDR, 1), cws.Cells(HDR, NCOL)).Value
@@ -393,7 +480,7 @@ Private Sub Cat_Push(forced As String, withChanged As Boolean)
     On Error GoTo fail
     If doChanged Then
         For Each item In updCells
-            cws.Cells(R0 + item(0) - 1, item(1)).Value = item(2)
+            PutVal cws.Cells(R0 + item(0) - 1, item(1)), item(2)
         Next item
     End If
     r = last + 1
@@ -401,7 +488,7 @@ Private Sub Cat_Push(forced As String, withChanged As Boolean)
         For c = 1 To NCOL
             If DataCol(c) Then
                 cws.Cells(r, c).NumberFormat = ws.Cells(R0 + item - 1, c).NumberFormat
-                cws.Cells(r, c).Value = bk(item, c)
+                PutVal cws.Cells(r, c), bk(item, c)
             End If
         Next c
         r = r + 1
