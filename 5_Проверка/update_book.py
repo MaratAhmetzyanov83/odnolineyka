@@ -17,6 +17,7 @@
  11. patch_vru.py          — «Сеть_щита» строка 26 «ВРУ здания»: ΔU линий от его шин при связи с вышестоящим
  12. patch_parallel.py     — «Исходные данные»: «Кабелей параллельно n» (сечение, ΔU, Zп, Iкз, марка, Iдоп)
  13. patch_char.py         — характеристика автомата B / C / D сама по Iкз (ПУЭ 1.7.79), «Однолинейка» CC, CD
+ 14. patch_input_du.py     — «Исходные данные» BG: ΔU от ВРУ в строке ввода без двойного учёта кабеля ввода
 После объединения листов старые ручные связи между файлами рвутся: в каждом щите — «Связать с вышестоящим».
 """
 import os
@@ -26,7 +27,7 @@ import sys
 HERE = os.path.dirname(os.path.abspath(__file__))
 STEPS = ["tidy_book.py", "fix_text_format.py", "patch_audit.py", "merge_network.py", "patch_inputs.py",
          "patch_validation.py", "patch_review.py", "patch_feeder.py", "patch_categories.py",
-         "patch_assembly.py", "patch_vru.py", "patch_parallel.py", "patch_char.py"]
+         "patch_assembly.py", "patch_vru.py", "patch_parallel.py", "patch_char.py", "patch_input_du.py"]
 
 
 def main(paths):
