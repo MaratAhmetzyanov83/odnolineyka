@@ -1,0 +1,13 @@
+C:\Users\user\Desktop\02_Справочники_CAD_Revit\odnolineyka\_Разработка\ugo\audit\bin\Release\net8.0-windows\UgoAudit.deps.json
+C:\Users\user\Desktop\02_Справочники_CAD_Revit\odnolineyka\_Разработка\ugo\audit\bin\Release\net8.0-windows\UgoAudit.dll
+C:\Users\user\Desktop\02_Справочники_CAD_Revit\odnolineyka\_Разработка\ugo\audit\bin\Release\net8.0-windows\UgoAudit.pdb
+C:\Users\user\Desktop\02_Справочники_CAD_Revit\odnolineyka\_Разработка\ugo\audit\obj\Release\net8.0-windows\UgoAudit.csproj.AssemblyReference.cache
+C:\Users\user\Desktop\02_Справочники_CAD_Revit\odnolineyka\_Разработка\ugo\audit\obj\Release\net8.0-windows\UgoAudit.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\user\Desktop\02_Справочники_CAD_Revit\odnolineyka\_Разработка\ugo\audit\obj\Release\net8.0-windows\UgoAudit.AssemblyInfoInputs.cache
+C:\Users\user\Desktop\02_Справочники_CAD_Revit\odnolineyka\_Разработка\ugo\audit\obj\Release\net8.0-windows\UgoAudit.AssemblyInfo.cs
+C:\Users\user\Desktop\02_Справочники_CAD_Revit\odnolineyka\_Разработка\ugo\audit\obj\Release\net8.0-windows\UgoAudit.csproj.CoreCompileInputs.cache
+C:\Users\user\Desktop\02_Справочники_CAD_Revit\odnolineyka\_Разработка\ugo\audit\obj\Release\net8.0-windows\UgoAudit.sourcelink.json
+C:\Users\user\Desktop\02_Справочники_CAD_Revit\odnolineyka\_Разработка\ugo\audit\obj\Release\net8.0-windows\UgoAudit.dll
+C:\Users\user\Desktop\02_Справочники_CAD_Revit\odnolineyka\_Разработка\ugo\audit\obj\Release\net8.0-windows\refint\UgoAudit.dll
+C:\Users\user\Desktop\02_Справочники_CAD_Revit\odnolineyka\_Разработка\ugo\audit\obj\Release\net8.0-windows\UgoAudit.pdb
+C:\Users\user\Desktop\02_Справочники_CAD_Revit\odnolineyka\_Разработка\ugo\audit\obj\Release\net8.0-windows\ref\UgoAudit.dll

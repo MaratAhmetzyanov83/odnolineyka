@@ -1,0 +1,4 @@
+Autodesk.AutoCAD.Runtime.Exception: eInvalidLayer
+   at Autodesk.AutoCAD.Runtime.Interop.ThrowExceptionForErrorStatus(Int32 errorStatus)
+   at Autodesk.AutoCAD.DatabaseServices.LayerTableRecord.set_IsFrozen(Boolean value)
+   at UgoPaper.Run()

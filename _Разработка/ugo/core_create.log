@@ -1,0 +1,59 @@
+Redirect stdout (file: C:\Users\user\AppData\Local\Temp\accc349202).
+AcCoreConsole: StdOutConsoleMode: processed-output: disabled,auto
+AutoCAD Core Engine Console - Copyright 2024 Autodesk, Inc.  All rights reserved. (V.72.0.0)
+
+Execution Path:
+C:\Program Files\Autodesk\AutoCAD 2025\accoreconsole.exe
+Current Directory: C:\Users\user\Desktop\02_Справочники_CAD_Revit\odnolineyka
+
+Version Number: V.72.0.0 (UNICODE)
+LogFilePath has been set to the working folder.
+CoreHeartBeat
+Загружается модуль База AD...
+Загружается модуль Удлиненная AD-база...
+Загружается модуль AEC Core...
+Загружается модуль AEC Project Base...
+Загружается модуль Архитектурная база AD...
+Загружается модуль Спецификация AD...
+Подстановка [simplex.shx] вместо [CS_Gost2304.shx].
+Подстановка [simplex.shx] вместо [GOST type A].
+Подстановка [simplex.shx] вместо [Arial Кириллический].
+Подстановка [simplex.shx] вместо [OpenSans-Regular.ttf].
+Подстановка [simplex.shx] вместо [OpenSansCondensed-Light.ttf].
+
+Загружаются DLL-файлы для работы с моделями.
+
+Разрешить Вн-ссылки "Штамп": ..\..\4 Подложка проекта\Штамп Новый.dwg
+"Штамп" загружена: \\Server\DropBox\Работа server\4. Техдепартамент\4.1. Проекты\098 Ташкент-КТ\5 ПИР\4 Подложка проекта\Штамп Новый.dwg
+Выполняется регенерация листов.
+Выполняется регенерация модели.
+CoreHeartBeat
+
+**** Системная переменная изменена ****
+Отслеживаемым системным переменным (2) назначены значения, отличные от предпочтительных. Для просмотра изменений воспользуйтесь командой СИСТПЕРЕММОНИТОР.
+
+
+Утилиты меню AutoCAD загружены.
+=== MCP Dispatch v3.1 loaded ===
+IPC directory: C:/temp/
+Ready for commands via (c:mcp-dispatch)
+Loaded: NUMR / NUM  (window)   NUMD / NVP  (continue right from picked number)
+Команда:
+Команда:
+
+Команда:
+Команда: (command "_NETLOAD" "C:/temp/codex_ugo_work/UgoCreate.dll")
+_NETLOAD Имя файла сборки: C:/temp/codex_ugo_work/UgoCreate.dll
+Команда: nil
+
+Команда: CODEXUGOCREATEDRAFT
+
+Разрешить Вн-ссылки "Штамп": \\Server\DropBox\Работа server\4. Техдепартамент\4.1. Проекты\098 Ташкент-КТ\5 ПИР\4 Подложка проекта\Штамп Новый.dwg
+Чертеж "Штамп" загружен.
+Файл ссылки "Штамп", возможно, изменился с момента последнего сохранения главного чертежа.
+
+Команда: _QUIT
+_N
+Отказаться от всех изменений в чертеже? <Н> _N
+
+LogFilePath has been restored to ''.

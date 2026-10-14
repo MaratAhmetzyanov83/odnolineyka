@@ -1,0 +1,13 @@
+C:\Users\user\Desktop\02_Справочники_CAD_Revit\odnolineyka\_Разработка\ssm_task\renumber\bin\Debug\net8.0-windows\SsmRenumber.deps.json
+C:\Users\user\Desktop\02_Справочники_CAD_Revit\odnolineyka\_Разработка\ssm_task\renumber\bin\Debug\net8.0-windows\SsmRenumber.dll
+C:\Users\user\Desktop\02_Справочники_CAD_Revit\odnolineyka\_Разработка\ssm_task\renumber\bin\Debug\net8.0-windows\SsmRenumber.pdb
+C:\Users\user\Desktop\02_Справочники_CAD_Revit\odnolineyka\_Разработка\ssm_task\renumber\obj\Debug\net8.0-windows\SsmRenumber.csproj.AssemblyReference.cache
+C:\Users\user\Desktop\02_Справочники_CAD_Revit\odnolineyka\_Разработка\ssm_task\renumber\obj\Debug\net8.0-windows\SsmRenumber.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\user\Desktop\02_Справочники_CAD_Revit\odnolineyka\_Разработка\ssm_task\renumber\obj\Debug\net8.0-windows\SsmRenumber.AssemblyInfoInputs.cache
+C:\Users\user\Desktop\02_Справочники_CAD_Revit\odnolineyka\_Разработка\ssm_task\renumber\obj\Debug\net8.0-windows\SsmRenumber.AssemblyInfo.cs
+C:\Users\user\Desktop\02_Справочники_CAD_Revit\odnolineyka\_Разработка\ssm_task\renumber\obj\Debug\net8.0-windows\SsmRenumber.csproj.CoreCompileInputs.cache
+C:\Users\user\Desktop\02_Справочники_CAD_Revit\odnolineyka\_Разработка\ssm_task\renumber\obj\Debug\net8.0-windows\SsmRenumber.sourcelink.json
+C:\Users\user\Desktop\02_Справочники_CAD_Revit\odnolineyka\_Разработка\ssm_task\renumber\obj\Debug\net8.0-windows\SsmRenumber.dll
+C:\Users\user\Desktop\02_Справочники_CAD_Revit\odnolineyka\_Разработка\ssm_task\renumber\obj\Debug\net8.0-windows\refint\SsmRenumber.dll
+C:\Users\user\Desktop\02_Справочники_CAD_Revit\odnolineyka\_Разработка\ssm_task\renumber\obj\Debug\net8.0-windows\SsmRenumber.pdb
+C:\Users\user\Desktop\02_Справочники_CAD_Revit\odnolineyka\_Разработка\ssm_task\renumber\obj\Debug\net8.0-windows\ref\SsmRenumber.dll

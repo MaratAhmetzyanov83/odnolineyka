@@ -1,0 +1,7 @@
+(CP:VERSION "1.0")
+(CP:CFG ((PANEL . "ЩР-1") (PATH . "\\\\Server\\DropBox\\Работа server\\4. Техдепартамент\\4.1. Проекты\\098 Ташкент-КТ\\5 ПИР\\5.4_Том 3 ХБК\\02_ELD-D1-02-ЭОМ\\Таблицы\\Однолинейка ЩC-ВК.02.xlsx") (LIBRARY) (NROWS . 3) (SLOTS . 24) (PITCH . 18.0) (RESERVE . 20.0) (GAP . 60.0) (DEVH . 90.0)))
+(CP:LIBPATH nil)
+(CP:LIBSRC nil)
+(CP:DEVICES 0)
+(SOURCE nil DCL nil SAVED-DCL nil BOOK "\\\\Server\\DropBox\\Работа server\\4. Техдепартамент\\4.1. Проекты\\098 Ташкент-КТ\\5 ПИР\\5.4_Том 3 ХБК\\02_ELD-D1-02-ЭОМ\\Таблицы\\Однолинейка ЩC-ВК.02.xlsx" PANEL "ЩР-1")
+(DIALOG-RESULT "no function definition: ERROR")

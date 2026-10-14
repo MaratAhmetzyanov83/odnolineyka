@@ -1,0 +1,19 @@
+using System;using System.IO;using System.Linq;using System.Collections.Generic;using System.Text.Json;using Autodesk.AutoCAD.Runtime;using Autodesk.AutoCAD.Interop;using Autodesk.AutoCAD.DatabaseServices;using AcApp=Autodesk.AutoCAD.ApplicationServices.Core.Application;
+public class SsmUpdate {
+ const string Folder=@"C:\Users\user\Desktop\02_Справочники_CAD_Revit\odnolineyka\_Разработка\stamps";
+ static void Walk(IAcSmSubset sub,List<IAcSmSheet> sheets,List<IAcSmSubset> subsets){var en=sub.GetSheetEnumerator();IAcSmComponent c;while((c=en.Next())!=null){if(c.GetTypeName()=="AcSmSheet")sheets.Add((IAcSmSheet)c);else if(c.GetTypeName()=="AcSmSubset"){var su=(IAcSmSubset)c;subsets.Add(su);Walk(su,sheets,subsets);}}}
+ static string LHandle(Database db,string name){using(var tr=db.TransactionManager.StartTransaction()){var ld=(DBDictionary)tr.GetObject(db.LayoutDictionaryId,OpenMode.ForRead);return ld.GetAt(name).Handle.ToString();}}
+ [CommandMethod("CODEXSSMADDPLAN02B",CommandFlags.Session)]public void Run(){AcSmDatabase db=null;bool locked=false;try{
+  var mgr=new AcSmSheetSetMgrClass();var en=mgr.GetDatabaseEnumerator();while((db=en.Next())!=null)if(db.GetSheetSet().GetName()=="Подшивка_ELF-D1-02-ЭОМ")break;if(db==null)throw new System.Exception("Sheet set missing");
+  if(db.GetLockStatus()!=AcSmLockStatus.AcSmLockStatus_UnLocked)throw new System.Exception("Locked");
+  var sheets=new List<IAcSmSheet>();var subsets=new List<IAcSmSubset>();Walk((IAcSmSubset)db.GetSheetSet(),sheets,subsets);if(sheets.Count!=69)throw new System.Exception("Expected 69 sheets");
+  var first=sheets.Single(s=>s.GetLayout().GetName()=="РП первый эт");var filename=first.GetLayout().GetFileName();var doc=AcApp.DocumentManager.Cast<Autodesk.AutoCAD.ApplicationServices.Document>().Single(d=>string.Equals(d.Name,filename,StringComparison.OrdinalIgnoreCase));
+  string rp=LHandle(doc.Database,"РП второй этаж"),vk=LHandle(doc.Database,"ВК цоколь");
+  var backup=Path.Combine(Folder,"Подшивка_до_РП2_"+DateTime.Now.ToString("yyyyMMdd_HHmmss")+".dst");File.Copy(db.GetFileName(),backup,false);db.LockDb(db);locked=true;
+  var bad=sheets.Single(s=>s.GetTitle().Contains("систем ВК"));var oldFile=bad.GetLayout().GetFileName();var oldLayout=bad.GetLayout().GetName();var vref=bad.GetLayout();vref.SetFileName(filename);vref.SetName("ВК цоколь");vref.SetAcDbHandle(vk);bad.SetLayout(vref);
+  var sub=subsets.Single(x=>x.GetName()=="3_Планы");var lr=new AcSmAcDbLayoutReferenceClass();lr.InitNew(sub);lr.SetFileName(filename);lr.SetName("РП второй этаж");lr.SetAcDbHandle(rp);var added=sub.ImportSheet(lr);added.SetTitle("План распределительной сети, второй этаж");sub.InsertComponent(added,sheets[sheets.IndexOf(first)+1]);
+  sheets.Clear();subsets.Clear();Walk((IAcSmSubset)db.GetSheetSet(),sheets,subsets);if(sheets.Count!=70)throw new System.Exception("Count mismatch");int num=0;foreach(var sheet in sheets){if(sheet.GetTitle()=="Обложка"||sheet.GetTitle()=="Титул")sheet.SetNumber("");else sheet.SetNumber((++num).ToString());}
+  if(added.GetNumber()!="32" || bad.GetNumber()!="46" || num!=68)throw new System.Exception("Number mismatch");db.GetSheetSet().UpdateInMemoryDwgHints();db.UnlockDb(db,true);locked=false;
+  File.WriteAllText(Path.Combine(Folder,"ssm_update.json"),JsonSerializer.Serialize(new{Saved=true,Backup=backup,Added=new{Id=added.GetObjectId().GetHandle(),Number=added.GetNumber(),Title=added.GetTitle(),Layout="РП второй этаж"},Fixed=new{Number=bad.GetNumber(),FromFile=oldFile,FromLayout=oldLayout,ToFile=filename,ToLayout="ВК цоколь"},Count=sheets.Count,DrawingCount=num},new JsonSerializerOptions{WriteIndented=true}));
+ }catch(System.Exception ex){if(locked)try{db.UnlockDb(db,false);}catch{}File.WriteAllText(Path.Combine(Folder,"ssm_update_error2.txt"),ex.ToString());}}
+}

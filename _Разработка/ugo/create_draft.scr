@@ -1,0 +1,5 @@
+(setvar "SECURELOAD" 0)
+(command "_NETLOAD" "C:/Users/user/Desktop/02_Справочники_CAD_Revit/odnolineyka/_Разработка/ugo/create/bin/Debug/net8.0-windows/UgoCreate.dll")
+CODEXUGOCREATEDRAFT
+_QUIT
+_N

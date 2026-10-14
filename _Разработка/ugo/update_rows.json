@@ -1,0 +1,316 @@
+[
+  {
+    "Title": "Щит силовой распределительный",
+    "Handles": [
+      "1F271A"
+    ],
+    "Source": "Plan",
+    "Rotate": 0
+  },
+  {
+    "Title": "Кабельная трасса в лотке",
+    "Handles": [
+      "30556"
+    ],
+    "Source": "UGO",
+    "Rotate": 0
+  },
+  {
+    "Title": "Кабельная трасса по потолку",
+    "Handles": [
+      "30557"
+    ],
+    "Source": "UGO",
+    "Rotate": 0
+  },
+  {
+    "Title": "Кабельная трасса по полу",
+    "Handles": [
+      "30558"
+    ],
+    "Source": "UGO",
+    "Rotate": 0
+  },
+  {
+    "Title": "Маркировка количества кабелей на участке трассы",
+    "Handles": [
+      "210F20"
+    ],
+    "Source": "Plan",
+    "Rotate": 0
+  },
+  {
+    "Title": "Переход трассы на более высокую отметку",
+    "Handles": [
+      "1ABF1E"
+    ],
+    "Source": "Plan",
+    "Rotate": 0
+  },
+  {
+    "Title": "Переход трассы с более высокой отметки",
+    "Handles": [
+      "1AC129"
+    ],
+    "Source": "Plan",
+    "Rotate": 0
+  },
+  {
+    "Title": "Переход трассы на более низкую отметку",
+    "Handles": [
+      "1FC21D"
+    ],
+    "Source": "Plan",
+    "Rotate": 0
+  },
+  {
+    "Title": "Переход трассы с более низкой отметки",
+    "Handles": [
+      "1FC1E8"
+    ],
+    "Source": "Plan",
+    "Rotate": 0
+  },
+  {
+    "Title": "Розетка 230 В, скрытая установка",
+    "Handles": [
+      "1CBC62"
+    ],
+    "Source": "Plan",
+    "Rotate": 0
+  },
+  {
+    "Title": "Розетка 230 В влагозащищённая, скрытая установка",
+    "Handles": [
+      "1CBC8B"
+    ],
+    "Source": "Plan",
+    "Rotate": 0
+  },
+  {
+    "Title": "Розетка 230 В в лючке",
+    "Handles": [
+      "1CCBB0"
+    ],
+    "Source": "Plan",
+    "Rotate": 0
+  },
+  {
+    "Title": "Электрический вывод кабеля",
+    "Handles": [
+      "1CC4C1"
+    ],
+    "Source": "Plan",
+    "Rotate": 0
+  },
+  {
+    "Title": "Выключатель одноклавишный",
+    "Handles": [
+      "1A99F9"
+    ],
+    "Source": "Plan",
+    "Rotate": 0
+  },
+  {
+    "Title": "Выключатель двухклавишный",
+    "Handles": [
+      "1A9732"
+    ],
+    "Source": "Plan",
+    "Rotate": 0
+  },
+  {
+    "Title": "Выключатель проходной одноклавишный",
+    "Handles": [
+      "1A9798"
+    ],
+    "Source": "Plan",
+    "Rotate": 0
+  },
+  {
+    "Title": "Выключатель проходной двухклавишный",
+    "Handles": [
+      "1AA003"
+    ],
+    "Source": "Plan",
+    "Rotate": 0
+  },
+  {
+    "Title": "Выключатель перекрёстный",
+    "Handles": [
+      "1A9BC8"
+    ],
+    "Source": "Plan",
+    "Rotate": 0
+  },
+  {
+    "Title": "Светильник точечный встраиваемый",
+    "Handles": [
+      "1F5008"
+    ],
+    "Source": "Plan",
+    "Rotate": 0
+  },
+  {
+    "Title": "Светильник линейный подвесной",
+    "Handles": [
+      "1F5056"
+    ],
+    "Source": "Plan",
+    "Rotate": 0
+  },
+  {
+    "Title": "Световой потолок (лайтбокс 600×600)",
+    "Handles": [
+      "1F5051"
+    ],
+    "Source": "Plan",
+    "Rotate": 0
+  },
+  {
+    "Title": "Светильник настенный (бра)",
+    "Handles": [
+      "1D0160"
+    ],
+    "Source": "Plan",
+    "Rotate": 0
+  },
+  {
+    "Title": "Светильник трековый",
+    "Handles": [
+      "1F50F4"
+    ],
+    "Source": "Plan",
+    "Rotate": 0
+  },
+  {
+    "Title": "Шинопровод для трековых светильников",
+    "Handles": [
+      "1F50F3"
+    ],
+    "Source": "Plan",
+    "Rotate": 90
+  },
+  {
+    "Title": "Светильник потолочный накладной поворотный",
+    "Handles": [
+      "1FABC0"
+    ],
+    "Source": "Plan",
+    "Rotate": 0
+  },
+  {
+    "Title": "Светильник потолочный подвесной",
+    "Handles": [
+      "1FABCC"
+    ],
+    "Source": "Plan",
+    "Rotate": 0
+  },
+  {
+    "Title": "Светильник накладной квадратный",
+    "Handles": [
+      "1FABEC"
+    ],
+    "Source": "Plan",
+    "Rotate": 0
+  },
+  {
+    "Title": "Аварийное освещение: маркировка светильника",
+    "Handles": [
+      "1D0B05"
+    ],
+    "Source": "Plan",
+    "Rotate": 0
+  },
+  {
+    "Title": "Линейная светодиодная подсветка",
+    "Handles": [
+      "1F88B8"
+    ],
+    "Source": "Plan",
+    "Rotate": 0
+  },
+  {
+    "Title": "Внешний блок кондиционера",
+    "Handles": [
+      "1AE792"
+    ],
+    "Source": "Plan",
+    "Rotate": 0
+  },
+  {
+    "Title": "Внутренний блок кондиционера",
+    "Handles": [
+      "1ADA01"
+    ],
+    "Source": "Plan",
+    "Rotate": 0
+  },
+  {
+    "Title": "Вентилятор",
+    "Handles": [
+      "1AD5E0"
+    ],
+    "Source": "Plan",
+    "Rotate": 0
+  },
+  {
+    "Title": "Насос",
+    "Handles": [
+      "1ADD2E"
+    ],
+    "Source": "Plan",
+    "Rotate": 0
+  },
+  {
+    "Title": "Приточно-вытяжная установка",
+    "Handles": [
+      "1AEB84"
+    ],
+    "Source": "Plan",
+    "Rotate": 0
+  },
+  {
+    "Title": "Датчик системы защиты от протечек",
+    "Handles": [
+      "1F1AE0"
+    ],
+    "Source": "Plan",
+    "Rotate": 0
+  },
+  {
+    "Title": "Коробка уравнивания потенциалов (КУП)",
+    "Handles": [
+      "1B5E8B"
+    ],
+    "Source": "Plan",
+    "Rotate": 0
+  },
+  {
+    "Title": "Обогрев водосточной трубы",
+    "Handles": [
+      "30728"
+    ],
+    "Source": "UGO",
+    "Rotate": 0
+  },
+  {
+    "Title": "Греющий кабель",
+    "Handles": [
+      "30726",
+      "30727",
+      "30729"
+    ],
+    "Source": "UGO",
+    "Rotate": 0
+  },
+  {
+    "Title": "Распределительная коробка системы обогрева",
+    "Handles": [
+      "30725"
+    ],
+    "Source": "UGO",
+    "Rotate": 0
+  }
+]

@@ -1,0 +1,13 @@
+C:\Users\user\Desktop\02_Справочники_CAD_Revit\odnolineyka\_Разработка\ugo\color\bin\Release\net8.0-windows\UgoColor.deps.json
+C:\Users\user\Desktop\02_Справочники_CAD_Revit\odnolineyka\_Разработка\ugo\color\bin\Release\net8.0-windows\UgoColor.dll
+C:\Users\user\Desktop\02_Справочники_CAD_Revit\odnolineyka\_Разработка\ugo\color\bin\Release\net8.0-windows\UgoColor.pdb
+C:\Users\user\Desktop\02_Справочники_CAD_Revit\odnolineyka\_Разработка\ugo\color\obj\Release\net8.0-windows\UgoColor.csproj.AssemblyReference.cache
+C:\Users\user\Desktop\02_Справочники_CAD_Revit\odnolineyka\_Разработка\ugo\color\obj\Release\net8.0-windows\UgoColor.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\user\Desktop\02_Справочники_CAD_Revit\odnolineyka\_Разработка\ugo\color\obj\Release\net8.0-windows\UgoColor.AssemblyInfoInputs.cache
+C:\Users\user\Desktop\02_Справочники_CAD_Revit\odnolineyka\_Разработка\ugo\color\obj\Release\net8.0-windows\UgoColor.AssemblyInfo.cs
+C:\Users\user\Desktop\02_Справочники_CAD_Revit\odnolineyka\_Разработка\ugo\color\obj\Release\net8.0-windows\UgoColor.csproj.CoreCompileInputs.cache
+C:\Users\user\Desktop\02_Справочники_CAD_Revit\odnolineyka\_Разработка\ugo\color\obj\Release\net8.0-windows\UgoColor.sourcelink.json
+C:\Users\user\Desktop\02_Справочники_CAD_Revit\odnolineyka\_Разработка\ugo\color\obj\Release\net8.0-windows\UgoColor.dll
+C:\Users\user\Desktop\02_Справочники_CAD_Revit\odnolineyka\_Разработка\ugo\color\obj\Release\net8.0-windows\refint\UgoColor.dll
+C:\Users\user\Desktop\02_Справочники_CAD_Revit\odnolineyka\_Разработка\ugo\color\obj\Release\net8.0-windows\UgoColor.pdb
+C:\Users\user\Desktop\02_Справочники_CAD_Revit\odnolineyka\_Разработка\ugo\color\obj\Release\net8.0-windows\ref\UgoColor.dll

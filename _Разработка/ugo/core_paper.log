@@ -1,0 +1,66 @@
+Redirect stdout (file: C:\Users\user\AppData\Local\Temp\accc34122).
+AcCoreConsole: StdOutConsoleMode: processed-output: disabled,auto
+AutoCAD Core Engine Console - Copyright 2024 Autodesk, Inc.  All rights reserved. (V.72.0.0)
+
+Execution Path:
+C:\Program Files\Autodesk\AutoCAD 2025\accoreconsole.exe
+Current Directory: C:\Users\user\Desktop\02_Справочники_CAD_Revit\odnolineyka
+
+Version Number: V.72.0.0 (UNICODE)
+LogFilePath has been set to the working folder.
+CoreHeartBeat
+Загружается модуль База AD...
+Загружается модуль Удлиненная AD-база...
+Загружается модуль AEC Core...
+Загружается модуль AEC Project Base...
+Загружается модуль Архитектурная база AD...
+Загружается модуль Спецификация AD...
+Подстановка [simplex.shx] вместо [CS_Gost2304.shx].
+Подстановка [simplex.shx] вместо [GOST type A].
+Подстановка [simplex.shx] вместо [Arial Кириллический].
+Подстановка [simplex.shx] вместо [OpenSans-Regular.ttf].
+Подстановка [simplex.shx] вместо [OpenSansCondensed-Light.ttf].
+CoreHeartBeat
+Выполняется регенерация листов.
+Выполняется регенерация модели.
+
+**** Системная переменная изменена ****
+Отслеживаемым системным переменным (2) назначены значения, отличные от предпочтительных. Для просмотра изменений воспользуйтесь командой СИСТПЕРЕММОНИТОР.
+
+
+Утилиты меню AutoCAD загружены.
+=== MCP Dispatch v3.1 loaded ===
+IPC directory: C:/temp/
+Ready for commands via (c:mcp-dispatch)
+Loaded: NUMR / NUM  (window)   NUMD / NVP  (continue right from picked number)
+Команда:
+Команда: Для прерывания последовательности команд нажмите BACKSPACE.
+
+
+Команда:
+Команда: (command "_NETLOAD" "C:/temp/codex_ugo_work/UgoPaper.dll")
+_NETLOAD Имя файла сборки: C:/temp/codex_ugo_work/UgoPaper.dll
+Команда: nil
+
+Команда: CODEXUGOTOPAPER
+
+Команда: _QSAVE
+
+Команда: (command "_NETLOAD" "C:/temp/codex_ugo_work/UgoPlot.dll")
+_NETLOAD Имя файла сборки: C:/temp/codex_ugo_work/UgoPlot.dll
+Команда: nil
+
+Команда: CODEXUGOPLOTPREVIEW
+Печатная область чертежа: ширина - 210.00; высота - 297.00
+Печатная область чертежа: ширина - 184.91; высота - 286.89
+
+Вычерчивается видовой экран 2.
+
+Вычерчивается видовой экран 1.
+CoreHeartBeat
+
+Команда: _QUIT
+_Y
+Отказаться от всех изменений в чертеже? <Н> _Y
+
+LogFilePath has been restored to ''.

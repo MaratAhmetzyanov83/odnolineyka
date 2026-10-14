@@ -1,0 +1,5 @@
+Autodesk.AutoCAD.Runtime.Exception: eInvalidOwnerObject
+   at Autodesk.AutoCAD.Runtime.Interop.ThrowExceptionForErrorStatus(Int32 errorStatus)
+   at Autodesk.AutoCAD.DatabaseServices.Database.DeepCloneObjects(ObjectIdCollection identifiers, ObjectId id, IdMapping mapping, Boolean deferTranslation)
+   at StampApply.Apply(Database db, FilePlan plan, Dictionary`2 sources) in C:\Users\user\Desktop\02_Справочники_CAD_Revit\odnolineyka\_Разработка\stamps\apply\StampApply.cs:line 46
+   at StampApply.Preview() in C:\Users\user\Desktop\02_Справочники_CAD_Revit\odnolineyka\_Разработка\stamps\apply\StampApply.cs:line 80

@@ -1,0 +1,13 @@
+C:\Users\user\Desktop\02_Справочники_CAD_Revit\odnolineyka\_Разработка\ugo\create\bin\Debug\net8.0-windows\UgoCreate.deps.json
+C:\Users\user\Desktop\02_Справочники_CAD_Revit\odnolineyka\_Разработка\ugo\create\bin\Debug\net8.0-windows\UgoCreate.dll
+C:\Users\user\Desktop\02_Справочники_CAD_Revit\odnolineyka\_Разработка\ugo\create\bin\Debug\net8.0-windows\UgoCreate.pdb
+C:\Users\user\Desktop\02_Справочники_CAD_Revit\odnolineyka\_Разработка\ugo\create\obj\Debug\net8.0-windows\UgoCreate.csproj.AssemblyReference.cache
+C:\Users\user\Desktop\02_Справочники_CAD_Revit\odnolineyka\_Разработка\ugo\create\obj\Debug\net8.0-windows\UgoCreate.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\user\Desktop\02_Справочники_CAD_Revit\odnolineyka\_Разработка\ugo\create\obj\Debug\net8.0-windows\UgoCreate.AssemblyInfoInputs.cache
+C:\Users\user\Desktop\02_Справочники_CAD_Revit\odnolineyka\_Разработка\ugo\create\obj\Debug\net8.0-windows\UgoCreate.AssemblyInfo.cs
+C:\Users\user\Desktop\02_Справочники_CAD_Revit\odnolineyka\_Разработка\ugo\create\obj\Debug\net8.0-windows\UgoCreate.csproj.CoreCompileInputs.cache
+C:\Users\user\Desktop\02_Справочники_CAD_Revit\odnolineyka\_Разработка\ugo\create\obj\Debug\net8.0-windows\UgoCreate.sourcelink.json
+C:\Users\user\Desktop\02_Справочники_CAD_Revit\odnolineyka\_Разработка\ugo\create\obj\Debug\net8.0-windows\UgoCreate.dll
+C:\Users\user\Desktop\02_Справочники_CAD_Revit\odnolineyka\_Разработка\ugo\create\obj\Debug\net8.0-windows\refint\UgoCreate.dll
+C:\Users\user\Desktop\02_Справочники_CAD_Revit\odnolineyka\_Разработка\ugo\create\obj\Debug\net8.0-windows\UgoCreate.pdb
+C:\Users\user\Desktop\02_Справочники_CAD_Revit\odnolineyka\_Разработка\ugo\create\obj\Debug\net8.0-windows\ref\UgoCreate.dll

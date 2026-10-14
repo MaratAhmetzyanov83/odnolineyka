@@ -1,0 +1,31 @@
+using System;using System.IO;using System.Linq;using System.Collections.Generic;using System.Text.Json;using Autodesk.AutoCAD.Runtime;using Autodesk.AutoCAD.Interop;using Autodesk.AutoCAD.DatabaseServices;using AcApp=Autodesk.AutoCAD.ApplicationServices.Core.Application;
+public class UgoAdd {
+ const string Work=@"C:\Users\user\Desktop\02_Справочники_CAD_Revit\odnolineyka\_Разработка\ugo";
+ const string Target=@"\\Server\DropBox\Работа server\4. Техдепартамент\4.1. Проекты\098 Ташкент-КТ\5 ПИР\5.4_Том 3 ХБК\02_ELD-D1-02-ЭОМ\04_УГО_ХБК.dwg";
+ static void Walk(IAcSmSubset sub,List<IAcSmSheet> sheets,List<IAcSmSubset> subs){var en=sub.GetSheetEnumerator();IAcSmComponent c;while((c=en.Next())!=null){if(c.GetTypeName()=="AcSmSheet")sheets.Add((IAcSmSheet)c);else if(c.GetTypeName()=="AcSmSubset"){var s=(IAcSmSubset)c;subs.Add(s);Walk(s,sheets,subs);}}}
+ static object Row(IAcSmSheet s)=>new {Id=s.GetObjectId().GetHandle(),Number=s.GetNumber(),Title=s.GetTitle(),File=s.GetLayout().GetFileName(),Layout=s.GetLayout().GetName()};
+ [CommandMethod("CODEXUGOADD02V3",CommandFlags.Session)]public void Run(){AcSmDatabase sm=null;bool locked=false;try{
+  var mgr=new AcSmSheetSetMgrClass();var en=mgr.GetDatabaseEnumerator();while((sm=en.Next())!=null)if(sm.GetSheetSet().GetName()=="Подшивка_ELF-D1-02-ЭОМ")break;if(sm==null)throw new System.Exception("02 sheet set is not open");
+  if(sm.GetLockStatus()!=AcSmLockStatus.AcSmLockStatus_UnLocked)throw new System.Exception("Sheet set is locked");
+  var sheets=new List<IAcSmSheet>();var subs=new List<IAcSmSubset>();Walk((IAcSmSubset)sm.GetSheetSet(),sheets,subs);
+  if(sheets.Count!=72||sheets.Last().GetNumber()!="70")throw new System.Exception("Sheet set has changed; inspect before adding");
+  if(sheets.Any(s=>s.GetLayout().GetName()=="УГО"||s.GetTitle()=="Условные графические обозначения"))throw new System.Exception("UGO sheet already exists");
+  if(File.Exists(Target)&&!File.ReadAllBytes(Target).SequenceEqual(File.ReadAllBytes(Path.Combine(Work,"УГО_ХБК_проверка.dwg"))))throw new System.Exception("Target DWG already exists and differs from draft");
+  var oldIds=sheets.Select(s=>s.GetObjectId().GetHandle()).ToArray();var before=sheets.Select(Row).ToArray();var subset=subs.Single(s=>s.GetName().Contains("Титульный"));
+  var afterGeneral=sheets.Single(s=>s.GetNumber()=="5"&&s.GetLayout().GetName()=="ОД (3)");
+  var backup=Path.Combine(Work,"02_ЭОМ_до_УГО_"+DateTime.Now.ToString("yyyyMMdd_HHmmss")+".dst");File.Copy(sm.GetFileName(),backup,false);
+  if(!File.Exists(Target))File.Copy(Path.Combine(Work,"УГО_ХБК_проверка.dwg"),Target,false);
+  string handle;using(var dwg=new Database(false,true)){dwg.ReadDwgFile(Target,FileOpenMode.OpenForReadAndAllShare,true,null);dwg.CloseInput(true);using(var tr=dwg.TransactionManager.StartTransaction()){var ld=(DBDictionary)tr.GetObject(dwg.LayoutDictionaryId,OpenMode.ForRead);handle=ld.GetAt("УГО").Handle.ToString();}}
+  sm.LockDb(sm);locked=true;var lr=new AcSmAcDbLayoutReferenceClass();lr.InitNew(subset);lr.SetFileName(Target);lr.SetName("УГО");lr.SetAcDbHandle(handle);var added=subset.ImportSheet(lr);added.SetTitle("Условные графические обозначения");subset.InsertComponentAfter(added,afterGeneral);
+  sheets.Clear();subs.Clear();Walk((IAcSmSubset)sm.GetSheetSet(),sheets,subs);
+  File.WriteAllText(Path.Combine(Work,"insert_debug.json"),JsonSerializer.Serialize(sheets.Select(Row).ToArray()));
+  if(sheets.Count!=73||sheets.FindIndex(s=>s.GetObjectId().GetHandle()==added.GetObjectId().GetHandle())!=Array.IndexOf(oldIds,afterGeneral.GetObjectId().GetHandle())+1)throw new System.Exception("Insertion order differs from plan");
+  if(!sheets.Where(s=>s.GetObjectId().GetHandle()!=added.GetObjectId().GetHandle()).Select(s=>s.GetObjectId().GetHandle()).SequenceEqual(oldIds))throw new System.Exception("Existing sheet order changed");
+  int number=0;foreach(var s in sheets){if(s.GetTitle()=="Обложка"||s.GetTitle()=="Титул")s.SetNumber("");else s.SetNumber((++number).ToString());}if(number!=71||added.GetNumber()!="6")throw new System.Exception("Numbering failed");
+  string dst=sm.GetFileName(),setId=sm.GetSheetSet().GetObjectId().GetHandle(),sheetId=added.GetObjectId().GetHandle();
+  var fieldRows=new List<object>();using(var dwg=new Database(false,true)){dwg.ReadDwgFile(Target,FileOpenMode.OpenForReadAndAllShare,true,null);dwg.CloseInput(true);var oldDb=HostApplicationServices.WorkingDatabase;try{HostApplicationServices.WorkingDatabase=dwg;using(var tr=dwg.TransactionManager.StartTransaction()){var ld=(DBDictionary)tr.GetObject(dwg.LayoutDictionaryId,OpenMode.ForRead);var lay=(Layout)tr.GetObject(ld.GetAt("УГО"),OpenMode.ForRead);var paper=(BlockTableRecord)tr.GetObject(lay.BlockTableRecordId,OpenMode.ForRead);int changed=0;foreach(ObjectId id in paper){if(tr.GetObject(id,OpenMode.ForRead) is not BlockReference br)continue;foreach(ObjectId aid in br.AttributeCollection){var a=(AttributeReference)tr.GetObject(aid,OpenMode.ForWrite);string prop=a.Tag switch{"ЛИСТ_№" or "ЛИСТ№" or "СКВОЗНАЯ_НУМЕРЦИЯ"=>"Number","ОПИСАНИЕ_ЛИСТА"=>"Title",_=>null};if(prop==null)continue;string code="%<\\AcSm Database(\""+dst+"\").SheetSet(\""+setId+"\").Component(\""+sheetId+"\")."+prop+">%";if(a.HasFields)a.RemoveField();var f=new Field(code);a.SetField(f);tr.AddNewlyCreatedDBObject(f,true);f.Evaluate((int)FieldEvaluationContext.Demand,dwg);fieldRows.Add(new {a.Tag,Value=a.TextString,Code=f.GetFieldCode(FieldCodeFlags.FieldCode|FieldCodeFlags.AddMarkers)});changed++;}}if(changed!=4)throw new System.Exception("Expected four stamp sheet fields, got "+changed);tr.Commit();}dwg.SaveAs(Target,DwgVersion.Current);}finally{HostApplicationServices.WorkingDatabase=oldDb;}}
+  sm.GetSheetSet().UpdateInMemoryDwgHints();sm.UnlockDb(sm,true);locked=false;
+  File.WriteAllText(Path.Combine(Work,"added.json"),JsonSerializer.Serialize(new{Saved=true,Backup=backup,File=Target,SetId=setId,SheetId=sheetId,Added=Row(added),Before=before,After=sheets.Select(Row).ToArray(),DrawingCount=number,Fields=fieldRows},new JsonSerializerOptions{WriteIndented=true}));
+  AcApp.DocumentManager.MdiActiveDocument.Editor.WriteMessage("\nCODEX: UGO added as sheet 6; drawings numbered 1-71.\n");
+ }catch(System.Exception ex){if(locked)try{sm.UnlockDb(sm,false);}catch{}File.WriteAllText(Path.Combine(Work,"add_error.txt"),ex.ToString());}}
+}

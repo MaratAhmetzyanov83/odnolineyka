@@ -1,0 +1,2 @@
+System.Exception: Insertion order differs from plan
+   at UgoAdd.Run() in C:\Users\user\Desktop\02_Справочники_CAD_Revit\odnolineyka\_Разработка\ugo\add\Add.cs:line 22

@@ -1,0 +1,13 @@
+C:\Users\user\Desktop\02_Справочники_CAD_Revit\odnolineyka\_Разработка\stamps\bin\Debug\net8.0-windows\StampInspect.deps.json
+C:\Users\user\Desktop\02_Справочники_CAD_Revit\odnolineyka\_Разработка\stamps\bin\Debug\net8.0-windows\StampInspect.dll
+C:\Users\user\Desktop\02_Справочники_CAD_Revit\odnolineyka\_Разработка\stamps\bin\Debug\net8.0-windows\StampInspect.pdb
+C:\Users\user\Desktop\02_Справочники_CAD_Revit\odnolineyka\_Разработка\stamps\obj\Debug\net8.0-windows\StampInspect.csproj.AssemblyReference.cache
+C:\Users\user\Desktop\02_Справочники_CAD_Revit\odnolineyka\_Разработка\stamps\obj\Debug\net8.0-windows\StampInspect.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\user\Desktop\02_Справочники_CAD_Revit\odnolineyka\_Разработка\stamps\obj\Debug\net8.0-windows\StampInspect.AssemblyInfoInputs.cache
+C:\Users\user\Desktop\02_Справочники_CAD_Revit\odnolineyka\_Разработка\stamps\obj\Debug\net8.0-windows\StampInspect.AssemblyInfo.cs
+C:\Users\user\Desktop\02_Справочники_CAD_Revit\odnolineyka\_Разработка\stamps\obj\Debug\net8.0-windows\StampInspect.csproj.CoreCompileInputs.cache
+C:\Users\user\Desktop\02_Справочники_CAD_Revit\odnolineyka\_Разработка\stamps\obj\Debug\net8.0-windows\StampInspect.sourcelink.json
+C:\Users\user\Desktop\02_Справочники_CAD_Revit\odnolineyka\_Разработка\stamps\obj\Debug\net8.0-windows\StampInspect.dll
+C:\Users\user\Desktop\02_Справочники_CAD_Revit\odnolineyka\_Разработка\stamps\obj\Debug\net8.0-windows\refint\StampInspect.dll
+C:\Users\user\Desktop\02_Справочники_CAD_Revit\odnolineyka\_Разработка\stamps\obj\Debug\net8.0-windows\StampInspect.pdb
+C:\Users\user\Desktop\02_Справочники_CAD_Revit\odnolineyka\_Разработка\stamps\obj\Debug\net8.0-windows\ref\StampInspect.dll

@@ -1,0 +1,13 @@
+C:\Users\user\Desktop\02_Справочники_CAD_Revit\odnolineyka\_Разработка\ugo\paper\bin\Debug\net8.0-windows\UgoPaper.deps.json
+C:\Users\user\Desktop\02_Справочники_CAD_Revit\odnolineyka\_Разработка\ugo\paper\bin\Debug\net8.0-windows\UgoPaper.dll
+C:\Users\user\Desktop\02_Справочники_CAD_Revit\odnolineyka\_Разработка\ugo\paper\bin\Debug\net8.0-windows\UgoPaper.pdb
+C:\Users\user\Desktop\02_Справочники_CAD_Revit\odnolineyka\_Разработка\ugo\paper\obj\Debug\net8.0-windows\UgoPaper.csproj.AssemblyReference.cache
+C:\Users\user\Desktop\02_Справочники_CAD_Revit\odnolineyka\_Разработка\ugo\paper\obj\Debug\net8.0-windows\UgoPaper.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\user\Desktop\02_Справочники_CAD_Revit\odnolineyka\_Разработка\ugo\paper\obj\Debug\net8.0-windows\UgoPaper.AssemblyInfoInputs.cache
+C:\Users\user\Desktop\02_Справочники_CAD_Revit\odnolineyka\_Разработка\ugo\paper\obj\Debug\net8.0-windows\UgoPaper.AssemblyInfo.cs
+C:\Users\user\Desktop\02_Справочники_CAD_Revit\odnolineyka\_Разработка\ugo\paper\obj\Debug\net8.0-windows\UgoPaper.csproj.CoreCompileInputs.cache
+C:\Users\user\Desktop\02_Справочники_CAD_Revit\odnolineyka\_Разработка\ugo\paper\obj\Debug\net8.0-windows\UgoPaper.sourcelink.json
+C:\Users\user\Desktop\02_Справочники_CAD_Revit\odnolineyka\_Разработка\ugo\paper\obj\Debug\net8.0-windows\UgoPaper.dll
+C:\Users\user\Desktop\02_Справочники_CAD_Revit\odnolineyka\_Разработка\ugo\paper\obj\Debug\net8.0-windows\refint\UgoPaper.dll
+C:\Users\user\Desktop\02_Справочники_CAD_Revit\odnolineyka\_Разработка\ugo\paper\obj\Debug\net8.0-windows\UgoPaper.pdb
+C:\Users\user\Desktop\02_Справочники_CAD_Revit\odnolineyka\_Разработка\ugo\paper\obj\Debug\net8.0-windows\ref\UgoPaper.dll

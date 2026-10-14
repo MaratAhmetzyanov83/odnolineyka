@@ -1,0 +1,14 @@
+C:\Users\user\Desktop\02_Справочники_CAD_Revit\odnolineyka\_Разработка\ugo\update\bin\Release\net8.0-windows\UgoUpdate.dll
+C:\Users\user\Desktop\02_Справочники_CAD_Revit\odnolineyka\_Разработка\ugo\update\obj\Release\net8.0-windows\UgoUpdate.csproj.AssemblyReference.cache
+C:\Users\user\Desktop\02_Справочники_CAD_Revit\odnolineyka\_Разработка\ugo\update\obj\Release\net8.0-windows\UgoUpdate.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\user\Desktop\02_Справочники_CAD_Revit\odnolineyka\_Разработка\ugo\update\obj\Release\net8.0-windows\UgoUpdate.AssemblyInfoInputs.cache
+C:\Users\user\Desktop\02_Справочники_CAD_Revit\odnolineyka\_Разработка\ugo\update\obj\Release\net8.0-windows\UgoUpdate.AssemblyInfo.cs
+C:\Users\user\Desktop\02_Справочники_CAD_Revit\odnolineyka\_Разработка\ugo\update\obj\Release\net8.0-windows\UgoUpdate.csproj.CoreCompileInputs.cache
+C:\Users\user\Desktop\02_Справочники_CAD_Revit\odnolineyka\_Разработка\ugo\update\obj\Release\net8.0-windows\UgoUpdate.sourcelink.json
+C:\Users\user\Desktop\02_Справочники_CAD_Revit\odnolineyka\_Разработка\ugo\update\bin\Release\net8.0-windows\UgoUpdateV2.deps.json
+C:\Users\user\Desktop\02_Справочники_CAD_Revit\odnolineyka\_Разработка\ugo\update\bin\Release\net8.0-windows\UgoUpdateV2.dll
+C:\Users\user\Desktop\02_Справочники_CAD_Revit\odnolineyka\_Разработка\ugo\update\bin\Release\net8.0-windows\UgoUpdateV2.pdb
+C:\Users\user\Desktop\02_Справочники_CAD_Revit\odnolineyka\_Разработка\ugo\update\obj\Release\net8.0-windows\UgoUpdateV2.dll
+C:\Users\user\Desktop\02_Справочники_CAD_Revit\odnolineyka\_Разработка\ugo\update\obj\Release\net8.0-windows\refint\UgoUpdateV2.dll
+C:\Users\user\Desktop\02_Справочники_CAD_Revit\odnolineyka\_Разработка\ugo\update\obj\Release\net8.0-windows\UgoUpdateV2.pdb
+C:\Users\user\Desktop\02_Справочники_CAD_Revit\odnolineyka\_Разработка\ugo\update\obj\Release\net8.0-windows\ref\UgoUpdateV2.dll
