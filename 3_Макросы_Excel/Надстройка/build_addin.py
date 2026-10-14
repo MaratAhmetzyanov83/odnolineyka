@@ -30,6 +30,9 @@ RIBBON = """<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
                   screentip="«Спецификация_авто» → «Спецификация», изменения подсвечиваются против принятой ревизии"/>
           <button id="sxAccept" label="Принять изменения" size="large" imageMso="AcceptInvitation" onAction="SX_OnAction"
                   screentip="Снабжение получило: снять подсветку, ревизия +1"/>
+          <button id="sxCatUpd" label="Каталог: обновить" size="large" imageMso="Refresh" onAction="SX_OnAction"
+                  screentip="Перенести новые и изменённые позиции из общего каталога в «Каталог» книги"
+                  supertip="Файл 1_Таблицы_Excel\Каталог_общий.xlsx. Ключ: категория + производитель + модель + наименование. Запас (O) и формулы не меняются. Перед записью покажет, что изменится."/>
         </group>
         <group id="sxGrpPrint" label="Печать">
           <button id="sxTags" label="Бирки" size="large" imageMso="FileNew" onAction="SX_OnAction"
@@ -150,7 +153,7 @@ def build(out=DEFAULT_OUT):
     out = os.path.abspath(out)
     tmpdir = tempfile.mkdtemp()
     own = []                                     # свои модули (UTF-8) -> cp1251 + номера строк
-    for name in ("SX_Ribbon.bas", "SX_KJ.bas"):
+    for name in ("SX_Ribbon.bas", "SX_KJ.bas", "SX_Catalog.bas"):
         with open(os.path.join(HERE, name), encoding="utf-8") as f:
             txt = f.read().replace("\r\n", "\n").replace("\n", "\r\n")
         own.append(os.path.join(tmpdir, name))
