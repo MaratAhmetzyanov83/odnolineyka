@@ -95,9 +95,12 @@ def patch_codes(wb, log):
             ws.Range(f"T{r}").Value = 2
             n += 1
     free = [r for r in range(4, 52) if not ws.Range(f"P{r}").Value]
-    added = []
+    added, skipped = [], []
     for d in NEW_CODES:
         if d["P"] in codes:
+            continue
+        if not free:                    # таблица кодов (P4:Y51) занята своими кодами — их не трогаем
+            skipped.append(d["P"])
             continue
         r = free.pop(0)
         for col, v in d.items():
@@ -105,6 +108,8 @@ def patch_codes(wb, log):
         added.append(d["P"])
     if n or added:
         log.append(f"«{REF}»: двигатель (T = 2) — {n} кодов" + (f"; новые коды: {', '.join(added)}" if added else ""))
+    if skipped:
+        log.append(f"«{REF}»: таблица кодов полна (48) — не добавлены: {', '.join(skipped)}")
 
 
 # ---------------------------------------------------------------- 19 двигатели

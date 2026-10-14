@@ -30,8 +30,9 @@ def main(paths):
     for p in paths:
         p = os.path.abspath(p)
         print(f"=== {os.path.basename(p)}")
+        env = dict(os.environ, PYTHONIOENCODING="utf-8")    # шаги печатают ², Δ — консоль cp1251 падала
         for step in STEPS:
-            r = subprocess.run([sys.executable, os.path.join(HERE, step), p],
+            r = subprocess.run([sys.executable, os.path.join(HERE, step), p], env=env,
                                capture_output=True, text=True, encoding="utf-8", errors="replace")
             out = (r.stdout or "").strip().splitlines()[1:]           # первая строка — имя книги
             print(f"  {step}: " + ("; ".join(x.strip() for x in out) if out else "ok"))
