@@ -9,7 +9,9 @@ tools: Bash, Read, Grep, Glob
 Проверки (из корня репозитория, Windows, команда `py`):
 - Эталон таблиц: `py 5_Проверка/check.py` (код 0 — изменений нет). Варианты: `--etalon`, `--book`, `--log`.
 - LISP-тесты компоновки: `py 5_Проверка/run_panel_library_test.py --tests 5_Проверка/<test_*.lsp> --expected <N> [--library "<база.dwg>"]`.
-  Нужное `--expected` смотри в `СОСТОЯНИЕ.md` (поиск по имени теста). Долгие прогоны (база 474 МБ) — до 600 с, запускай с большим timeout.
+  Ожидаемое число PASS (`--expected`): test_panel_library 9, test_panel_terminals 36 (с `--library`), test_panel_spacing 20,
+  test_panel_labels 18, test_panel_separate 37, test_panel_assembly 20. Если не сходится — поищи имя теста в `СОСТОЯНИЕ.md`
+  и `СОСТОЯНИЕ_архив.md` (grep, не читать целиком). Долгие прогоны (база 474 МБ) — до 600 с, запускай с большим timeout.
 
 Правила:
 - Никогда не запускай `--update-baseline` и не меняй файлы. Только запуск и чтение.
