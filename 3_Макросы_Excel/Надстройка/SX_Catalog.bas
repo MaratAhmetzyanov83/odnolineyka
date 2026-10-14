@@ -19,10 +19,21 @@ Public Sub SX_CatUpdate()
     Cat_Run ""
 End Sub
 
+' Книга -> общий каталог: новые позиции книги дописываются, разные по данным — по отдельному вопросу.
+Public Sub SX_CatPush()
+    Cat_Push "", False
+End Sub
+
 ' Для проверки программой: путь к общему каталогу задан, окон нет (SX_SetQuiet). Возвращает итоговое сообщение.
 Public Function SX_CatUpdateFrom(path As Variant) As String
     Cat_Run CStr(path)
     SX_CatUpdateFrom = SX_LastMsg
+End Function
+
+' Для проверки программой: withChanged — записать в общий и разные по данным позиции.
+Public Function SX_CatPushTo(path As Variant, Optional withChanged As Boolean) As String
+    Cat_Push CStr(path), withChanged
+    SX_CatPushTo = SX_LastMsg
 End Function
 
 Private Sub CSay(txt As String, Optional st As VbMsgBoxStyle = vbInformation)
@@ -249,5 +260,166 @@ fail:
     If prot Then ws.Protect PWD, DrawingObjects:=True, Contents:=True, Scenarios:=True, AllowFiltering:=True
     Application.Calculation = calc
     Application.ScreenUpdating = True
+    CSay msg, vbCritical
+End Sub
+
+' ---------------------------------------------------------------- книга -> общий
+Private Sub Cat_Push(forced As String, withChanged As Boolean)
+    Dim wb As Workbook, ws As Worksheet, cwb As Workbook, cws As Worksheet, path As String, nm As String
+    Dim bk As Variant, bh As Variant, src As Variant, sh As Variant
+    Dim idx As Object, seen As Object, k As String
+    Dim i As Long, c As Long, r As Long, last As Long, opened As Boolean
+    Dim addRows As Collection, updCells As Collection, upd As Object
+    Dim addList As String, updList As String, msg As String, item As Variant, doChanged As Boolean
+
+    Set wb = ActiveWorkbook
+    If wb Is Nothing Then CSay "Откройте таблицу однолинейки.", vbExclamation: Exit Sub
+    On Error Resume Next
+    Set ws = wb.Worksheets(CAT)
+    On Error GoTo 0
+    If ws Is Nothing Then CSay "В книге нет листа «" & CAT & "».", vbExclamation: Exit Sub
+    If wb.Name = CAT_FILE Then CSay "Это сам общий каталог. Откройте книгу однолинейки.", vbExclamation: Exit Sub
+
+    path = CatPath(forced)
+    If path = "" Then CSay "Общий каталог не найден: " & CAT_FILE, vbExclamation: Exit Sub
+    If Dir(path) = "" Then CSay "Нет файла: " & path, vbExclamation: Exit Sub
+
+    Application.ScreenUpdating = False
+    nm = Mid$(path, InStrRev(path, "\") + 1)
+    On Error Resume Next
+    Set cwb = Workbooks(nm)
+    On Error GoTo 0
+    If cwb Is Nothing Then
+        Set cwb = Workbooks.Open(path, UpdateLinks:=0)
+        opened = True
+    End If
+    wb.Activate
+    Application.ScreenUpdating = True
+    If cwb.ReadOnly Then
+        If opened Then cwb.Close False
+        CSay "Общий каталог открыт только для чтения (занят?): " & path & vbLf & "Ничего не изменено.", vbExclamation
+        Exit Sub
+    End If
+    Set cws = cwb.Worksheets(CAT)
+    last = cws.Cells(cws.Rows.Count, 1).End(xlUp).Row
+    If last < HDR Then last = HDR
+    sh = cws.Range(cws.Cells(HDR, 1), cws.Cells(HDR, NCOL)).Value
+    If last > HDR Then src = cws.Range(cws.Cells(R0, 1), cws.Cells(last, NCOL)).Value
+
+    bh = ws.Range(ws.Cells(HDR, 1), ws.Cells(HDR, NCOL)).Value
+    For c = 1 To NCOL
+        If DataCol(c) Then
+            If LCase$(Trim$(CStr(sh(1, c)))) <> LCase$(Trim$(CStr(bh(1, c)))) Then
+                If opened Then cwb.Close False
+                CSay "Шапка «Каталога» в книге не совпадает с общим каталогом, столбец " & _
+                     Split(ws.Cells(1, c).Address, "$")(1) & ". Ничего не изменено.", vbExclamation
+                Exit Sub
+            End If
+        End If
+    Next c
+
+    ' общий: ключ -> строка
+    Set idx = CreateObject("Scripting.Dictionary")
+    If Not IsEmpty(src) Then
+        For i = 1 To UBound(src, 1)
+            If Trim$(CStr(src(i, 1))) <> "" Then
+                k = NormKey(src(i, 1), src(i, 2), src(i, 3), src(i, 7))
+                If Not idx.Exists(k) Then idx.Add k, i
+            End If
+        Next i
+    End If
+
+    ' книга: новые и разные
+    bk = ws.Range(ws.Cells(R0, 1), ws.Cells(R1, NCOL)).Value
+    Set seen = CreateObject("Scripting.Dictionary")
+    Set addRows = New Collection
+    Set updCells = New Collection
+    Set upd = CreateObject("Scripting.Dictionary")
+    For i = 1 To UBound(bk, 1)
+        If Trim$(CStr(bk(i, 1))) <> "" Then
+            k = NormKey(bk(i, 1), bk(i, 2), bk(i, 3), bk(i, 7))
+            If Not seen.Exists(k) Then
+                seen.Add k, i
+                If idx.Exists(k) Then
+                    r = idx(k)
+                    For c = 1 To NCOL
+                        If DataCol(c) Then
+                            If Not IsError(bk(i, c)) Then
+                                If Not Same(bk(i, c), src(r, c)) Then
+                                    updCells.Add Array(r, c, bk(i, c))
+                                    If Not upd.Exists(r) Then
+                                        upd.Add r, 1
+                                        If upd.Count <= 15 Then updList = updList & vbLf & "  " & bk(i, 3) & " — " & _
+                                            Split(ws.Cells(1, c).Address, "$")(1) & ": «" & src(r, c) & "» -> «" & bk(i, c) & "»"
+                                    End If
+                                End If
+                            End If
+                        End If
+                    Next c
+                Else
+                    addRows.Add i
+                    If addRows.Count <= 15 Then addList = addList & vbLf & "  " & bk(i, 1) & ": " & bk(i, 3) & " — " & bk(i, 7)
+                End If
+            End If
+        End If
+    Next i
+
+    If addRows.Count = 0 And upd.Count = 0 Then
+        If opened Then cwb.Close False
+        CSay "Всё, что есть в книге, уже есть в общем каталоге."
+        Exit Sub
+    End If
+
+    doChanged = withChanged
+    If Not SX_Quiet Then
+        If addRows.Count > 0 Then
+            msg = "Общий каталог: " & path & vbLf & vbLf & "Дописать новых позиций: " & addRows.Count & addList & vbLf & vbLf
+            If upd.Count > 0 Then msg = msg & "Ещё " & upd.Count & " позиций в книге отличаются — спрошу отдельно." & vbLf & vbLf
+            If MsgBox(msg & "Дописать?", vbQuestion + vbYesNo, "Каталог") <> vbYes Then Set addRows = New Collection
+        End If
+        If upd.Count > 0 Then
+            doChanged = (MsgBox("В книге иначе, чем в общем каталоге (" & upd.Count & " позиций, ячеек " & updCells.Count & "):" & _
+                updList & vbLf & vbLf & "Записать данные книги в общий каталог?" & vbLf & _
+                "«Нет» — общий не меняется (книгу можно обновить кнопкой «Каталог: обновить»).", _
+                vbQuestion + vbYesNo + vbDefaultButton2, "Каталог") = vbYes)
+        End If
+    End If
+    If addRows.Count = 0 And Not doChanged Then
+        If opened Then cwb.Close False
+        CSay "Общий каталог не изменён."
+        Exit Sub
+    End If
+
+    On Error GoTo fail
+    If doChanged Then
+        For Each item In updCells
+            cws.Cells(R0 + item(0) - 1, item(1)).Value = item(2)
+        Next item
+    End If
+    r = last + 1
+    For Each item In addRows
+        For c = 1 To NCOL
+            If DataCol(c) Then
+                cws.Cells(r, c).NumberFormat = ws.Cells(R0 + item - 1, c).NumberFormat
+                cws.Cells(r, c).Value = bk(item, c)
+            End If
+        Next c
+        r = r + 1
+    Next item
+    cws.AutoFilterMode = False
+    cws.Range(cws.Cells(HDR, 1), cws.Cells(r - 1, NCOL)).AutoFilter
+    cwb.Save
+    If opened Then cwb.Close False
+    wb.Activate
+
+    msg = "Общий каталог: дописано " & addRows.Count
+    If doChanged Then msg = msg & ", изменено " & upd.Count
+    msg = msg & "." & vbLf & "Отправьте в GitHub («Отправить.cmd»), чтобы каталог был и на другом ПК."
+    CSay msg
+    Exit Sub
+fail:
+    msg = "Ошибка записи в общий каталог (строка " & Erl & "): " & Err.Description & vbLf & "Файл не сохранён."
+    On Error Resume Next
+    If opened Then cwb.Close False
     CSay msg, vbCritical
 End Sub

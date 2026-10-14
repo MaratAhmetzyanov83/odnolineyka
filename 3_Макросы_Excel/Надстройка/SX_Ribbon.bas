@@ -49,6 +49,7 @@ Public Sub SX_OnAction(control As Object)
         Case "sxKJFile": SX_KJFile
         Case "sxKJStamp": SX_KJStamp
         Case "sxCatUpd": SX_CatUpdate
+        Case "sxCatPush": SX_CatPush
         Case "sxHelp": SX_Help
     End Select
 End Sub

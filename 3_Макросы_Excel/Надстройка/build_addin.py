@@ -33,6 +33,9 @@ RIBBON = """<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
           <button id="sxCatUpd" label="Каталог: обновить" size="large" imageMso="Refresh" onAction="SX_OnAction"
                   screentip="Перенести новые и изменённые позиции из общего каталога в «Каталог» книги"
                   supertip="Файл 1_Таблицы_Excel\Каталог_общий.xlsx. Ключ: категория + производитель + модель + наименование. Запас (O) и формулы не меняются. Перед записью покажет, что изменится."/>
+          <button id="sxCatPush" label="Каталог: в общий" size="large" imageMso="FileSave" onAction="SX_OnAction"
+                  screentip="Дописать новые позиции «Каталога» книги в общий каталог"
+                  supertip="Позиции, которых нет в Каталог_общий.xlsx, дописываются в конец. Если в книге данные иначе — спросит отдельно (по умолчанию «Нет»). Потом отправьте в GitHub."/>
         </group>
         <group id="sxGrpPrint" label="Печать">
           <button id="sxTags" label="Бирки" size="large" imageMso="FileNew" onAction="SX_OnAction"
