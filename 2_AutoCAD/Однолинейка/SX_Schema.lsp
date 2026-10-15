@@ -1,5 +1,5 @@
 ;;; ============================================================================
-;;;  SX_Schema.lsp  v3.21 —  однолинейная схема из Excel на ВАШИХ блоках
+;;;  SX_Schema.lsp  v3.22 —  однолинейная схема из Excel на ВАШИХ блоках
 ;;;
 ;;;  Команды:
 ;;;    SXDRAW    — окно: файл Excel, лист «Однолинейка», щит, точка вставки,
@@ -32,13 +32,13 @@
 ;;; ============================================================================
 
 (vl-load-com)
-(setq sx:ver "v3.21")
+(setq sx:ver "v3.22")
 
 
 ;;; ---------------------------------------------------------------- настройки
 (if (null *sx-sheet*) (setq *sx-sheet* 17))   ; мест (столбцов) на один лист A3
 (if (null *sx-step*)  (setq *sx-step* 20.0))  ; шаг столбца, мм
-(setq *sx-range* "A3:BZ1000")                  ; данные на листе «Однолинейка» (BY = «УГО (рус)», BZ = «слаботочн.»)
+(setq *sx-range* "A3:CI1000")                  ; данные на листе «Однолинейка» (BY = «УГО (рус)», BZ = «слаботочн.», CE:CI = узел КМ)
 (setq *sx-style* "SX_GOST")                    ; текстовый стиль схемы (создаётся/обновляется при каждом запуске)
 (setq *sx-face* "GOST 2.304 type A")           ; шрифт (имя гарнитуры, как в окне «Текстовые стили»)
 (setq sx:red-rgb 10033950 sx:red-aci 244)       ; тёмно-красный 153,27,30 (как БП в вашем DWG)
@@ -86,7 +86,9 @@
       sx:cJoin 40 sx:cXT 51
       sx:cDraw 56 sx:cBus2 57 sx:cRcd 58 sx:cChT 59 sx:cDevC1 60 sx:cSym 63 sx:cHasLine 64
       sx:cUgoRu 77    ; BY: название УГО по-русски (пусто = у линии нет кода УГО)
-      sx:cLow 78)     ; BZ: 1 = слаботочная линия (DALI, KNX, датчики): клемма без PE
+      sx:cLow 78      ; BZ: 1 = слаботочная линия (DALI, KNX, датчики): клемма без PE
+      ;; узел КМ (АПС), patch_km.py: CE имя шины KM-n, CG 1,1 x Iр шины, CH контактор, CI проверка
+      sx:cKM 83 sx:cKMcur 85 sx:cKMmod 86 sx:cKMchk 87)
 (setq sx:cStat 31 sx:rowBase 3)   ; AE = status of the row; first Excel row of the range A3:BL
 
 
@@ -627,6 +629,8 @@
   ;; двухуровневая клемма без земли (2 проводника на одну клемму) и отдельный кружок PE
   (sx:defblock "SX_XT2" (list (bCc 0.0 -1.0 1.0 30) (bCc 0.0 -3.0 1.0 5)
                               (bAtt "N" 1.7 0.1 2.5 "L" 0.0 nil)) force)
+  ;; клемма цепи управления узла КМ: один оранжевый кружок
+  (sx:defblock "SX_XTC" (list (bCc 0.0 -1.0 1.0 30) (bAtt "N" 1.7 0.1 2.0 "L" 0.0 nil)) force)
   (sx:defblock "SX_XTPE" (list (bCc 0.0 0.0 1.0 3) (bLc 1.003 0.753 -0.753 -1.003 3) (bLc 0.753 1.003 -1.003 -0.753 3)) force)
   ;; кабельный вывод (если блока «Вывод» нет): линия вниз со стрелкой, вставка в верхней точке
   (sx:defblock "SX_U_OUT" (list (bLc 0.0 0.0 0.0 -9.0 0) (bLc 0.0 -9.0 -1.2 -6.6 0) (bLc 0.0 -9.0 1.2 -6.6 0)) T)
@@ -1254,7 +1258,7 @@
 (defun sx:content-p (d)
   (or (sx:has d sx:cQFown) (sx:c d sx:cCh) (sx:is1 d sx:cXT)))
 
-(defun sx:draw-table (recs / nm cab k)
+(defun sx:draw-table (recs / nm cab k kn kk ln cur)
   (if (and (sx:wantS 0) (sx:blk-p sx:bHEAD))
     (sx:ttry "H" (function (lambda () (sx:insv sx:bHEAD sx:vHeadDx 0.0 1.0 0.0 nil sx:TB))) "head"))
   (foreach d recs
@@ -1264,11 +1268,21 @@
           cab (sx:s (sx:c d sx:cCab))
           k (vl-string-search " L=" cab))
     (if (= (length nm) 1) (setq nm (list "" (car nm))))
-    (setq nm (list (sx:nth0 0 nm) (sx:nth0 1 nm) (sx:nth0 2 nm)))
+    (setq nm (list (sx:nth0 0 nm) (sx:nth0 1 nm) (sx:nth0 2 nm))
+          ln (sx:s (sx:c d sx:cLine)) cur (sx:num (sx:c d sx:cI)))
+    ;; узел КМ (АПС): три места — сигнал АПС, реле АПС, контактор
+    (setq kn (car (vl-remove-if-not '(lambda (n) (and (sx:kma-p n) (<= 0 (- (sx:i d) (sx:i n)) 2))) recs)))
+    (if (and kn (= ln ""))
+      (progn
+        (setq kk (- (sx:i d) (sx:i kn)))
+        (cond ((= kk 0) (setq nm (list "" (sx:ru '(1057 1080 1075 1085 1072 1083 32 1040 1055 1057)) "") ln (sx:ru '(1040 1055 1057))))
+              ((= kk 1) (setq nm (list "" (sx:ru '(1056 1077 1083 1077 32 1040 1055 1057)) "") ln (sx:ru '(1056 1077 1083 1077))))
+              (t (setq nm (list (sx:ru '(1050 1086 1085 1090 1072 1082 1090 1086 1088)) (sx:s (sx:c kn sx:cKMmod)) "")
+                       ln (sx:kma-name kn) cur (sx:num (/ (sx:n (sx:c kn sx:cKMcur)) 1.1)))))))
     (sx:ins "SX_TCOL" (sx:u d) 0.0
             (list (cons "NAME1" (nth 0 nm)) (cons "NAME2" (nth 1 nm)) (cons "NAME3" (nth 2 nm))
-                  (cons "CUR" (sx:num (sx:c d sx:cI))) (cons "POW" (sx:num (sx:c d sx:cPow)))
-                  (cons "PH" (sx:s (sx:c d sx:cPh))) (cons "LINE" (sx:s (sx:c d sx:cLine)))
+                  (cons "CUR" cur) (cons "POW" (sx:num (sx:c d sx:cPow)))
+                  (cons "PH" (sx:s (sx:c d sx:cPh))) (cons "LINE" ln)
                   (cons "CAB1" (vl-string-translate "." "," (if k (substr cab 1 k) cab)))
                   (cons "CAB2" (vl-string-translate "." "," (if k (substr cab (+ k 2)) ""))))
             sx:TB)))
@@ -1322,17 +1336,26 @@
         (sx:line left sx:vTop (- ue 2) sx:vTop sx:B)
         (sx:line left sx:vBottom (- ue 2) sx:vBottom sx:B)   ; граница щита снизу
         (if input (sx:line left sx:vTop left sx:vBottom sx:B))))
-    (setq b2 (vl-remove-if-not '(lambda (d) (and (sx:has d sx:cQFown) (sx:is1 d sx:cBus2))) onsheet))
+    (setq b2 (mapcar '(lambda (d) (list (sx:s (sx:c d sx:cBusName)) (sx:u d)))
+                     (vl-remove-if-not '(lambda (d) (and (sx:has d sx:cQFown) (sx:is1 d sx:cBus2))) onsheet)))
+    ;; узел КМ на листе: его шина начинается от силового контакта (третий элемент T)
+    (foreach d onsheet
+      (if (and (sx:kma-p d) (sx:has d sx:cQFown)) (setq b2 (cons (list (sx:kma-name d) (sx:kma-x d) T) b2))))
     ;; вторые шины — до конца листа; если на листе несколько разных, каждая до начала следующей
     (setq segs '())
-    (foreach d (vl-sort b2 '(lambda (a b) (< (sx:u a) (sx:u b))))
-      (if (or (null segs) (/= (car (car segs)) (sx:s (sx:c d sx:cBusName))))
-        (setq segs (cons (list (sx:s (sx:c d sx:cBusName)) (sx:u d)) segs))))
+    (foreach sg (vl-sort b2 '(lambda (a b) (< (cadr a) (cadr b))))
+      (if (or (null segs) (/= (car (car segs)) (car sg)))
+        (setq segs (cons sg segs))))
     (setq segs (reverse segs) k 0)
     (foreach sg segs
-      (sx:bus (if (= k 0) (if bus2us bus2us busus) (- (cadr sg) 9.0))
-              (if (< (1+ k) (length segs)) (- (cadr (nth (1+ k) segs)) 11.0) ue)
-              sx:vBus2L sx:vBus2N (car sg))
+      (sx:bus (cond ((caddr sg) (- (cadr sg) 5.0))
+                    ((= k 0) (if bus2us bus2us busus))
+                    (t (- (cadr sg) 9.0)))
+              (if (< (1+ k) (length segs))
+                (- (cadr (nth (1+ k) segs)) (if (caddr (nth (1+ k) segs)) 6.0 11.0))
+                ue)
+              sx:vBus2L sx:vBus2N
+              (if (sx:kma-find (car sg) draw) (strcat "L1,L2,L3 (" (car sg) ")") (car sg)))
       (setq k (1+ k)))
     (if (vl-some '(lambda (d) (sx:is1 d sx:cXT)) onsheet)
       (sx:line (if input (+ left 7.0) (+ us 3)) sx:vPE (- ue 1) sx:vPE sx:PE))))
@@ -1360,7 +1383,8 @@
   (setq k 0 res '())
   (repeat 3
     (setq code (sx:s (sx:c q (+ sx:cDevC1 k))))
-    (if (/= code "") (setq res (append res (list (list code (sx:s (sx:c q (+ sx:cDev1 k))))))))
+    ;; KMA — узел КМ (АПС): не аппарат под автоматом, его рисует sx:draw-kma
+    (if (not (member code '("" "KMA"))) (setq res (append res (list (list code (sx:s (sx:c q (+ sx:cDev1 k))))))))
     (setq k (1+ k)))
   res)
 
@@ -1438,6 +1462,49 @@
       ;; низ последнего аппарата — отсюда спуск к клемме / УГО
       (setq sx:qflow (cons (cons u (min sx:vComb top)) sx:qflow)))))
 
+;;; ---------------------------------------------------------------- узел КМ (АПС), patch_km.py
+;;; Строка-место: E «авто», I «КМ АПС» (BH = KMA). Место узла — автомат цепи управления, +1 — размыкающий
+;;; контакт реле АПС (в строке УГО), +2 — катушка КМ. Силовой контакт — между +2 и +3: от основной шины
+;;; к второй шине «L1,L2,L3 (KM-n)»; на ней линии с D = KM-n (CE узла).
+(setq sx:kmLoop 68.0 sx:kmCoilB 173.0 sx:kmCoilT 177.0)
+(defun sx:kma-p (d) (= (sx:s (sx:c d sx:cDevC1)) "KMA"))
+(defun sx:kma-name (d) (sx:s (sx:c d sx:cKM)))
+(defun sx:kma-x (d) (+ (sx:u d) (* 2.5 *sx-step*)))   ; силовой контакт
+(defun sx:kma-find (name lst)
+  (if (/= name "") (car (vl-remove-if-not '(lambda (d) (and (sx:kma-p d) (= (sx:kma-name d) name))) lst))))
+
+(defun sx:draw-kma (q / u1 u2 u3 xk lo nm vm)
+  (setq u1 (sx:u q) u2 (+ u1 *sx-step*) u3 (+ u1 (* 2 *sx-step*)) xk (sx:kma-x q)
+        lo (sx:qf-low u1) nm (sx:kma-name q) vm (/ (+ sx:kmCoilB sx:kmCoilT) 2.0))
+  ;; цепь управления: автомат -> клемма -> вниз в строку УГО -> контакт реле АПС -> клемма -> катушка
+  (sx:line u1 lo u1 sx:kmLoop sx:L)
+  (sx:ticks u1 (/ (+ lo sx:vXTtop) 2.0) 1 sx:L)
+  (sx:hline u1 (- u2 3.0) sx:kmLoop sx:L)
+  ;; размыкающий контакт (ГОСТ 2.755), горизонтально: неподвижный упор справа, нож под ним
+  (sx:line (+ u2 3.0) sx:kmLoop (+ u2 3.0) (- sx:kmLoop 2.0) sx:L)
+  (sx:line (- u2 3.0) sx:kmLoop (+ u2 3.6) (- sx:kmLoop 2.0) sx:L)
+  (sx:hline (+ u2 3.0) u3 sx:kmLoop sx:L)
+  (sx:line u3 sx:kmLoop u3 sx:kmCoilB sx:L)
+  (foreach x (list u1 u3) (sx:insv "SX_XTC" x sx:vXTtop 1.0 0.0 (list "XT") sx:BL))
+  ;; катушка: A1 снизу, A2 сверху -> N основной шины
+  (sx:rect (- u3 4.0) sx:kmCoilB (+ u3 4.0) sx:kmCoilT sx:L)
+  (sx:text (- u3 3.4) (+ sx:kmCoilB 1.0) 2.0 nm sx:T)
+  (sx:text (+ u3 0.6) (- sx:kmCoilB 2.4) 1.8 "A1" sx:T)
+  (sx:text (+ u3 0.6) (+ sx:kmCoilT 0.6) 1.8 "A2" sx:T)
+  (sx:line u3 sx:kmCoilT u3 sx:vBusN sx:LN)
+  (sx:dot u3 sx:vBusN sx:LN)
+  ;; силовой контакт: основная шина -> шина KM-n; N — рядом, без разрыва
+  (sx:dot xk sx:vBusL sx:L)
+  (sx:line xk sx:vBusL xk (+ sx:vBus2L 10.0) sx:L)
+  (sx:insv "SX_KM" xk (+ sx:vBus2L 10.0) 1.0 0.0 (list "") sx:BL)
+  (sx:text (+ xk 1.2) (+ sx:vBusN 1.0) 2.0 nm sx:T)
+  (sx:line (+ xk 2.5) sx:vBusN (+ xk 2.5) sx:vBus2N sx:LN)
+  (sx:dot (+ xk 2.5) sx:vBusN sx:LN)
+  (sx:dot (+ xk 2.5) sx:vBus2N sx:LN)
+  ;; механическая связь катушки и контакта
+  (sx:line (+ u3 4.0) vm (- xk 1.5) vm sx:LN)
+  (sx:line (- xk 1.5) vm (- xk 1.5) (+ sx:vBus2L 5.0) sx:LN))
+
 (setq sx:devRoom 24.0)   ; мм под автоматом для аппаратов (до клеммы XT остаётся место для засечек)
 (defun sx:qf-low (u) (cond ((cdr (assoc u sx:qflow))) (t sx:vComb)))
 (defun sx:draw-groups (draw / gid u busN members feeds chF xtF chU xtU xts xN hi side devs lowv lo)
@@ -1472,6 +1539,7 @@
         ;; N отдельной линией (обход модуля) — только у групп 230 В через модуль
         (setq sx:gHasCh (if chU T nil))
         (sx:draw-qf q u side (and chU (not lowv)))
+        (if (sx:kma-p q) (sx:draw-kma q))
         ;; входы каналов: перемычки IN-IN с фасками
         (if chU (sx:chain (cons u chU) sx:vIN0 sx:L))
         ;; клеммы без канала: спуск от автомата и перемычки по верху клемм
@@ -1998,7 +2066,7 @@
 (setq sx:nopos nil)
 
 ;;; предупреждения о возможных наложениях линий (список строк); ничего не рисует
-(defun sx:validate-layout (recs draw / res qfids id pl lo hi key seenk prevx)
+(defun sx:validate-layout (recs draw / res qfids id pl lo hi key seenk prevx kn)
   (setq res '() qfids '() seenk '())
   (foreach x sx:nopos
     (setq res (cons (strcat (sx:ru '(1089 1090 1088 1086 1082 1072 32 69 120 99 101 108 32)) (itoa x) (sx:ru '(58 32 1077 1089 1090 1100 32 1076 1072 1085 1085 1099 1077 44 32 1085 1086 32 1085 1077 32 1079 1072 1076 1072 1085 32 1085 1086 1084 1077 1088 32 1084 1077 1089 1090 1072 32 45 32 1089 1090 1088 1086 1082 1072 32 1085 1077 32 1073 1091 1076 1077 1090 32 1085 1072 1088 1080 1089 1086 1074 1072 1085 1072))) res)))
@@ -2025,6 +2093,16 @@
                 (setq seenk (cons key seenk)
                       res (cons (strcat (sx:ru '(1075 1088 1091 1087 1087 1072 32)) id (sx:ru '(32 40 1084 1077 1089 1090 1072 32)) (itoa (1+ lo)) "-" (itoa (1+ hi)) (sx:ru '(41 58 32 1084 1077 1078 1076 1091 32 1085 1080 1084 1080 32 1084 1077 1089 1090 1086 32)) (itoa (1+ (sx:i d)))
                                         (sx:ru '(32 40 1089 1090 1088 1086 1082 1072 32 69 120 99 101 108 32)) (itoa (sx:xr d)) (sx:ru '(41 32 1080 1079 32 1076 1088 1091 1075 1086 1081 32 1075 1088 1091 1087 1087 1099 32 1080 1083 1080 32 1073 1077 1079 32 1072 1074 1090 1086 1084 1072 1090 1072 32 45 32 1087 1077 1088 1077 1084 1099 1095 1082 1080 32 1083 1103 1075 1091 1090 32 1085 1072 32 1077 1075 1086 32 1083 1080 1085 1080 1080 59 32 1084 1077 1089 1090 1072 32 1086 1076 1085 1086 1081 32 1075 1088 1091 1087 1087 1099 32 1076 1086 1083 1078 1085 1099 32 1080 1076 1090 1080 32 1087 1086 1076 1088 1103 1076))) res)))))))))
+  ;; (2а) узел КМ: проверка из книги (CI); линия шины KM-n не правее узла
+  (foreach d draw
+    (if (and (sx:kma-p d) (not (wcmatch (sx:s (sx:c d sx:cKMchk)) "ok*")))
+      (setq res (cons (strcat (sx:ru '(1091 1079 1077 1083 32)) (sx:kma-name d) " (" (itoa (1+ (sx:i d))) "): "
+                              (if (= (sx:s (sx:c d sx:cKMchk)) "") "CI = ? (patch_km.py)" (sx:s (sx:c d sx:cKMchk))))
+                      res)))
+    (if (and (sx:is1 d sx:cBus2) (setq kn (sx:kma-find (sx:s (sx:c d sx:cBusName)) draw))
+             (< (sx:i d) (+ (sx:i kn) 3)))
+      (setq res (cons (strcat (sx:ru '(1091 1079 1077 1083 32)) (sx:kma-name kn) ": " (itoa (1+ (sx:i d))) " < " (itoa (+ (sx:i kn) 4)))
+                      res))))
   ;; (3) «=» стоит не рядом с предыдущей клеммой
   (setq prevx nil)
   (foreach d draw
@@ -2333,5 +2411,5 @@
   (princ))
 
 (princ (strcat "\n" (sx:ru '(83 88 95 83 99 104 101 109 97 32 118 51 46 49 55 32 1079 1072 1075 1088 1091 1078 1077 1085 32 40 1074 1072 1096 1080 32 1073 1083 1086 1082 1080 41 58 32 83 88 68 82 65 87 32 8212 32 1087 1086 1089 1090 1088 1086 1080 1090 1100 32 1089 1093 1077 1084 1091 44 32 83 88 67 76 69 65 82 32 8212 32 1089 1090 1077 1088 1077 1090 1100 46))))
-(princ "\n[SX_Schema v3.21] SXDRAW / SXUPDATE / SXUPDSEL / SXUPDSHEET / SXCLEAR")
+(princ "\n[SX_Schema v3.22] SXDRAW / SXUPDATE / SXUPDSEL / SXUPDSHEET / SXCLEAR")
 (princ)

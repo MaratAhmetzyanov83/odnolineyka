@@ -19,6 +19,7 @@
  13. patch_char.py         — характеристика автомата B / C / D сама по Iкз (ПУЭ 1.7.79), «Однолинейка» CC, CD
  14. patch_input_du.py     — «Исходные данные» BG: ΔU от ВРУ в строке ввода без двойного учёта кабеля ввода
  15. patch_ks.py           — Кс «Сил» сам по числу ЭП в щите (лифты, двигатели; «Справочная» CE:CN, «Нагрузка_щитов» BB:BD)
+ 16. patch_km.py           — узел КМ (АПС): контакторы «Справочная» CY:DD, «Однолинейка» CE:CI (подбор КМ), «Каталог» N
 После объединения листов старые ручные связи между файлами рвутся: в каждом щите — «Связать с вышестоящим».
 """
 import os
@@ -29,7 +30,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 STEPS = ["tidy_book.py", "fix_text_format.py", "patch_audit.py", "merge_network.py", "patch_inputs.py",
          "patch_validation.py", "patch_review.py", "patch_feeder.py", "patch_categories.py",
          "patch_assembly.py", "patch_vru.py", "patch_parallel.py", "patch_char.py", "patch_input_du.py",
-         "patch_ks.py"]
+         "patch_ks.py", "patch_km.py"]
 
 
 def main(paths):
