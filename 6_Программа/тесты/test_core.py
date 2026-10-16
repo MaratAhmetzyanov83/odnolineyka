@@ -102,12 +102,24 @@ class TestCore(unittest.TestCase):
 
     def test_change(self):
         prj = demo()
-        ch = changes.apply(prj, changes.Change("ЩР-1.xlsx / ЩР-1", "input.length_plan", 45.0, line="R.1"))
-        self.assertEqual((ch.old, prj.line("ЩР-1.xlsx / ЩР-1", "R.1").input.length_plan), (None, 45.0))
-        with self.assertRaises(PermissionError):
-            changes.apply(prj, changes.Change("ЩР-1.xlsx / ЩР-1", "result.i_calc", 1, line="R.1"))
-        with self.assertRaises(KeyError):
-            changes.apply(prj, changes.Change("ЩР-1.xlsx / ЩР-1", "input.p_kw", 1, line="нет"))
+        P = "ЩР-1.xlsx / ЩР-1"
+        ch = changes.apply(prj, changes.Change(P, "input.length_plan", "45,5", line="R.1"))
+        self.assertEqual((ch.old, prj.line(P, "R.1").input.length_plan), (None, 45.5))
+        ch = changes.apply(prj, changes.Change(P, "input.cores", "5", line="R.1"))
+        self.assertEqual(prj.line(P, "R.1").input.cores, 5)
+        ch = changes.apply(prj, changes.Change(P, "input.p_kw", "", line="R.1"))     # пусто — очистить
+        self.assertIsNone(prj.line(P, "R.1").input.p_kw)
+        for bad in [changes.Change(P, "result.i_calc", 1, line="R.1"),          # расчёт не правится
+                    changes.Change(P, "input.p_kw", 1, line="нет"),             # нет линии
+                    changes.Change(P, "input.p_kw", "abc", line="R.1"),         # не число
+                    changes.Change(P, "input.cores", "2,5", line="R.1"),        # не целое
+                    changes.Change(P, "input.p_kw", -1, line="R.1"),            # меньше нуля
+                    changes.Change(P, "scheme.breaker_set", "авто", line="R.1")]:  # не первая строка группы
+            with self.assertRaises(changes.EditError, msg=bad.path):
+                changes.apply(prj, bad)
+        prj.line(P, "R.1").scheme.group_head = True
+        changes.apply(prj, changes.Change(P, "scheme.breaker_set", "1P C10А", line="R.1"))
+        self.assertEqual(prj.line(P, "R.1").scheme.breaker_set, "1P C10А")
 
     def test_broken_rule(self):
         """Упавшее правило даёт замечание, остальные работают."""

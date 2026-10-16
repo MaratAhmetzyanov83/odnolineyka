@@ -20,8 +20,12 @@ class Source:
         """Прочитать файл в Document. Не бросать исключений из-за содержимого — писать Document.error."""
         raise NotImplementedError
 
-    def write(self, path: str, changes: "list[Change]") -> None:
-        """Записать правки в файл (с резервной копией). Не умеет — NotImplementedError."""
+    def cells_for(self, prj, changes: "list[Change]"):
+        """Правки -> что и куда писать в файле (для журнала и записи). Не умеет — NotImplementedError."""
+        raise NotImplementedError(f"{self.kind}: запись не поддерживается")
+
+    def write(self, path: str, cells) -> None:
+        """Записать в файл (резерв делает сервис). Ошибка для пользователя — EditError."""
         raise NotImplementedError(f"{self.kind}: запись не поддерживается")
 
     def open_at(self, path: str, ref) -> str:

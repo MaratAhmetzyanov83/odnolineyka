@@ -42,7 +42,8 @@ ODN_DEVICES = ("I", "J", "K")
 ODN_IN = "AU"                    # номинал автомата группы (итог)
 ODN_STATUS = "AE"                # статус строки
 ODN_LEVEL = "BU"                 # 2 ошибка, 1 предупреждение
-ODN_EDIT = {"scheme.breaker": "E", "scheme.bus": "D"}
+ODN_EDIT = {"scheme.breaker_set": "E", "scheme.bus": "D"}
+ODN_BREAKER_SET = "E"
 
 # ---------------------------------------------------------------- «Сеть_щита»
 NET_PANEL_ROWS = (6, 7, 8)       # раздел 1: до 3 щитов книги; столбцы C/D/E раздела 3 — в том же порядке
@@ -52,6 +53,7 @@ NET_SUPPLY = {                   # раздел 1, строка щита
     "breaker": "I", "cable": "J", "length": "K", "from_panel": "L",
 }
 NET_MANUAL_FROM = (12, "C")      # раздел 2: «Питается от» (ТП, ГРЩ…)
+NET_EDIT = {"supply.manual": NET_MANUAL_FROM}
 NET_RESULT_ROWS = {              # раздел 3: строка -> поле (столбец щита из NET_PANEL_COLS)
     29: "p_calc", 30: "i_calc", 31: "cos", 33: "du_bus", 34: "zp_bus", 35: "ikz_min_bus", 36: "ikz_max_bus",
 }

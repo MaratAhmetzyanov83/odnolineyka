@@ -3,13 +3,15 @@
 import * as api from "./api.js";
 import { S, setProject } from "./store.js";
 import { parse } from "./nav.js";
-import { toast } from "./fmt.js";
-import * as grid from "./grid.js";
+import { toast, esc } from "./fmt.js";
+import * as pending from "./pending.js";
+import { setOptions } from "./store.js";
 import * as tree from "./views/tree.js";
 import * as objectView from "./views/object.js";
 import * as panelView from "./views/panel.js";
+import * as journalView from "./views/journal.js";
 
-const VIEWS = { object: objectView, panel: panelView };
+const VIEWS = { object: objectView, panel: panelView, journal: journalView };
 const $ = s => document.querySelector(s);
 
 function render(){
@@ -22,7 +24,7 @@ function render(){
 }
 
 async function load(){
-  try { setProject(await api.getProject()); }
+  try { setProject(await api.getProject()); setOptions(await api.getOptions()); }
   catch (e){ $("#main").innerHTML = `<div class="empty">Ошибка загрузки: ${e.message}</div>`; return; }
   $("#title").textContent = "Объект: " + S.P.name;
   $("#stamp").textContent = `прочитано ${S.P.loaded} · документов ${S.P.documents.length} · щитов ${Object.keys(S.panels).length}`;
@@ -38,8 +40,6 @@ document.addEventListener("click", async ev => {
     catch (e){ toast("Не открыто: " + e.message); }
     return;
   }
-  const th = ev.target.closest("[data-sort]");
-  if (th){ const [key, col] = th.dataset.sort.split("|"); grid.toggle(key, col); render(); return; }
   const go = ev.target.closest("[data-go]");
   if (go){ ev.preventDefault(); location.hash = go.dataset.go; }
 });
@@ -49,6 +49,53 @@ $("#reload").onclick = async () => {
   try { await api.reload(); await load(); toast("Обновлено"); } catch (e){ toast("Ошибка: " + e.message); }
   b.disabled = false; b.textContent = "Обновить";
 };
+// ---- несохранённые правки: панель в шапке, Ctrl+S — записать, Ctrl+Z — отменить
+function pendBar(){
+  const n = pending.size(), el = $("#pend");
+  el.innerHTML = n ? `Правок: <b>${n}</b> <button id="psave" class="on" title="Записать в книги Excel (Ctrl+S)">Записать в книги</button>
+    <button id="plist" title="Что изменено">Что</button><button id="pdrop" title="Отменить все несохранённые правки">Отменить все</button>` : "";
+  if (!n) return;
+  $("#psave").onclick = saveAll;
+  $("#pdrop").onclick = () => { if (confirm(`Отменить ${n} несохранённых правок?`)) pending.clear(); };
+  $("#plist").onclick = () => alert(pending.all().map(p => `${p.label}: ${p.new === "" ? "(пусто)" : p.new}`).join("\n"));
+}
+pending.onChange(pendBar);
+window.addEventListener("beforeunload", ev => { if (pending.size()){ ev.preventDefault(); ev.returnValue = ""; } });
+
+async function saveAll(){
+  const list = pending.all();
+  if (!list.length) return;
+  const b = $("#psave"); if (b){ b.disabled = true; b.textContent = "Пишу в книги…"; }
+  try {
+    const r = await api.edit(list.map(({panel, line, path, new: v}) => ({panel, line, path, new: v})));
+    if (r.written){ pending.clear(); await load(); }
+    toast((r.written ? `Записано: ${r.written} (${r.docs.join(", ")}). Книги пересчитаны, проверки обновлены.` : "Ничего не записано.")
+      + (r.errors?.length ? "\nОшибки: " + r.errors.join("; ") : ""), r.errors?.length ? 12000 : 5000);
+  } catch (e){ toast("Не записано: " + e.message, 10000); }
+  pendBar();
+}
+async function undoWrite(){
+  if (!confirm("Отменить последнюю запись в книгу? Значения вернутся как были.")) return;
+  try {
+    const r = await api.undo();
+    if (r.written) await load();
+    toast(r.written ? `Отменено: ${r.written} знач. в ${r.docs.join(", ")}` : "Не отменено: " + (r.errors || []).join("; "), 8000);
+  } catch (e){ toast("Не отменено: " + e.message); }
+}
+$("#undo").onclick = undoWrite;
+
+$("#journal").onclick = () => { location.hash = "#/journal"; };
+
+// горячие клавиши окна
+document.addEventListener("keydown", ev => {
+  if (ev.ctrlKey && (ev.key === "s" || ev.key === "ы")){ ev.preventDefault(); saveAll(); return; }
+  if (ev.ctrlKey && (ev.key === "f" || ev.key === "а")){ const q = $("#lq") || $("#q"); if (q){ ev.preventDefault(); q.focus(); q.select(); } return; }
+  if (ev.ctrlKey && (ev.key === "z" || ev.key === "я") && !ev.target.closest("input")){
+    ev.preventDefault();
+    if (pending.size()) pending.undo(); else undoWrite();
+  }
+});
+
 // тема: авто -> светлая -> тёмная; запоминается в браузере
 const THEMES = [["", "авто"], ["light", "светлая"], ["dark", "тёмная"]];
 function showTheme(){ const t = document.documentElement.dataset.theme || "";

@@ -88,3 +88,62 @@ table.mx td.hit2:hover,table.mx td.hit1:hover{outline:2px solid var(--accent);ou
 table.mx th{cursor:default}
 table.mx td.n,table.mx th.n{width:1%;min-width:44px}
 #theme{min-width:84px}
+
+/* ---------------- таблица «как в Excel» (js/grid.js) */
+main{overflow:hidden}
+.ghost{flex:1;min-height:0;display:flex;flex-direction:column}
+.gtools{display:flex;gap:6px;align-items:center;margin-bottom:4px;font-size:12px}
+.gtools .sp,.gstat .sp{flex:1}
+.gsel{display:flex;gap:4px;align-items:center;color:var(--muted)}
+select{font:inherit;font-size:12px;padding:1px 4px;border:1px solid var(--line);border-radius:4px;background:var(--panel);color:var(--text)}
+.gwrap{flex:1;min-height:0;overflow:auto;background:var(--panel);border:1px solid var(--line);border-radius:4px;outline:none}
+.gwrap:focus{border-color:var(--accent)}
+table.grid{table-layout:fixed;border-collapse:separate;border-spacing:0;font-size:12px}
+table.grid.auto{table-layout:auto;width:100%}
+table.grid th,table.grid td{border-right:1px solid var(--line2);border-bottom:1px solid var(--line2);padding:2px 5px;max-width:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+table.grid td.wrap{white-space:normal}
+table.grid th{position:sticky;top:0;z-index:2;background:var(--head)}
+table.grid th .tt{display:block;overflow:hidden;text-overflow:ellipsis}
+table.grid th .pen{font-style:normal;color:var(--accent);margin-left:3px;font-size:10px}
+table.grid th .fb{position:absolute;right:5px;top:1px;color:var(--muted);cursor:pointer;padding:0 3px;border-radius:3px;background:var(--head);display:none}
+table.grid th:hover .fb,table.grid th.filt .fb{display:block}
+table.grid th .fb:hover{background:var(--sel);color:var(--accent)}
+table.grid th.filt .fb{color:#fff;background:var(--accent)}
+table.grid th .rz{position:absolute;right:0;top:0;bottom:0;width:5px;cursor:col-resize}
+table.grid th .rz:hover{background:var(--accent)}
+table.grid th.s-asc .tt::after{content:" ▲";font-size:9px}table.grid th.s-desc .tt::after{content:" ▼";font-size:9px}
+table.grid .fz{position:sticky;z-index:1;background:var(--panel)}
+table.grid th.fz{z-index:3;background:var(--head)}
+table.grid tbody tr:nth-child(even) td.fz{background:var(--zebra)}
+table.grid tbody tr.l2 td.fz{background:var(--err-bg)} table.grid tbody tr.l1 td.fz{background:var(--warn-bg)}
+table.grid td.fz:last-of-type{}
+table.grid tfoot td{position:sticky;bottom:0;background:var(--head);border-top:1px solid var(--line);font-weight:600;z-index:1}
+table.grid tfoot td.fz{z-index:3}
+table.grid .agg{color:var(--muted);font-weight:400;font-size:10px}
+table.grid tr.grp td{background:var(--head);cursor:pointer;border-top:1px solid var(--line)}
+table.grid td{cursor:cell;user-select:none}
+table.grid td.ed{color:var(--text)}
+table.grid td.ed::after{content:"";}
+table.grid td.sel{background:color-mix(in srgb,var(--accent) 16%,var(--panel))!important}
+table.grid td.act{outline:2px solid var(--accent);outline-offset:-2px}
+table.grid td.pend{background:color-mix(in srgb,var(--warn) 22%,var(--panel))!important;font-weight:600}
+table.grid td.pend::before{content:"●";color:var(--warn);font-size:8px;margin-right:3px;vertical-align:middle}
+table.grid td.editing{padding:0;outline:2px solid var(--accent);outline-offset:-2px}
+input.ced{width:100%;height:100%;border:0;padding:2px 5px;font:inherit;background:var(--panel);color:var(--text);outline:none}
+table.grid td.hasbar{background-image:linear-gradient(90deg,var(--barc,color-mix(in srgb,var(--ok) 22%,transparent)) var(--bar),transparent var(--bar));background-repeat:no-repeat}
+table.grid td.hasbar:has(.l1){--barc:color-mix(in srgb,var(--warn) 30%,transparent)}
+table.grid td.hasbar:has(.l2){--barc:color-mix(in srgb,var(--err) 30%,transparent)}
+.barv{display:none}
+table.grid td.mut,tr.mut td{color:var(--muted)}
+.gstat{display:flex;gap:8px;font-size:12px;padding:3px 2px;color:var(--text);min-height:20px}
+.gstat .sub{font-size:11px}
+.gpop{position:fixed;z-index:50;background:var(--panel);border:1px solid var(--line);border-radius:6px;box-shadow:0 6px 24px rgba(0,0,0,.18);padding:8px;width:280px;font-size:12px}
+.gpop .row{display:flex;gap:4px;align-items:center;margin:4px 0}
+.gpop .row.end{justify-content:flex-end}
+.gpop input{font:inherit;font-size:12px;padding:2px 4px;border:1px solid var(--line);border-radius:4px;background:var(--panel);color:var(--text)}
+.gpop .vals{max-height:240px;overflow:auto;border:1px solid var(--line2);padding:4px;border-radius:4px}
+.gpop .vals label,.gpop .crow label{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer}
+.gpop .clist{max-height:360px;overflow:auto}
+.gpop .crow{display:flex;justify-content:space-between;align-items:center;gap:4px}
+.gpop .crow button{padding:0 5px}
+.pend-bar{display:flex;gap:6px;align-items:center;font-size:12px;color:var(--warn)}

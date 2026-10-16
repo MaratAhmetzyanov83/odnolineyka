@@ -55,7 +55,9 @@ class LineScheme:
     sheet: Optional[int] = None         # лист схемы
     bus: str = ""                       # шина (пусто = основная)
     qf: str = ""                        # QF1, QFD3…
-    breaker: str = ""                   # «2P С16А 30мА»
+    breaker: str = ""                   # «2P С16А 30мА» (итог на схеме)
+    breaker_set: str = ""               # что задано: «авто» или текст (правится; только у первой строки группы)
+    group_head: bool = False            # первая строка группы (у неё свой автомат)
     in_a: Optional[float] = None        # In автомата группы на схеме, А
     devices: list = field(default_factory=list)
     terminal: str = ""

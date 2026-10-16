@@ -116,6 +116,14 @@ class ExcelV312(Source):
             wb.close()
         return doc
 
+    def write(self, path, cells):
+        from .writer import write_cells
+        return write_cells(path, cells)
+
+    def cells_for(self, prj, changes):
+        from .writer import cells_for
+        return cells_for(prj, changes)
+
     def open_at(self, path, ref):
         """Книга — в Excel пользователя (видимый), лист и ячейка выделены. Без pywin32 — просто открыть файл."""
         try:
@@ -142,6 +150,10 @@ register(ExcelV312())
 
 
 # ---------------------------------------------------------------- разбор книги
+def _row(ref) -> int:
+    return int("".join(ch for ch in ref.cell if ch.isdigit()) or 0)
+
+
 def _ref(doc, sheet, col, row):
     return M.Ref(doc.file, sheet, f"{col}{row}")
 
@@ -199,6 +211,8 @@ def _fill(doc: M.Document, src: Rows, odn: Rows, split: Rows, net: Rows):
                     set_path(ln, path, v)
             ln.scheme.qf = txt(odn.get(r, X.ODN_QF))
             ln.scheme.breaker, ln.scheme.in_a = brk, in_a
+            ln.scheme.breaker_set = txt(odn.get(r, X.ODN_BREAKER_SET))
+            ln.scheme.group_head = bool(ln.scheme.qf) and bool(txt(odn.get(r, X.ODN_BREAKER)))
             ln.scheme.devices = [d for d in (txt(odn.get(r, c)) for c in X.ODN_DEVICES) if d]
             ln.result.status = txt(odn.get(r, X.ODN_STATUS))
             ln.result.level = inum(odn.get(r, X.ODN_LEVEL)) or 0
@@ -207,7 +221,7 @@ def _fill(doc: M.Document, src: Rows, odn: Rows, split: Rows, net: Rows):
         panels[pn].lines.append(ln)
 
     for p in panels.values():
-        p.lines.sort(key=lambda x: (x.scheme.place is None, x.scheme.place or 0, x.refs["input"].cell))
+        p.lines.sort(key=lambda x: (x.scheme.place is None, x.scheme.place or 0, _row(x.refs["input"])))
 
     # раздел Б: что щит записал о нижестоящих
     if net.rows:

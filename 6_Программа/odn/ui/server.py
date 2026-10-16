@@ -21,6 +21,15 @@ def make_handler(app):
             pass
 
         def _send(self, code, body, ctype="application/json; charset=utf-8"):
+            if isinstance(body, routes.File):
+                from urllib.parse import quote
+                self.send_response(code)
+                self.send_header("Content-Type", body.ctype)
+                self.send_header("Content-Disposition", f"attachment; filename=\"odnolineyka.xlsx\"; filename*=UTF-8''{quote(body.name)}")
+                self.send_header("Content-Length", str(len(body.data)))
+                self.end_headers()
+                self.wfile.write(body.data)
+                return
             if not isinstance(body, bytes):
                 body = json.dumps(body, ensure_ascii=False).encode("utf-8")
             self.send_response(code)
@@ -35,6 +44,9 @@ def make_handler(app):
             if not fn:
                 return self._send(404, {"ok": False, "error": "нет такого запроса"})
             body = {}
+            if "?" in self.path:
+                from urllib.parse import parse_qsl
+                body = dict(parse_qsl(self.path.split("?", 1)[1]))
             if method == "POST":
                 n = int(self.headers.get("Content-Length") or 0)
                 body = json.loads(self.rfile.read(n) or b"{}")

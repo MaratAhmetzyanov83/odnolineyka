@@ -4,6 +4,7 @@
 Объект строится один раз (≈30 с) в папку ODN_DEMO или во временную; повторно — берётся готовый.
 """
 import os
+import shutil
 import sys
 import tempfile
 import unittest
@@ -63,6 +64,85 @@ class TestExcelV312(unittest.TestCase):
         b = load_project(FOLDER, progress=self.fail)          # всё из кэша — ничего не читается
         self.assertEqual(len(a.issues), len(b.issues))
         self.assertEqual([p.revision for p in a.panels()], [p.revision for p in b.panels()])
+
+
+class TestEdit(unittest.TestCase):
+    """Запись правок, журнал, резерв, отмена — на копии объекта (тестовая запись openpyxl, без Excel)."""
+
+    @classmethod
+    def setUpClass(cls):
+        TestExcelV312.setUpClass()
+        cls.dir = tempfile.mkdtemp(prefix="odn_edit_")
+        cls.folder = os.path.join(cls.dir, "объект")
+        shutil.copytree(FOLDER, cls.folder, ignore=shutil.ignore_patterns("_окно"))
+        os.environ["ODN_TEST_WRITER"] = "1"
+
+    @classmethod
+    def tearDownClass(cls):
+        os.environ.pop("ODN_TEST_WRITER", None)
+        shutil.rmtree(cls.dir, ignore_errors=True)
+
+    def load(self):
+        return load_project(self.folder, progress=lambda s: None)
+
+    def test_write_undo(self):
+        from odn.services import edit
+        prj = self.load()
+        pid = next(p.id for p in prj.panels() if p.name == "ЩР-1")
+        r = edit.apply_changes(prj, [
+            {"panel": pid, "line": "R.1.01.1", "path": "input.length_plan", "new": "12,5"},
+            {"panel": pid, "line": "R.1.01.1", "path": "scheme.breaker_set", "new": "1P C10А"},
+            {"panel": pid, "line": "R.1.02.1", "path": "input.cores", "new": 5},
+        ])
+        self.assertEqual((r["written"], r["docs"], r["errors"]), (3, ["ЩР-1.xlsx"], []))
+        prj = self.load()
+        self.assertEqual(prj.line(pid, "R.1.01.1").input.length_plan, 12.5)
+        self.assertEqual(prj.line(pid, "R.1.01.1").scheme.breaker_set, "1P C10А")
+        self.assertEqual(prj.line(pid, "R.1.02.1").input.cores, 5)
+        j = edit.read_journal(prj)
+        self.assertEqual(len(j), 1)
+        self.assertEqual(j[0]["changes"][0]["cell"], "Исходные данные!I21")
+        self.assertTrue(os.path.isfile(os.path.join(self.folder, j[0]["backup"])))
+        # ничего не изменилось — ничего не пишется
+        self.assertEqual(edit.apply_changes(prj, [{"panel": pid, "line": "R.1.01.1", "path": "input.length_plan", "new": 12.5}])["written"], 0)
+        # отмена
+        r = edit.undo_last(prj)
+        self.assertEqual(r["written"], 3)
+        prj = self.load()
+        self.assertEqual((prj.line(pid, "R.1.01.1").input.length_plan, prj.line(pid, "R.1.01.1").scheme.breaker_set), (8.0, "авто"))
+        self.assertEqual(edit.undo_last(prj)["errors"], ["нечего отменять"])
+        # служебная папка не читается как книга объекта
+        self.assertEqual(sorted(p.name for p in prj.panels()), ["ГРЩ", "ЩР-1", "ЩР-2"])
+
+    def test_conflict(self):
+        from odn.services import edit
+        prj = self.load()
+        pid = next(p.id for p in prj.panels() if p.name == "ЩР-2")
+        path = os.path.join(self.folder, prj.panel(pid).doc)
+        os.utime(path, (os.path.getatime(path), os.path.getmtime(path) + 10))     # книгу изменили после чтения
+        r = edit.apply_changes(prj, [{"panel": pid, "line": "R.1.01.1", "path": "input.p_kw", "new": 1}])
+        self.assertEqual(r["written"], 0)
+        self.assertIn("изменилась после чтения", r["errors"][0])
+
+    def test_locked(self):
+        from odn.services import edit
+        prj = self.load()
+        pid = next(p.id for p in prj.panels() if p.name == "ГРЩ")
+        lock = os.path.join(self.folder, "~$ГРЩ.xlsx")
+        open(lock, "w").close()
+        try:
+            r = edit.apply_changes(prj, [{"panel": pid, "line": "Щ.1", "path": "input.p_kw", "new": 9}])
+        finally:
+            os.remove(lock)
+        self.assertIn("открыта в Excel", r["errors"][0])
+
+    def test_export(self):
+        from odn.services import export
+        import io
+        import openpyxl
+        data = export.to_xlsx("Линии", [{"t": "Линия"}, {"t": "P", "n": True}], [["R.1", 0.5], ["R.2", None]])
+        ws = openpyxl.load_workbook(io.BytesIO(data)).active
+        self.assertEqual([[c.value for c in r] for r in ws.iter_rows()], [["Линия", "P"], ["R.1", 0.5], ["R.2", None]])
 
 
 if __name__ == "__main__":

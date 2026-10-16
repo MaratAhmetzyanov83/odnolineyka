@@ -1,5 +1,7 @@
 // Данные объекта и индексы. Экранам — только чтение.
 export const S = { P: null, panels: {}, issuesBy: {}, rules: {}, kids: {} };
+export const OPTIONS = {};          // правимые поля: {путь: {title, type, options, when}} — с сервера
+export function setOptions(o){ for (const k in OPTIONS) delete OPTIONS[k]; Object.assign(OPTIONS, o); }
 
 export function setProject(P){
   S.P = P; S.panels = {}; S.issuesBy = {}; S.kids = {}; S.rules = {};
