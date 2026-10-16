@@ -806,10 +806,26 @@
 (setq sx:xl nil sx:xl-created nil sx:wb nil sx:wb-opened nil
       sx:sheets nil sx:si 0 sx:panels nil sx:pi 0 sx:path "")
 
+;;; Excel ещё отвечает (после закрытия процесса ссылка даёт «Сервер RPC недоступен»)
+(defun sx:xl-alive (xl)
+  (and xl (= (type xl) 'VLA-OBJECT)
+       (not (vl-catch-all-error-p (vl-catch-all-apply 'vlax-get-property (list xl 'Version))))))
+(defun sx:xl-visible (xl / v)
+  (setq v (vl-catch-all-apply 'vlax-get-property (list xl 'Visible)))
+  (and (not (vl-catch-all-error-p v)) (= (sx:v v) :vlax-true)))
+
+;;; v3.24: мёртвая ссылка сбрасывается; скрытый Excel (/automation скриптов update_book, patch_*) не берём —
+;;; он закрывается в любой момент. Тогда — свой экземпляр.
 (defun sx:xl-app ( / xl)
+  (if (and sx:xl (not (sx:xl-alive sx:xl)))
+    (progn (sx:log "Excel: old reference is dead (RPC) - reconnect")
+           (setq sx:xl nil sx:xl-created nil sx:wb nil sx:wb-opened nil sx:sheets nil)))
   (if (null sx:xl)
     (progn
       (setq xl (vl-catch-all-apply 'vlax-get-object (list "Excel.Application")))
+      (if (and xl (not (vl-catch-all-error-p xl)) (not (sx:xl-visible xl)))
+        (progn (sx:log "Excel: running instance is hidden (script) - skip")
+               (sx:rel xl) (setq xl nil)))
       (if (or (null xl) (vl-catch-all-error-p xl))
         (setq xl (vlax-create-object "Excel.Application") sx:xl-created T))
       (setq sx:xl xl)))
