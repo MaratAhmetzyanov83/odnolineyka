@@ -528,6 +528,148 @@ fail:
     End If
 End Function
 
+' ---------------------------------------------------------------- новый фидер в вышестоящем
+' снять / вернуть защиту листа с теми же разрешениями
+Private Function Unlock(ws As Worksheet) As Variant
+    Dim a(1 To 11) As Boolean, p As Object
+    If Not ws.ProtectContents Then Unlock = Empty: Exit Function
+    Set p = ws.Protection
+    a(1) = p.AllowFormattingCells: a(2) = p.AllowFormattingColumns: a(3) = p.AllowFormattingRows
+    a(4) = p.AllowInsertingColumns: a(5) = p.AllowInsertingRows: a(6) = p.AllowInsertingHyperlinks
+    a(7) = p.AllowDeletingColumns: a(8) = p.AllowDeletingRows: a(9) = p.AllowSorting
+    a(10) = p.AllowFiltering: a(11) = p.AllowUsingPivotTables
+    ws.Unprotect PWD
+    Unlock = a
+End Function
+
+Private Sub Relock(ws As Worksheet, a As Variant)
+    If IsEmpty(a) Then Exit Sub
+    ws.Protect PWD, DrawingObjects:=True, Contents:=True, Scenarios:=True, _
+        AllowFormattingCells:=a(1), AllowFormattingColumns:=a(2), AllowFormattingRows:=a(3), _
+        AllowInsertingColumns:=a(4), AllowInsertingRows:=a(5), AllowInsertingHyperlinks:=a(6), _
+        AllowDeletingColumns:=a(7), AllowDeletingRows:=a(8), AllowSorting:=a(9), _
+        AllowFiltering:=a(10), AllowUsingPivotTables:=a(11)
+End Sub
+
+' номер нового фидера: по последней линии «Щ.…» книги — следующий номер (Щ.0.01.1 -> Щ.0.02.1), иначе Щ.1.1
+Private Function NextFeederNo(ids As Variant) As String
+    Dim i As Long, last As String, p() As String, k As Long, n As Long, w As Long, t As String, used As Object
+    Set used = CreateObject("Scripting.Dictionary")
+    If Not IsArray(ids) Then NextFeederNo = "Щ.1.1": Exit Function
+    For i = 1 To UBound(ids, 1)
+        t = S(ids(i, 1))
+        If t <> "" Then used(LCase$(t)) = True
+        If Left$(t, 2) = "Щ." Then last = t
+    Next i
+    If last = "" Then NextFeederNo = "Щ.1.1": Exit Function
+    p = Split(last, ".")
+    k = IIf(UBound(p) >= 3, UBound(p) - 1, UBound(p))      ' Щ.этаж.пом.n -> пом; Щ.этаж.n -> n
+    If UBound(p) >= 3 Then p(UBound(p)) = "1"
+    w = Len(p(k)): n = Val(p(k))
+    Do
+        n = n + 1
+        p(k) = Right$(String$(w, "0") & CStr(n), IIf(Len(CStr(n)) > w, Len(CStr(n)), w))
+        t = Join(p, ".")
+    Loop While used.Exists(LCase$(t))
+    NextFeederNo = t
+End Function
+
+' Создать в вышестоящей книге upPath линию-фидер feeder к щиту board (3 места: «Исходные данные», «Разбивка_по_щитам» H,
+' «Однолинейка» E «авто»). Место — первое свободное в конце щита upBoard («Сеть_щита» B6; пусто — первый щит книги).
+' Книгу сохраняет и оставляет открытой. Возвращает текст итога; ошибка — «Фидер не создан: …».
+Public Function SX_CreateFeeder(ByVal upPathV As Variant, ByVal boardV As Variant, ByVal feederV As Variant, _
+                                Optional ByVal lenV As Variant = "", Optional ByVal phasesV As Variant = 3, _
+                                Optional ByVal upBoardV As Variant = "") As String
+    Dim up As Workbook, opened As Boolean, src As Worksheet, rz As Worksheet, odnS As Worksheet, net As Worksheet
+    Dim ids As Variant, f As Variant, h As Variant, ei As Variant, i As Long, rowSrc As Long, rowZ As Long
+    Dim first As Long, lastR As Long, upBoard As String, feeder As String, board As String, ph As Long
+    Dim l1 As Variant, l2 As Variant, l3 As Variant
+    feeder = Trim$(CStr(feederV)): board = Trim$(CStr(boardV)): upBoard = Trim$(CStr(upBoardV))
+    ph = IIf(Val(CStr(phasesV)) = 1, 1, 3)
+    On Error GoTo fail
+    If feeder = "" Or InStr(feeder, ".") = 0 Then Err.Raise vbObjectError + 21, , "номер линии нужен с точкой, например Щ.0.02.1"
+    Set up = OpenBook(CStr(upPathV), opened)
+    If Not HasSheet(up, "Исходные данные") Or Not HasSheet(up, "Разбивка_по_щитам") Or Not HasSheet(up, ODN) Then _
+        Err.Raise vbObjectError + 22, , "«" & up.Name & "» — не книга однолинейки"
+    Set src = up.Sheets("Исходные данные"): Set rz = up.Sheets("Разбивка_по_щитам"): Set odnS = up.Sheets(ODN)
+    If upBoard = "" Then
+        Set net = NetSheet(up)
+        If Not net Is Nothing Then upBoard = S(net.Range("B6").Value)
+    End If
+    ' 1) «Исходные данные»: номер не занят; строка — после последней заполненной
+    ids = src.Range("D3:D1000").Value
+    rowSrc = 0
+    For i = 1 To UBound(ids, 1)
+        If StrComp(S(ids(i, 1)), feeder, vbTextCompare) = 0 Then Err.Raise vbObjectError + 23, , "линия «" & feeder & "» уже есть («Исходные данные» D" & (i + 2) & ")"
+        If S(ids(i, 1)) <> "" Then rowSrc = i
+    Next i
+    rowSrc = rowSrc + 3
+    If rowSrc > 1000 Then Err.Raise vbObjectError + 24, , "в «Исходных данных» нет свободных строк"
+    ' 2) «Разбивка_по_щитам»: свободное место в конце щита (F = щит, H пусто, дальше по щиту — тоже пусто)
+    f = rz.Range("F1:F1000").Value: h = rz.Range("H1:H1000").Value
+    ei = odnS.Range("E1:I1000").Value
+    If upBoard = "" Then
+        For i = 3 To 1000
+            If S(f(i, 1)) <> "" Then upBoard = S(f(i, 1)): Exit For
+        Next i
+    End If
+    first = 0: lastR = 0
+    For i = 3 To 1000
+        If S(f(i, 1)) = upBoard Then
+            If first = 0 Then first = i
+            lastR = i
+        End If
+    Next i
+    If first = 0 Then Err.Raise vbObjectError + 25, , "в «Разбивка_по_щитам» нет щита «" & upBoard & "»"
+    rowZ = 0
+    For i = lastR To first Step -1
+        If S(f(i, 1)) <> upBoard Then Exit For
+        If S(h(i, 1)) <> "" Or S(ei(i, 1)) <> "" Or S(ei(i, 5)) <> "" Then Exit For
+        rowZ = i
+    Next i
+    ' место узла КМ (два пустых места после «КМ АПС») не берём
+    Do While rowZ > 0
+        If InStr(1, IIf(rowZ - 1 >= 3, S(ei(rowZ - 1, 5)), "") & " " & IIf(rowZ - 2 >= 3, S(ei(rowZ - 2, 5)), ""), _
+                 "АПС", vbTextCompare) = 0 Then Exit Do
+        rowZ = rowZ + 1
+        If rowZ > lastR Then rowZ = 0
+    Loop
+    ' свободных мест нет: щит последний в списке — берём строку сразу за ним
+    If rowZ = 0 And lastR < 1000 Then
+        If S(f(lastR + 1, 1)) = "" And S(h(lastR + 1, 1)) = "" Then rowZ = lastR + 1
+    End If
+    If rowZ = 0 Then Err.Raise vbObjectError + 26, , "у щита «" & upBoard & "» нет свободного места в конце " & _
+        "(«Разбивка_по_щитам» F = щит, H пусто) — добавьте место и повторите"
+    ' запись
+    l1 = Unlock(src): l2 = Unlock(rz): l3 = Unlock(odnS)
+    src.Cells(rowSrc, 3).Value = board                        ' C наименование
+    src.Cells(rowSrc, 4).Value = feeder                       ' D номер линии
+    src.Cells(rowSrc, 5).Value = 0                            ' E мощность — из нижестоящего (раздел Б)
+    src.Cells(rowSrc, 6).Value = IIf(ph = 1, 230, 400)        ' F
+    src.Cells(rowSrc, 8).Value = ph                           ' H фазы
+    If Val(CStr(lenV)) > 0 Then src.Cells(rowSrc, 9).Value = Val(Replace(CStr(lenV), ",", "."))   ' I длина
+    src.Cells(rowSrc, 14).Value = "мс"                        ' N марка (по коду «Справочной»)
+    src.Cells(rowSrc, 15).Value = IIf(ph = 1, 3, 5)           ' O жил; сечение Q пусто — подбор по току
+    If S(f(rowZ, 1)) = "" Then rz.Cells(rowZ, 6).Value = upBoard
+    rz.Cells(rowZ, 8).Value = feeder
+    odnS.Cells(rowZ, 5).Value = "авто"
+    Relock src, l1: Relock rz, l2: Relock odnS, l3
+    Application.Calculate
+    up.Save
+    SX_LastMsg = "Фидер создан: «" & up.Name & "», линия " & feeder & " → щит «" & board & "»" & vbLf & _
+        "«Исходные данные» строка " & rowSrc & ", место " & S(rz.Cells(rowZ, 3).Value) & " щита «" & upBoard & "» (строка " & rowZ & ")." & _
+        IIf(Val(CStr(lenV)) > 0, "", vbLf & "Длину впишите в «Исходные данные» I" & rowSrc & " (или DLN).")
+    SX_CreateFeeder = SX_LastMsg
+    Exit Function
+fail:
+    SX_LastMsg = "Фидер не создан: " & Err.Description
+    SX_CreateFeeder = SX_LastMsg
+    If opened Then
+        On Error Resume Next
+        up.Close False
+    End If
+End Function
+
 ' кнопка «Связать с вышестоящим»: выбрать щит этой книги, файл вышестоящего, линию-фидер
 Public Sub SX_LinkUpstream()
     Dim child As Workbook, cNet As Worksheet, f As Variant, up As Workbook, opened As Boolean
@@ -568,6 +710,35 @@ Public Sub SX_LinkUpstream()
         Next i
     End If
     If opened Then up.Close False
+    ' линии к этому щиту нет — предложить создать фидер в вышестоящей книге
+    If feeder = "" Then
+        If MsgBox("В «" & Dir(CStr(f)) & "» нет линии к щиту «" & board & "»." & vbLf & vbLf & _
+                  "Создать фидер в вышестоящей книге?" & vbLf & _
+                  "(строка в «Исходных данных», место в «Разбивка_по_щитам», «авто» в «Однолинейке»)", _
+                  vbYesNo + vbQuestion, "Связать с вышестоящим") = vbYes Then
+            Dim nf As String, lenS As String, ph As Long, ci As Variant
+            nf = Trim$(InputBox("Номер новой линии-фидера в «" & Dir(CStr(f)) & "»:", "Новый фидер", NextFeederNo(a)))
+            If nf = "" Then Exit Sub
+            lenS = Trim$(InputBox("Длина фидера по плану, м (пусто — впишете потом):", "Новый фидер", _
+                                  S(cNet.Cells(22, 2 + k).Value)))
+            ph = 3                                    ' фазы — как у ввода этого щита
+            If HasSheet(child, "Исходные данные") Then
+                ci = child.Sheets("Исходные данные").Range("D3:H1000").Value
+                For i = 1 To UBound(ci, 1)
+                    If S(ci(i, 1)) = "Ввод." & inp Or (inp = 1 And S(ci(i, 1)) = "Ввод") Then
+                        If NumV(ci(i, 5)) = 1 Then ph = 1
+                        Exit For
+                    End If
+                Next i
+            End If
+            SX_CreateFeeder CStr(f), board, nf, lenS, ph
+            If Left$(SX_LastMsg, 12) <> "Фидер создан" Then Say SX_LastMsg, vbExclamation: Exit Sub
+            Dim made As String: made = SX_LastMsg
+            SX_LinkUpstreamTo CStr(f), nf, k, inp
+            Say made & vbLf & vbLf & SX_LastMsg, IIf(Left$(SX_LastMsg, 7) = "Связано", vbInformation, vbExclamation)
+            Exit Sub
+        End If
+    End If
     feeder = Trim$(InputBox("Линия-фидер в «" & Dir(CStr(f)) & "», которая питает щит «" & board & "»" & vbLf & _
         "(номер как в «Исходных данных», столбец D):", "Связать с вышестоящим", feeder))
     If feeder = "" Then Exit Sub
@@ -1227,7 +1398,8 @@ Public Sub SX_Help()
         "• Принять изменения — когда снабжение получило: подсветка снимается, ревизия +1." & vbLf & _
         "• Бирки — создаёт лист «Бирки» по «Однолинейке» (значения). Изменили схему — нажмите снова." & vbLf & _
         "• Наклейки — лента под аппаратами, клетка = 1 модуль DIN. Проверьте пробной печатью." & vbLf & _
-        "• Связать с вышестоящим — один щит = одна книга: выбрать файл вышестоящего и линию-фидер; связи ставятся в обе книги." & vbLf & _
+        "• Связать с вышестоящим — один щит = одна книга: выбрать файл вышестоящего и линию-фидер; связи ставятся в обе книги. " & _
+        "Нет линии к щиту — предложит создать фидер в вышестоящей книге (номер, длина)." & vbLf & _
         "• Обновить связи — подтянуть данные из связанных книг и показать, что изменилось. Дерево щитов — схема и проверки по папке объекта." & vbLf & _
         "• ПЗ по объекту — из всех книг папки: ПЗ_<объект>.xlsx (таблицы) и ПЗ_<объект>.docx (расчётная часть)." & vbLf & _
         "• Только ввод / Ввод + расчёт / Все столбцы — какие столбцы видны на «Однолинейке» и «Исходных данных» (работает и на защищённом листе)." & vbLf & vbLf & _
