@@ -49,4 +49,16 @@ $("#reload").onclick = async () => {
   try { await api.reload(); await load(); toast("Обновлено"); } catch (e){ toast("Ошибка: " + e.message); }
   b.disabled = false; b.textContent = "Обновить";
 };
+// тема: авто -> светлая -> тёмная; запоминается в браузере
+const THEMES = [["", "авто"], ["light", "светлая"], ["dark", "тёмная"]];
+function showTheme(){ const t = document.documentElement.dataset.theme || "";
+  $("#theme").textContent = "Тема: " + (THEMES.find(x => x[0] === t) || THEMES[0])[1]; }
+$("#theme").onclick = () => {
+  const cur = document.documentElement.dataset.theme || "";
+  const next = THEMES[(THEMES.findIndex(x => x[0] === cur) + 1) % THEMES.length][0];
+  if (next) document.documentElement.dataset.theme = next; else delete document.documentElement.dataset.theme;
+  try { next ? localStorage.setItem("odn-theme", next) : localStorage.removeItem("odn-theme"); } catch (e) {}
+  showTheme();
+};
+showTheme();
 load();
