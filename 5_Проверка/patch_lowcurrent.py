@@ -63,14 +63,35 @@ def col_letter(n):
     return s
 
 
-def ref_sheet(wb, log):
+TITLES = ("", "СЛАБОТОЧНЫЕ ЛИНИИ", "СЛАБОТОЧНЫЕ КОДЫ", "Слаботочные коды (без тока, нагрузки и своего автомата)")
+
+
+def manual_codes(wb):
+    """Коды строк, где признак слаботочной вписан вручную (1 без формулы) — чтобы формула его не сбросила."""
+    ws = wb.Worksheets(SRC)
+    hdr = [str(x or "").strip() for x in ws.Range("A2:EZ2").Value[0]]
+    c = hdr.index(SRC_HDR) + 1 if SRC_HDR in hdr else 80
+    out = []
+    for f, code in zip(ws.Range(f"{col_letter(c)}3:{col_letter(c)}1000").Formula,
+                       ws.Range("AH3:AH1000").Value):
+        f, code = f[0], str(code[0] or "").strip()
+        if str(f).strip() == "1" and code and code not in out:
+            out.append(code)
+    return out
+
+
+def ref_sheet(wb, log, extra=()):
     ws = wb.Worksheets(REF)
     opts = unprotect(ws)
     if "Слаботочные_коды" not in [n.Name for n in wb.Names]:
-        if any(ws.Range(f"CC{r}").Formula not in ("", None) for r in range(2, 41)):
+        # шапку «СЛАБОТОЧНЫЕ КОДЫ» ставит tidy_book.py — она не мешает
+        if (any(ws.Range(f"CC{r}").Formula not in ("", None) for r in range(4, 41))
+                or any(str(ws.Range(f"CC{r}").Formula or "").strip() not in TITLES for r in (2, 3))):
             raise RuntimeError("«Справочная» CC2:CC40 занят — некуда записать «Слаботочные коды»")
-        ws.Range("CC2").Value = "СЛАБОТОЧНЫЕ ЛИНИИ"
-        ws.Range("CC3").Value = "Слаботочные коды (без тока, нагрузки и своего автомата)"
+        if not ws.Range("CC2").Formula:
+            ws.Range("CC2").Value = "СЛАБОТОЧНЫЕ ЛИНИИ"
+        if not ws.Range("CC3").Formula:
+            ws.Range("CC3").Value = "Слаботочные коды (без тока, нагрузки и своего автомата)"
         for i, c in enumerate(CODES):
             ws.Range(f"CC{4 + i}").Value = c
         ws.Range("CC2:CC3").Font.Bold = True
@@ -78,6 +99,16 @@ def ref_sheet(wb, log):
         ws.Columns("CC").ColumnWidth = 22
         wb.Names.Add(Name="Слаботочные_коды", RefersTo="='Справочная'!$CC$4:$CC$40")
         log.append("список «Слаботочные коды» добавлен")
+    have = [str(x[0] or "").strip() for x in ws.Range("CC4:CC40").Value]
+    add = [c for c in extra if c not in have]
+    for c in add:
+        if "" not in have:
+            break
+        r = 4 + have.index("")
+        ws.Range(f"CC{r}").Value = c
+        have[r - 4] = c
+    if add:
+        log.append(f"«Слаботочные коды» + {', '.join(add)} (был ручной признак 1)")
     codes = [str(x[0] or "").strip() for x in ws.Range("P4:P51").Value]
     if "KNX" not in codes:
         r = 4 + codes.index("")
@@ -171,7 +202,10 @@ def run(paths):
             try:
                 app.Calculation = -4135
                 log = []
-                ref_sheet(wb, log)
+                if wb.ReadOnly:                      # открыта у другого — не трогаем
+                    print(f"{os.path.basename(path)}: открыта у другого пользователя — пропущена")
+                    continue
+                ref_sheet(wb, log, manual_codes(wb))
                 c = src_sheet(wb, log)
                 nag_sheet(wb, c, log)
                 odn_sheet(wb, c, log)
