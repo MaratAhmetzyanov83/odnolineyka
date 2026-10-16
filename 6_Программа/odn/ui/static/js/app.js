@@ -4,6 +4,7 @@ import * as api from "./api.js";
 import { S, setProject } from "./store.js";
 import { parse } from "./nav.js";
 import { toast } from "./fmt.js";
+import * as grid from "./grid.js";
 import * as tree from "./views/tree.js";
 import * as objectView from "./views/object.js";
 import * as panelView from "./views/panel.js";
@@ -37,6 +38,8 @@ document.addEventListener("click", async ev => {
     catch (e){ toast("Не открыто: " + e.message); }
     return;
   }
+  const th = ev.target.closest("[data-sort]");
+  if (th){ const [key, col] = th.dataset.sort.split("|"); grid.toggle(key, col); render(); return; }
   const go = ev.target.closest("[data-go]");
   if (go){ ev.preventDefault(); location.hash = go.dataset.go; }
 });
