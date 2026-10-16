@@ -1,10 +1,10 @@
-;;; SX_Panel v2.01 — внутренняя компоновка электрощита из Excel.
+;;; SX_Panel v2.02 — внутренняя компоновка электрощита из Excel.
 ;;; CPDRAW / CPUPDATE / CPEDIT / CPDELETE / CPEXPLODE. Самостоятельный LISP, SX_Schema не нужен.
 ;;; Модульные аппараты и клеммы из пользовательской базы. v2.0: ввод первым, фазы L1-L2-L3 под гребёнки,
 ;;; кросс-модули L/N и N/PE, монтажные провода, DIN-рейки и корпус DKC (SX_Корпуса.csv).
 ;;; Excel: читается «Однолинейка» и «Каталог»; пишется только лист «Сборка_щита». Слои CP_*.
 (vl-load-com)
-(setq cp:version "2.0" cp:app "SX_PANEL" cp:partsapp "SX_PANEL_PARTS")
+(setq cp:version "2.02" cp:app "SX_PANEL" cp:partsapp "SX_PANEL_PARTS")
 
 ;;; Unicode / CP1251: строки работают и при LISPSYS=0.
 (defun cp:cp (c)
@@ -43,10 +43,15 @@
   (if (and cp:xl cp:created) (vl-catch-all-apply 'vlax-invoke-method (list cp:xl 'Quit)))
   (cp:rel cp:xl)
   (setq cp:wb nil cp:xl nil cp:opened nil cp:created nil))
-(defun cp:open-book (path ro / wbs w)
+(defun cp:open-book (path ro / wbs w vis)
   (cp:close-book)
   (setq cp:xl (vl-catch-all-apply 'vlax-get-object '("Excel.Application")))
-  (if (vl-catch-all-error-p cp:xl) (setq cp:xl (vlax-create-object "Excel.Application") cp:created T))
+  ;; v2.02: скрытый Excel скриптов (update_book, patch_*) не берём — он закрывается в любой момент (RPC недоступен).
+  (if (and cp:xl (not (vl-catch-all-error-p cp:xl))
+           (or (vl-catch-all-error-p (setq vis (vl-catch-all-apply 'vlax-get-property (list cp:xl 'Visible))))
+               (/= (cp:v vis) :vlax-true)))
+    (progn (cp:rel cp:xl) (setq cp:xl nil)))
+  (if (or (null cp:xl) (vl-catch-all-error-p cp:xl)) (setq cp:xl (vlax-create-object "Excel.Application") cp:created T))
   (setq wbs (vlax-get-property cp:xl 'Workbooks))
   (vlax-for w wbs
     (if (and (null cp:wb) (= (strcase path) (strcase (vlax-get-property w 'FullName))))
@@ -1364,5 +1369,5 @@
         (vla-regen cp:doc 1)
         (princ (cp:ru '(1050 1086 1084 1087 1086 1085 1086 1074 1082 1072 32 1088 1072 1079 1076 1077 1083 1077 1085 1072 32 1085 1072 32 1086 1090 1076 1077 1083 1100 1085 1099 1077 32 1086 1073 1098 1077 1082 1090 1099 46))))))
   (princ))
-(princ "\nSX_Panel v2.01: CPDRAW / CPUPDATE / CPEDIT / CPDELETE / CPEXPLODE")
+(princ "\nSX_Panel v2.02: CPDRAW / CPUPDATE / CPEDIT / CPDELETE / CPEXPLODE")
 (princ)
