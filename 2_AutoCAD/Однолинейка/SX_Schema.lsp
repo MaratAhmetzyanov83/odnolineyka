@@ -81,8 +81,10 @@
 ;;; Первый ввод листа — рамка от верха листа (наша граница обходит её), остальные — ниже основной шины.
 (setq sx:fdL 25.0 sx:fdR 11.0       ; рамка питающего щита: влево / вправо от столбца ввода
       sx:fdD1 40.0 sx:fdD2 36.0     ; длина автомата фидера (шина -> низ): 1-й ввод листа / следующие
-      sx:fdQsBot 123.5 sx:fdLoop 121.5   ; низ QS и петля к шине (выше шины PE и клемм)
-      sx:fdTxt1 7.0 sx:fdTxt2 11.0) ; подписи кабеля фидера (повёрнуты) справа от столбца
+      sx:fdQsBot 123.5 sx:fdLoop 72.96   ; низ QS; петля к шине — v3.24: под щитом, ниже ячейки кабеля таблицы
+                                          ; (образец пользователя ЩР-1, 16.10; было 121.5 — над шиной PE)
+      sx:fdTxt1 7.0 sx:fdTxt2 11.0  ; подписи кабеля фидера (повёрнуты) справа от столбца
+      sx:fdCabTxt nil)              ; v3.24: nil — кабель подписан только в таблице (марка, L, ΔU из «Сеть_щита»)
 
 ;;; столбцы листа «Однолинейка» (A = 1)
 (setq sx:cPanel 1 sx:cPos 2 sx:cBusName 4 sx:cQFtxt 8 sx:cDev1 9
@@ -1863,9 +1865,11 @@
   (sx:feed-qf u fb busL (sx:qf-vals (nth 0 f) (nth 1 f)) "QF")
   ;; кабель фидера и подписи (марка, длина)
   (sx:line u fb u qsTop sx:L)
-  (sx:textr (+ u sx:fdTxt1) (+ sx:fdQsBot 1.0) 2.5 (nth 2 f) sx:T 90.0)
-  (if (/= (nth 3 f) "")
-    (sx:textr (+ u sx:fdTxt2) (+ sx:fdQsBot 1.0) 2.5 (strcat "L=" (nth 3 f) (sx:ru '(1084))) sx:T 90.0))
+  (if sx:fdCabTxt
+    (progn
+      (sx:textr (+ u sx:fdTxt1) (+ sx:fdQsBot 1.0) 2.5 (nth 2 f) sx:T 90.0)
+      (if (/= (nth 3 f) "")
+        (sx:textr (+ u sx:fdTxt2) (+ sx:fdQsBot 1.0) 2.5 (strcat "L=" (nth 3 f) (sx:ru '(1084))) sx:T 90.0))))
   ;; вводной аппарат щита и петля к началу шины
   (sx:feed-qf u sx:fdQsBot qsTop (sx:qf-vals (sx:s (sx:c q sx:cQFown)) (sx:s (sx:c q sx:cQFtxt)))
               (if (or (wcmatch (strcase (sx:s (sx:c q sx:cQFtxt))) "QS*") (wcmatch (strcase (sx:s (sx:c q 7))) "QS*")) "QS" "QF"))   ; вид «QS» — если он есть в вашем блоке QF1
