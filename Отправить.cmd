@@ -5,8 +5,10 @@ where git >nul 2>&1 || goto nogit
 git config user.name >nul 2>&1 || git config user.name "%USERNAME%"
 git config user.email >nul 2>&1 || git config user.email "%USERNAME%@%COMPUTERNAME%"
 set OPEN=
-for /r %%f in (~$*) do set OPEN=%%~nxf
-for /r %%f in (*.dwl) do set OPEN=%%~nxf
+rem замки Excel (~$) и AutoCAD (.dwl) скрытые - for /r их не видит, нужен dir /a
+for /f "delims=" %%f in ('dir /s /b /a-d "~$*" "*.dwl" 2^>nul') do set OPEN=%%~nxf
+rem надстройка, подключённая в Excel, замков не оставляет, но файл занят - git зависает на "Unlink ... (y/n)"
+if exist "3_Макросы_Excel\Однолинейка.xlam" ren "3_Макросы_Excel\Однолинейка.xlam" "Однолинейка.xlam.chk" 2>nul && ren "3_Макросы_Excel\Однолинейка.xlam.chk" "Однолинейка.xlam" || if exist "3_Макросы_Excel\Однолинейка.xlam" set OPEN=Однолинейка.xlam - надстройка загружена в Excel
 if defined OPEN goto opened
 
 set GDRIVE=G:\Мой диск\odnolineyka
@@ -54,7 +56,7 @@ goto end
 echo.
 echo Открыт файл в Excel или AutoCAD (найден %OPEN%).
 echo Сохраните и закройте таблицы и чертежи из этой папки, потом запустите снова.
-echo Если всё закрыто, а сообщение повторяется - удалите этот файл: он остался после сбоя.
+echo Если всё закрыто, а сообщение повторяется - удалите этот файл-замок (~$... или .dwl): он остался после сбоя. Надстройку .xlam не удалять - закройте Excel.
 goto end
 
 :nogit

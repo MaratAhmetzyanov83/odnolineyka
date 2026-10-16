@@ -1,5 +1,5 @@
 ;;; ============================================================================
-;;;  SX_Schema.lsp  v3.22 —  однолинейная схема из Excel на ВАШИХ блоках
+;;;  SX_Schema.lsp  v3.23 —  однолинейная схема из Excel на ВАШИХ блоках
 ;;;
 ;;;  Команды:
 ;;;    SXDRAW    — окно: файл Excel, лист «Однолинейка», щит, точка вставки,
@@ -32,13 +32,13 @@
 ;;; ============================================================================
 
 (vl-load-com)
-(setq sx:ver "v3.22")
+(setq sx:ver "v3.23")
 
 
 ;;; ---------------------------------------------------------------- настройки
 (if (null *sx-sheet*) (setq *sx-sheet* 17))   ; мест (столбцов) на один лист A3
 (if (null *sx-step*)  (setq *sx-step* 20.0))  ; шаг столбца, мм
-(setq *sx-range* "A3:CI1000")                  ; данные на листе «Однолинейка» (BY = «УГО (рус)», BZ = «слаботочн.», CE:CI = узел КМ)
+(setq *sx-range* "A3:CK1000")                  ; данные на листе «Однолинейка» (BY = «УГО (рус)», BZ = «слаботочн.», CE:CI = узел КМ, CJ:CK = ДСУП)
 (setq *sx-style* "SX_GOST")                    ; текстовый стиль схемы (создаётся/обновляется при каждом запуске)
 (setq *sx-face* "GOST 2.304 type A")           ; шрифт (имя гарнитуры, как в окне «Текстовые стили»)
 (setq sx:red-rgb 10033950 sx:red-aci 244)       ; тёмно-красный 153,27,30 (как БП в вашем DWG)
@@ -67,6 +67,11 @@
       sx:vTop (+ 232.0 sx:dTop) sx:vHeadDx -55.0
       sx:vTickQ (/ (+ 162.96 sx:vXTtop) 2.0) sx:vTickLine (+ 119.5 sx:dLow)   ; засечки: на спуске от автомата (посередине) / на линии канала
       sx:vOutTop 73.0)   ; кабельный вывод в строке УГО: верх символа (ячейка УГО 62..75)
+;;; ДСУП (v3.23, образец «Однолинейка ЩР-2», лист 5): линии РЕ / КУП идут от той же шины PE (sx:vPE),
+;;; без автомата и клемм. Точка РЕ после КУП — отвод от линии КУП: горизонталь sx:vDsStep с фасками 2 мм.
+(setq sx:vDsStep (+ 119.23 sx:dLow)   ; отвод от КУП (ниже шины PE, выше нижней границы щита)
+      sx:vDsOut 72.16                 ; верх вывода точки РЕ
+      sx:vKupTop 71.35 sx:vKupIns 68.23 sx:kupSc 1.66 sx:kupDx 0.03)   ; блок «_КУП»: верх, вставка, масштаб (поворот 90°)
 (setq sx:xtb sx:vXTbot)   ; низ клеммы текущей строки (у двухуровневой клеммы выше на 2 мм)
 ;;; ввод: геометрия кабельной петли и отступ щита из образца 09.10.2026.
 ;;; Питающий щит слева — пользовательские блоки, его аппарат не выводится из QF ввода.
@@ -88,7 +93,9 @@
       sx:cUgoRu 77    ; BY: название УГО по-русски (пусто = у линии нет кода УГО)
       sx:cLow 78      ; BZ: 1 = слаботочная линия (DALI, KNX, датчики): клемма без PE
       ;; узел КМ (АПС), patch_km.py: CE имя шины KM-n, CG 1,1 x Iр шины, CH контактор, CI проверка
-      sx:cKM 83 sx:cKMcur 85 sx:cKMmod 86 sx:cKMchk 87)
+      sx:cKM 83 sx:cKMcur 85 sx:cKMmod 86 sx:cKMchk 87
+      ;; ДСУП, patch_dsup.py: CJ 1 = линия от шины PE (РЕ, КУП), CK = от какой КУП (пусто = от шины)
+      sx:cCode 38 sx:cDsup 88 sx:cDsupFrom 89)
 (setq sx:cStat 31 sx:rowBase 3)   ; AE = status of the row; first Excel row of the range A3:BL
 
 
@@ -522,6 +529,7 @@
         sx:bT      (sx:ru '(1041 1055))          ; трансформатор: вставка сверху, высота 13.8
         sx:bPS     (sx:ru '(1044 1088 1072 1081 1074 1077 1088))         ; блок питания: вставка снизу, высота 13.7
         sx:bMK     "MK-5-1"         ; вставка сверху, масштаб 0.6111
+        sx:bKUP    (sx:ru '(95 1050 1059 1055))   ; «_КУП» — коробка уравнивания потенциалов (ДСУП)
         sx:pVis    (sx:ru '(1042 1080 1076 1080 1084 1086 1089 1090 1100 49))        ; имя свойства видимости
         sx:pDist   (sx:ru '(1056 1072 1089 1089 1090 1086 1103 1085 1080 1077 49))       ; имя свойства длины
         sx:vBusVis (sx:ru '(1053 1072 1095 1072 1083 1086 45 1087 1088 1086 1076 1086 1083 1078 1077 1085 1080 1077)))    ; состояние шины
@@ -1303,7 +1311,7 @@
 (defun sx:draw-sheets (draw panel / sheets s us ue onsheet b2 segs k input left busus fd g xr notch q bus2us)
   (setq sheets '())
   (foreach d draw
-    (if (and (sx:content-p d) (not (member (sx:sheet (sx:i d)) sheets)))
+    (if (and (or (sx:content-p d) (sx:dsup-p d)) (not (member (sx:sheet (sx:i d)) sheets)))
       (setq sheets (cons (sx:sheet (sx:i d)) sheets))))
   (sx:log (strcat "sheets=" (sx:str sheets)))
   (foreach s sheets
@@ -1357,7 +1365,8 @@
               sx:vBus2L sx:vBus2N
               (if (sx:kma-find (car sg) draw) (strcat "L1,L2,L3 (" (car sg) ")") (car sg)))
       (setq k (1+ k)))
-    (if (vl-some '(lambda (d) (sx:is1 d sx:cXT)) onsheet)
+    ;; шина PE — одна на уровне sx:vPE: для клемм и для линий ДСУП
+    (if (vl-some '(lambda (d) (or (sx:is1 d sx:cXT) (sx:dsup-p d))) onsheet)
       (sx:line (if input (+ left 7.0) (+ us 3)) sx:vPE (- ue 1) sx:vPE sx:PE))))
     (strcat "sheet " (itoa (1+ s)))))))
 
@@ -1885,17 +1894,71 @@
       (setq pick (vl-some '(lambda (v) (if (wcmatch (strcase v) (if two "*2*" "*PE*,*3*")) v)) vals))
       (if pick (sx:dynset ob sx:pVis pick)))))
 
+;;; ---------------------------------------------------------------- ДСУП (v3.23)
+(defun sx:dsup-p (d) (sx:is1 d sx:cDsup))
+;;; КУП (или ШДУП) — коробка уравнивания потенциалов: блок «_КУП», к ней идут отводы точек РЕ
+(defun sx:kup-p (d)
+  (and (member (strcase (sx:s (sx:c d sx:cCode)))
+               (list (sx:ru '(1050 1059 1055)) (sx:ru '(1064 1044 1059 1055))))
+       T))
+
+;;; окрасить вставку в зелёный (цвет PE) — для блоков с цветом ПоБлоку
+(defun sx:green (ob / e ed)
+  (if (and ob (setq e (vlax-vla-object->ename ob)) (setq ed (entget e)))
+    (entmod (append (vl-remove-if '(lambda (x) (member (car x) '(62 420))) ed) (list (cons 62 3))))))
+
+;;; линия ДСУП: от шины PE (точка) или отводом от линии своей КУП (CK), внизу КУП или вывод.
+;;; sx:dsLast: (имя КУП . столбец последнего отвода) — следующий отвод той же КУП примыкает к нему.
+(setq sx:dsLast nil)
+(defun sx:draw-dsup (d u draw / from par pu dir lastu kup bot ob)
+  (setq from (strcase (sx:s (sx:c d sx:cDsupFrom)))
+        kup (sx:kup-p d)
+        bot (if (and kup (sx:blk-p sx:bKUP)) sx:vKupTop sx:vDsOut))
+  (if (/= from "")
+    (setq par (car (vl-remove-if-not
+                     '(lambda (q) (and (sx:dsup-p q) (= (strcase (sx:s (sx:c q sx:cLine))) from))) draw))))
+  (if (and par (/= (sx:u par) u))
+    (progn
+      (setq pu (sx:u par) dir (if (> u pu) 1.0 -1.0)
+            lastu (cdr (assoc from sx:dsLast)))
+      ;; вниз-вверх: от вывода до фаски, фаска 2x2 к горизонтали
+      (sx:line u bot u (- sx:vDsStep 2.0) sx:PE)
+      (sx:line u (- sx:vDsStep 2.0) (- u (* 2.0 dir)) sx:vDsStep sx:PE)
+      (if (and lastu (< (* dir (- pu lastu)) 0) (< (* dir (- lastu u)) 0))
+        ;; между КУП и этим столбцом уже есть отвод той же КУП — горизонталь до его фаски
+        (sx:hline (- u (* 2.0 dir)) (- lastu (* 2.0 dir)) sx:vDsStep sx:PE)
+        (progn
+          (sx:hline (- u (* 2.0 dir)) (+ pu (* 2.0 dir)) sx:vDsStep sx:PE)
+          (sx:line (+ pu (* 2.0 dir)) sx:vDsStep pu (- sx:vDsStep 2.0) sx:PE)))
+      (setq sx:dsLast (cons (cons from u) (vl-remove-if '(lambda (x) (= (car x) from)) sx:dsLast))))
+    (progn
+      (if (/= from "") (sx:log (strcat "DSUP: KUP not found for place " (itoa (1+ (sx:i d))) " -> PE bus")))
+      (sx:line u bot u sx:vPE sx:PE)
+      (sx:dot u sx:vPE sx:PE)))
+  (if (and kup (sx:blk-p sx:bKUP))
+    (setq ob (sx:insv sx:bKUP (+ u sx:kupDx) sx:vKupIns sx:kupSc 90.0 nil sx:BL))
+    (setq ob (sx:insv (sx:blk sx:bOut "SX_U_OUT") u sx:vDsOut 1.0 0.0 nil sx:BL)))
+  (sx:green ob)
+  ob)
+
 (defun sx:draw-rows (draw / prev u bf xt two blkn ob xseen)
-  (setq prev nil xseen nil)
+  (setq prev nil xseen nil sx:dsLast nil)
   (foreach d draw
    (if (not (sx:wantP (sx:i d)))
     ;; место не перестраивается: только состояние для следующих строк (перемычки «=», повтор XT)
-    (if (sx:is1 d sx:cXT)
-      (progn (setq xt (sx:s (sx:c d sx:cXTtxt)))
-             (if (/= xt "") (setq xseen (cons (strcase xt) xseen)))
-             (setq prev d)))
+    (progn
+      (if (sx:is1 d sx:cXT)
+        (progn (setq xt (sx:s (sx:c d sx:cXTtxt)))
+               (if (/= xt "") (setq xseen (cons (strcase xt) xseen)))
+               (setq prev d)))
+      ;; отвод ДСУП не перестраивается, но следующий отвод той же КУП примыкает к нему
+      (if (and (sx:dsup-p d) (sx:has d sx:cDsupFrom))
+        (setq sx:dsLast (cons (cons (strcase (sx:s (sx:c d sx:cDsupFrom))) (sx:u d))
+                              (vl-remove-if '(lambda (x) (= (car x) (strcase (sx:s (sx:c d sx:cDsupFrom))))) sx:dsLast)))))
    (sx:ttry (strcat "R|" (itoa (sx:i d))) (function (lambda ()
     (setq u (sx:u d) bf (sx:s (sx:c d sx:cChT)) sx:xtb sx:vXTbot)
+    ;; ДСУП: без автомата и клемм, от шины PE или от своей КУП
+    (if (sx:dsup-p d) (sx:draw-dsup d u draw))
     (if (and (sx:input-p d) (sx:is1 d sx:cHasLine) (not (sx:is1 d sx:cXT)) (not (sx:c d sx:cCh)))
       (progn (setq sx:xtb sx:vIN0) (sx:draw-input d u)))
     ;; линия без клеммы и канала (б/к: DALI, PE...) со своим автоматом: спуск от автомата прямо к УГО
@@ -2139,7 +2202,7 @@
         (if (sx:has d sx:cLine)
           (progn
             (if (not (sx:has d sx:cPh)) (setq reasons (append reasons (list (sx:ru '(1085 1077 1090 32 1092 1072 1079 1099))))))
-            (if (not (sx:has d sx:cPow)) (setq reasons (append reasons (list (sx:ru '(1085 1077 1090 32 1084 1086 1097 1085 1086 1089 1090 1080))))))))
+            (if (and (not (sx:has d sx:cPow)) (not (sx:dsup-p d))) (setq reasons (append reasons (list (sx:ru '(1085 1077 1090 32 1084 1086 1097 1085 1086 1089 1090 1080))))))))
         (if reasons
           (setq probs (cons (strcat (sx:ru '(1089 1090 1088 1086 1082 1072 32 69 120 99 101 108 32)) (itoa (sx:xr d)) (sx:ru '(44 32 1084 1077 1089 1090 1086 32)) (itoa (1+ (sx:i d))) ": "
                                     (sx:join-sep reasons ", "))
@@ -2376,11 +2439,11 @@
   (if sx:custom (sx:log (strcat "custom UGO blocks: " (sx:str sx:custom))))
   (sx:try (function (lambda ()
     (sx:import-blocks sx:lib
-      (append (list sx:bQF sx:bBUS sx:bHEAD sx:bXT sx:bXT2 sx:bOut sx:bT sx:bPS sx:bMK) (mapcar 'cadr sx:ugo) sx:custom))))
+      (append (list sx:bQF sx:bBUS sx:bHEAD sx:bXT sx:bXT2 sx:bOut sx:bT sx:bPS sx:bMK sx:bKUP) (mapcar 'cadr sx:ugo) sx:custom))))
     "import-blocks")
   (sx:lib-close)
   (setq sx:blkcache nil)
-  (foreach n (append (list sx:bQF sx:bBUS sx:bHEAD sx:bXT sx:bXT2 sx:bOut sx:bT sx:bPS sx:bMK) (mapcar 'cadr sx:ugo))
+  (foreach n (append (list sx:bQF sx:bBUS sx:bHEAD sx:bXT sx:bXT2 sx:bOut sx:bT sx:bPS sx:bMK sx:bKUP) (mapcar 'cadr sx:ugo))
     (sx:log (strcat "block " n (if (tblsearch "BLOCK" n) " OK" " MISSING"))))
   (if (not (tblsearch "BLOCK" sx:bQF))
     (progn (princ (strcat "\n" (sx:ru '(1042 1085 1080 1084 1072 1085 1080 1077 58 32 1085 1077 32 1085 1072 1081 1076 1077 1085 1099 32 1074 1072 1096 1080 32 1073 1083 1086 1082 1080 32 40 81 70 49 44 32 88 84 46 46 46 41 32 8212 32 1085 1072 1088 1080 1089 1086 1074 1072 1085 1099 32 1079 1072 1084 1077 1085 1080 1090 1077 1083 1080 46 32 1055 1088 1086 1074 1077 1088 1100 1090 1077 32 1087 1091 1090 1100 32 1082 32 1073 1080 1073 1083 1080 1086 1090 1077 1082 1077 32 48 50 95 1054 1076 1085 1086 1083 1080 1085 1077 1081 1082 1072 46 100 119 103 44 32 1089 1084 46 32 83 88 95 108 111 103 46 116 120 116))))
@@ -2411,5 +2474,5 @@
   (princ))
 
 (princ (strcat "\n" (sx:ru '(83 88 95 83 99 104 101 109 97 32 118 51 46 49 55 32 1079 1072 1075 1088 1091 1078 1077 1085 32 40 1074 1072 1096 1080 32 1073 1083 1086 1082 1080 41 58 32 83 88 68 82 65 87 32 8212 32 1087 1086 1089 1090 1088 1086 1080 1090 1100 32 1089 1093 1077 1084 1091 44 32 83 88 67 76 69 65 82 32 8212 32 1089 1090 1077 1088 1077 1090 1100 46))))
-(princ "\n[SX_Schema v3.22] SXDRAW / SXUPDATE / SXUPDSEL / SXUPDSHEET / SXCLEAR")
+(princ "\n[SX_Schema v3.23] SXDRAW / SXUPDATE / SXUPDSEL / SXUPDSHEET / SXCLEAR")
 (princ)
