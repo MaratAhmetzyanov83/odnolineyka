@@ -1,0 +1,239 @@
+# -*- coding: utf-8 -*-
+"""Модель объекта: Объект -> Документы (книги, позже — свой файл) -> Щиты -> Линии.
+
+Правила модели:
+- Ядро не знает, откуда данные (Excel, свой файл, DWG). Это знают адаптеры в `odn.sources`.
+- У линии и щита три части:
+    input  — что задаёт инженер (мощность, длина, марка…);
+    scheme — что стоит на схеме (место, QF, автомат, клемма…);
+    result — что получено расчётом (Iр, сечение, ΔU, Iкз…). `result.by` — кто считал: «excel» или «python».
+  Так расчёт переносится в Python по частям и сверяется с Excel.
+- Новые поля добавлять со значением по умолчанию — старые JSON и кэш читаются (см. serialize.from_dict).
+- Ссылки между объектами — по id (строки), не по объектам: модель сериализуется в JSON без потерь.
+"""
+from __future__ import annotations
+
+from dataclasses import dataclass, field
+from typing import Optional
+
+SCHEMA = 2            # версия формата JSON; менять при несовместимых правках модели
+
+
+# ---------------------------------------------------------------- место в источнике (куда идти править)
+@dataclass
+class Ref:
+    file: str = ""        # путь относительно папки объекта
+    sheet: str = ""
+    cell: str = ""
+
+    def __str__(self):
+        return f"{self.sheet}!{self.cell}" if self.sheet else self.file
+
+
+# ---------------------------------------------------------------- линия
+@dataclass
+class LineInput:
+    p_kw: Optional[float] = None        # Pу, кВт
+    u_v: Optional[float] = None         # Uн, В
+    phases: Optional[int] = None
+    count: Optional[int] = None         # кол-во потребителей (для длины)
+    length_plan: Optional[float] = None
+    length: Optional[float] = None      # L итог, м
+    cable_code: str = ""                # код марки (мс, мфр…)
+    cores: Optional[int] = None
+    cos: Optional[float] = None
+    s_min: Optional[float] = None       # сечение ручное / мин. по коду, мм²
+    in_manual: Optional[float] = None   # In ручной, А
+    group_ks: str = ""                  # Быт / Сил / Пост / Нет / Щит
+    parallel: Optional[int] = None      # кабелей параллельно
+    low_current: bool = False           # слаботочная
+
+
+@dataclass
+class LineScheme:
+    place: Optional[int] = None         # № места
+    sheet: Optional[int] = None         # лист схемы
+    bus: str = ""                       # шина (пусто = основная)
+    qf: str = ""                        # QF1, QFD3…
+    breaker: str = ""                   # «2P С16А 30мА»
+    in_a: Optional[float] = None        # In автомата группы на схеме, А
+    devices: list = field(default_factory=list)
+    terminal: str = ""
+    phase: str = ""                     # L1 / L1,L2,L3
+    cable: str = ""                     # кабель текстом: марка (жилы×сечение) L-ΔU
+
+
+@dataclass
+class LineResult:
+    by: str = ""                        # кто считал: excel / python
+    i_calc: Optional[float] = None      # Iр, А
+    i_start: Optional[float] = None     # Iпуск, А
+    in_by_current: Optional[float] = None   # In по току, А
+    s_mm2: Optional[float] = None       # сечение, мм²
+    du: Optional[float] = None          # ΔU линии, %
+    du_sum: Optional[float] = None      # ΔU от ВРУ, %
+    du_max: Optional[float] = None      # допустимая, %
+    ikz_min: Optional[float] = None     # Iкз min в конце, А
+    ikz_ratio: Optional[float] = None   # Iкз min / In
+    ikz_check: str = ""
+    ikz_max: Optional[float] = None     # кА
+    category: str = ""
+    fire: str = ""
+    category_check: str = ""
+    status: str = ""                    # статус строки (как в источнике)
+    level: int = 0                      # 0 ок, 1 внимание, 2 ошибка
+
+
+@dataclass
+class Line:
+    number: str                         # номер линии — уникален в щите
+    panel: str = ""                     # id щита
+    name: str = ""
+    input: LineInput = field(default_factory=LineInput)
+    scheme: LineScheme = field(default_factory=LineScheme)
+    result: LineResult = field(default_factory=LineResult)
+    refs: dict = field(default_factory=dict)    # где в источнике: {"input": Ref, "scheme": Ref, ...} как dict
+    feeds: str = ""                     # id щита, который питает эта линия (фидер)
+
+    @property
+    def id(self):
+        return f"{self.panel} # {self.number}"
+
+    @property
+    def in_a(self):
+        """In автомата линии: со схемы, иначе — по току."""
+        return self.scheme.in_a if self.scheme.in_a is not None else self.result.in_by_current
+
+
+# ---------------------------------------------------------------- щит
+@dataclass
+class Supply:
+    """Откуда питается щит — как записано в книге щита."""
+    from_doc: str = ""                  # файл вышестоящего (как в книге, может быть относительным)
+    from_panel: str = ""                # имя щита-источника
+    manual: str = ""                    # вручную: «ТП», «ГРЩ»…
+    qf: str = ""
+    breaker: str = ""
+    cable: str = ""
+    length: Optional[float] = None
+    in_a: Optional[float] = None
+    du_bus: Optional[float] = None
+    ikz_max: Optional[float] = None
+
+
+@dataclass
+class PanelScheme:
+    inputs: Optional[int] = None        # число вводов
+    avr: str = ""
+    icu: Optional[float] = None         # отключающая способность аппаратов, кА
+
+
+@dataclass
+class PanelResult:
+    by: str = ""
+    p_inst: Optional[float] = None      # Руст, кВт
+    p_calc: Optional[float] = None      # Рр, кВт
+    i_calc: Optional[float] = None      # Iр, А
+    cos: Optional[float] = None
+    du_bus: Optional[float] = None      # ΔU до шин, %
+    zp_bus: Optional[float] = None
+    ikz_min_bus: Optional[float] = None
+    ikz_max_bus: Optional[float] = None
+    category: str = ""                  # обеспечиваемая вводами
+    checks: dict = field(default_factory=dict)   # проверки питающей линии: название -> текст
+    errors: int = 0                     # ошибок по оценке источника
+    warnings: int = 0
+
+
+@dataclass
+class FeederSeen:
+    """Что вышестоящий щит записал о нижестоящем (для сверки связей)."""
+    line: str = ""
+    doc: str = ""
+    p_inst: Optional[float] = None
+    i_calc: Optional[float] = None
+    in_a: Optional[float] = None
+    check: str = ""
+    ref: Ref = field(default_factory=Ref)
+
+
+@dataclass
+class Note:
+    """Статус строки источника, не привязанный к линии (например, строка группы без номера)."""
+    level: int = 0
+    text: str = ""
+    label: str = ""
+    ref: Ref = field(default_factory=Ref)
+
+
+@dataclass
+class Panel:
+    id: str                             # «документ / щит» — уникален в объекте
+    name: str = ""
+    doc: str = ""                       # документ (путь относительно папки объекта)
+    supply: Supply = field(default_factory=Supply)
+    scheme: PanelScheme = field(default_factory=PanelScheme)
+    result: PanelResult = field(default_factory=PanelResult)
+    lines: list = field(default_factory=list)            # list[Line]
+    feeders_seen: list = field(default_factory=list)     # list[FeederSeen]
+    notes: list = field(default_factory=list)            # list[Note]
+    refs: dict = field(default_factory=dict)             # именованные места: {"supply": Ref, ...}
+    # заполняет services.linking
+    parent: str = ""
+    parent_line: str = ""
+    link_error: str = ""
+    # заполняет core.revision
+    revision: str = ""
+
+
+# ---------------------------------------------------------------- документ, объект
+@dataclass
+class Document:
+    file: str                           # путь относительно папки объекта
+    kind: str = ""                      # адаптер: excel_v312, …
+    mtime: float = 0.0
+    error: str = ""
+    panels: list = field(default_factory=list)           # list[Panel]
+
+
+@dataclass
+class Issue:
+    rule: str                           # id правила (checks)
+    level: int                          # 2 ошибка, 1 внимание
+    text: str
+    panel: str = ""
+    line: str = ""
+    ref: Ref = field(default_factory=Ref)
+    group: str = ""                     # группа правила — для фильтров окна
+
+
+@dataclass
+class Project:
+    name: str = ""
+    folder: str = ""
+    schema: int = SCHEMA
+    loaded: str = ""
+    documents: list = field(default_factory=list)        # list[Document]
+    issues: list = field(default_factory=list)           # list[Issue]
+
+    # ---- индексы (не сериализуются: строятся reindex())
+    def reindex(self):
+        self._panels = {p.id: p for d in self.documents for p in d.panels}
+        self._kids = {}
+        for p in self._panels.values():
+            if p.parent:
+                self._kids.setdefault(p.parent, []).append(p)
+        return self
+
+    def panels(self):
+        return list(self._panels.values())
+
+    def panel(self, pid) -> Optional[Panel]:
+        return self._panels.get(pid)
+
+    def children(self, pid):
+        return self._kids.get(pid, [])
+
+    def line(self, pid, number) -> Optional[Line]:
+        p = self.panel(pid)
+        return next((ln for ln in p.lines if ln.number == number), None) if p else None

@@ -39,11 +39,12 @@ def ask_folder(last):
 
 def main(argv):
     if argv and argv[0] == "--json":
-        from odn.project import load_project
+        from odn.core import serialize
+        from odn.services.project import load_project
         prj = load_project(argv[1])
         out = argv[2] if len(argv) > 2 else os.path.join(argv[1], "объект.json")
         with open(out, "w", encoding="utf-8") as f:
-            json.dump(prj.to_dict(), f, ensure_ascii=False, indent=1)
+            json.dump(serialize.to_dict(prj), f, ensure_ascii=False, indent=1)
         print("записано:", out, "| замечаний:", len(prj.issues))
         return
     st = settings()
@@ -57,7 +58,7 @@ def main(argv):
             json.dump(st, f, ensure_ascii=False)
     except OSError:
         pass
-    from odn.server import serve
+    from odn.ui.server import serve
     serve(folder)
 
 
