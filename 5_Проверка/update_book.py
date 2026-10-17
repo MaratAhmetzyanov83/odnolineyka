@@ -25,7 +25,6 @@
  19. patch_ugo.py          — УГО v3.24: кондиционеры, вентилятор, насос, щит («Справочная» BA, AV; узел КМ — MOTOR*)
  20. patch_lowcurrent.py   — слаботочные линии: «Слаботочные коды», CB / BZ, без тока и нагрузки (ручные «1» в CB сохраняет)
  21. patch_cables.py       — Q: кабель ввода из «Сеть_щита» (L, ΔU до шин); слаботочные — без ΔU и не в силовой группе
- 22. patch_nodes.py        — узлы (каскад): УЗО / АВДТ / автомат / рубильник над группой, «Однолинейка» CL:CS, шина узла в BY
 После объединения листов старые ручные связи между файлами рвутся: в каждом щите — «Связать с вышестоящим».
 """
 import os
@@ -37,7 +36,7 @@ STEPS = ["tidy_book.py", "fix_text_format.py", "patch_audit.py", "merge_network.
          "patch_validation.py", "patch_review.py", "patch_feeder.py", "patch_categories.py",
          "patch_assembly.py", "patch_vru.py", "patch_parallel.py", "patch_char.py", "patch_input_du.py",
          "patch_ks.py", "patch_km.py", "patch_dsup.py", "patch_vor.py", "patch_ugo.py",
-         "patch_lowcurrent.py", "patch_cables.py", "patch_nodes.py"]
+         "patch_lowcurrent.py", "patch_cables.py"]
 
 
 def main(paths):
