@@ -10,8 +10,8 @@ from .. import checks
 from ..core import serialize
 from ..core.model import Ref
 from ..core.changes import EditError
-from ..services import edit, export
-from ..services.project import load_project, open_at
+from ..services import edit, export, structure
+from ..services.project import load_project, open_at, recheck
 
 _ROUTES = {}
 
@@ -41,6 +41,14 @@ class App:
     def reload(self, progress=print):
         with self.lock:
             self.prj = load_project(self.folder, progress=progress)
+            data = serialize.to_dict(self.prj)
+            data["rules"] = [{"id": r.id, "title": r.title, "group": r.group} for r in checks.rules()]
+            self.payload = json.dumps(data, ensure_ascii=False).encode("utf-8")
+
+    def refresh(self):
+        """Без чтения книг: структура, связи, расчёт, проверки — и новый JSON для окна."""
+        with self.lock:
+            recheck(self.prj)
             data = serialize.to_dict(self.prj)
             data["rules"] = [{"id": r.id, "title": r.title, "group": r.group} for r in checks.rules()]
             self.payload = json.dumps(data, ensure_ascii=False).encode("utf-8")
@@ -104,6 +112,25 @@ def post_undo(app: App, body):
             app.reload_quiet()
             return {"ok": False, "errors": [str(e)]}
         return _after_write(app, res)
+
+
+@route("POST", "/api/structure")
+def post_structure(app: App, body):
+    with app.write_lock:
+        try:
+            res = structure.operate(app.prj, body)
+        except EditError as e:
+            return {"ok": False, "errors": [str(e)]}
+        app.refresh()
+        return res
+
+
+@route("POST", "/api/structure/undo")
+def post_structure_undo(app: App, body):
+    with app.write_lock:
+        res = structure.undo_last(app.prj)
+        app.refresh()
+        return res
 
 
 @route("POST", "/api/export")

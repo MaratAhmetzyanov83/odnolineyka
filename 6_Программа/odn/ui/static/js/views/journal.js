@@ -15,6 +15,6 @@ export async function bind(root){
   if (!el) return;
   el.innerHTML = rows.length ? `<table class="grid auto"><thead><tr><th>Когда</th><th>Кто</th><th>Что</th><th>Книга</th><th>Правки (было → стало)</th><th>Резерв</th></tr></thead><tbody>${rows.map(r =>
     `<tr class="${r.undone ? "mut" : ""}"><td>${esc(r.at)}</td><td>${esc(r.user)}</td><td>${esc(r.kind)}${r.undone ? " (отменена)" : ""}</td><td>${esc(r.doc)}</td>
-     <td class="wrap">${r.changes.map(c => `${esc(c.line || "щит")} · ${esc(c.path)}: ${esc(c.old ?? "")} → <b>${esc(c.new ?? "")}</b> <span class="sub">${esc(c.cell)}</span>`).join("<br>")}</td>
+     <td class="wrap">${r.what ? esc(r.what) : ""}${r.changes.map(c => `${esc(c.line || "щит")} · ${esc(c.path)}: ${esc(c.old ?? "")} → <b>${esc(c.new ?? "")}</b> <span class="sub">${esc(c.cell)}</span>`).join("<br>")}</td>
      <td class="mut">${esc(r.backup)}</td></tr>`).join("")}</tbody></table>` : `<div class="empty">Записей ещё не было.</div>`;
 }

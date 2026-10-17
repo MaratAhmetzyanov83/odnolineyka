@@ -8,6 +8,11 @@ from .registry import Hit, rule
 from .util import ok_text
 
 G = "Из книг"
+ERR_WORDS = ("дубль", "ПЕРЕГРУЗ", "ЗАЩИЩ", "КАНАЛ", "без 30")      # как «Однолинейка» BU: ошибка, иначе внимание
+
+
+def _err(text):
+    return any(w in text for w in ERR_WORDS)
 
 
 @rule("source.unreadable", "Книга не прочитана", G)
@@ -21,8 +26,12 @@ def unreadable(prj):
 def row_status(prj):
     for p in prj.panels():
         for ln in p.lines:
-            if ln.result.level and ln.result.status:
-                yield Hit(ln.result.level, ln.result.status, p.id, ln.number, ln.refs.get("status"))
+            status = ln.result.status
+            if ln.rcd_node:                       # 30 мА дал узел выше (УЗО / АВДТ) — замечание Excel снято
+                status = "; ".join(x for x in status.split("; ") if x.strip() != "розетка без 30 мА")
+            if ln.result.level and status:
+                lvl = ln.result.level if status == ln.result.status else (2 if _err(status) else 1)
+                yield Hit(lvl, status, p.id, ln.number, ln.refs.get("status"))
         for n in p.notes:
             yield Hit(n.level, n.text, p.id, n.label, n.ref)
 

@@ -44,6 +44,8 @@ document.addEventListener("click", async ev => {
   if (go){ ev.preventDefault(); location.hash = go.dataset.go; }
 });
 window.addEventListener("hashchange", render);
+window.addEventListener("odn:reload", () => load());          // экран поменял данные на сервере
+window.addEventListener("odn:rerender", () => render());
 $("#reload").onclick = async () => {
   const b = $("#reload"); b.disabled = true; b.textContent = "Читаю книги…";
   try { await api.reload(); await load(); toast("Обновлено"); } catch (e){ toast("Ошибка: " + e.message); }

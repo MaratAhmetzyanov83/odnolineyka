@@ -32,7 +32,7 @@ export function mountTable(host, list, withPanel){
       h: i => `<span class="dot d${i.level}"></span>`},
     ...(withPanel ? [{id: "p", t: "Щит", w: 90, v: pname}] : []),
     {id: "line", t: "Линия", w: 90, v: i => i.line,
-      h: i => S.panels[i.panel] ? `<a data-go="${esc(toPanel(i.panel, i.line, i.line ? "lines" : "issues"))}" title="Перейти">${esc(i.line || "→ щит")}</a>` : esc(i.line)},
+      h: i => S.panels[i.panel] ? `<a data-go="${esc(toPanel(i.panel, i.line, i.group === "Узлы" && /^У\d+$/.test(i.line) ? "structure" : i.line ? "lines" : "issues"))}" title="Перейти">${esc(i.line || "→ щит")}</a>` : esc(i.line)},
     {id: "text", t: "Замечание", w: 520, v: i => i.text, agg: "count", nogroup: 1},
     {id: "kind", t: "Тип", w: 200, hidden: 1, v: i => kindsOf(i).join("; ")},
     {id: "rule", t: "Проверка", w: 220, v: i => S.rules[i.rule]?.title || i.rule, cls: () => "mut"},

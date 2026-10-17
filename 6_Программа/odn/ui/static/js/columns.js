@@ -20,6 +20,8 @@ export function lineColumns({ withPanel = false } = {}){
       edit: {path: "name"}},
     {id: "p", t: "P, кВт", n: 1, w: 62, v: l => l.input.p_kw, agg: "sum", edit: {path: "input.p_kw"}},
     {id: "ph", t: "Фаза", w: 62, v: l => l.scheme.phase},
+    {id: "node", t: "Узел", title: "Узел каскада над линией (вкладка «Структура»)", w: 48, v: l => l.node,
+      tip: l => l.rcd_node ? `30 мА даёт узел ${l.rcd_node}` : ""},
     {id: "ic", t: "Iр, А", n: 1, w: 58, v: l => l.result.i_calc, agg: "sum"},
     {id: "in", t: "In, А", title: "In автомата (схема, иначе — по току)", n: 1, w: 50, d: 0, v: l => lineIn(l), agg: "max",
       cls: l => lineIn(l) != null && l.result.i_calc != null && lineIn(l) < l.result.i_calc ? "bad" : ""},

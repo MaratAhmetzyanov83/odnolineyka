@@ -147,3 +147,17 @@ table.grid td.mut,tr.mut td{color:var(--muted)}
 .gpop .crow{display:flex;justify-content:space-between;align-items:center;gap:4px}
 .gpop .crow button{padding:0 5px}
 .pend-bar{display:flex;gap:6px;align-items:center;font-size:12px;color:var(--warn)}
+
+/* ---------------- структура щита (узлы) */
+table.stree td{cursor:default;user-select:text}
+table.stree tr.bus td{background:var(--head);border-top:1px solid var(--line)}
+table.stree tr.nd td{background:color-mix(in srgb,var(--accent) 7%,var(--panel))}
+table.stree tr.nd.l2 td{background:var(--err-bg)} table.stree tr.nd.l1 td{background:var(--warn-bg)}
+table.stree td.nw button{padding:0 6px;margin-left:2px}
+.sbar{display:inline-block;width:60px;height:8px;border-radius:4px;background:var(--line2);vertical-align:middle;overflow:hidden}
+.sbar i{display:block;height:100%;background:var(--ok)}
+.sbar i.l1{background:var(--warn)} .sbar i.l2{background:var(--err)}
+.gpop.dlg{left:50%!important;top:20%!important;transform:translateX(-50%);width:340px}
+.gpop.dlg label{display:inline-block;width:100px;color:var(--muted)}
+.gpop.dlg input,.gpop.dlg select{flex:1}
+.tag{display:inline-block}

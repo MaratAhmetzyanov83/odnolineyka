@@ -96,6 +96,8 @@ class Line:
     result: LineResult = field(default_factory=LineResult)
     refs: dict = field(default_factory=dict)    # где в источнике: {"input": Ref, "scheme": Ref, ...} как dict
     feeds: str = ""                     # id щита, который питает эта линия (фидер)
+    node: str = ""                      # узел щита, под которым линия (структура программы); пусто — на шине
+    rcd_node: str = ""                  # узел выше с 30 мА (УЗО / АВДТ) — заполняет calc.nodes
 
     @property
     def id(self):
@@ -169,6 +171,28 @@ class Note:
 
 
 @dataclass
+class Node:
+    """Узел каскада: аппарат над группой (УЗО, АВДТ, автомат, рубильник). Данные — программы («_окно/структура.json»)."""
+    id: str                             # У1, У2… — уникален в щите
+    kind: str = "УЗО"                   # УЗО / АВДТ / Автомат / Рубильник
+    parent: str = ""                    # узел выше; пусто — на шине
+    bus: str = ""                       # шина узла верхнего уровня (пусто = основная)
+    device: str = "авто"                # «авто» или текст аппарата («УЗО 2P 40А 30мА»)
+    rcd_ma: Optional[int] = None        # ток утечки, мА (УЗО / АВДТ; пусто = 30)
+    note: str = ""
+    # расчёт (calc.nodes)
+    designation: str = ""               # QD1, QF5…
+    i_calc: Optional[float] = None      # Iр узла: сумма Iр линий под ним по наиболее нагруженной фазе, без Кс
+    phase_i: dict = field(default_factory=dict)   # {"L1": …, "L2": …, "L3": …}
+    phases: int = 1
+    poles: str = ""
+    in_a: Optional[float] = None
+    text: str = ""                      # «УЗО 2P 40А 30мА»
+    lines_all: list = field(default_factory=list)  # номера всех линий под узлом (все уровни)
+    level: int = 1                      # уровень: 1 — на шине
+
+
+@dataclass
 class Panel:
     id: str                             # «документ / щит» — уникален в объекте
     name: str = ""
@@ -179,6 +203,7 @@ class Panel:
     lines: list = field(default_factory=list)            # list[Line]
     feeders_seen: list = field(default_factory=list)     # list[FeederSeen]
     notes: list = field(default_factory=list)            # list[Note]
+    nodes: list = field(default_factory=list)            # list[Node] — структура щита (каскад)
     refs: dict = field(default_factory=dict)             # именованные места: {"supply": Ref, ...}
     # заполняет services.linking
     parent: str = ""

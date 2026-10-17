@@ -15,7 +15,7 @@ import time
 from .. import checks, sources
 from ..core.model import Project
 from ..core.revision import panel_revision
-from . import cache, linking
+from . import cache, linking, structure
 
 SKIP_DIRS = ("архив", "резерв", "резервные копии")
 
@@ -55,12 +55,17 @@ def step_read(prj: Project, ctx):
     cache.save(prj.folder, prj.documents)
 
 
+def step_structure(prj, ctx):
+    structure.apply(prj)                            # узлы каскада — данные программы (_окно/структура.json)
+
+
 def step_link(prj, ctx):
     linking.link(prj)
 
 
 def step_calc(prj, ctx):
-    pass                                            # шаг 3: odn.calc.run(prj)
+    from ..calc import nodes
+    nodes.run(prj)                                  # узлы каскада; остальной расчёт — пока из Excel
 
 
 def step_revision(prj, ctx):
@@ -72,7 +77,7 @@ def step_checks(prj, ctx):
     prj.issues = checks.run(prj, ctx.get("disabled", ()))
 
 
-STEPS = [("read", step_read), ("link", step_link), ("calc", step_calc),
+STEPS = [("read", step_read), ("structure", step_structure), ("link", step_link), ("calc", step_calc),
          ("revision", step_revision), ("checks", step_checks)]
 
 

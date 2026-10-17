@@ -12,6 +12,8 @@ export const reload = () => call("POST", "/api/reload");
 export const openRef = ref => call("POST", "/api/open", {ref});
 export const edit = changes => call("POST", "/api/edit", {changes});
 export const undo = () => call("POST", "/api/undo");
+export const structure = body => call("POST", "/api/structure", body);
+export const structureUndo = () => call("POST", "/api/structure/undo");
 
 export async function download(path, body){
   const j = await call("POST", path, body);           // сервер готовит файл и даёт ссылку с именем

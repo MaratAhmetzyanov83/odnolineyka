@@ -13,6 +13,7 @@ import json
 import os
 import shutil
 import time
+import uuid
 
 from .. import sources
 from ..core import changes as C
@@ -78,7 +79,7 @@ def apply_changes(prj: Project, raw: list, kind="правка", undo_of="") -> d
         except (C.EditError, NotImplementedError) as e:
             errors.append(str(e))
             continue
-        entry = {"batch": f"{stamp}|{docname}", "at": time.strftime("%d.%m.%Y %H:%M:%S"), "user": _user(),
+        entry = {"batch": f"{stamp}|{docname}|{uuid.uuid4().hex[:8]}", "at": time.strftime("%d.%m.%Y %H:%M:%S"), "user": _user(),
                  "kind": kind, "doc": docname, "backup": os.path.relpath(bak, prj.folder), "undo_of": undo_of,
                  "changes": [dict(dataclasses.asdict(ch), cell=f"{c[0]}!{c[1]}") for ch, c in zip(items, cells)]}
         with open(_journal(prj), "a", encoding="utf-8") as f:
@@ -90,7 +91,8 @@ def apply_changes(prj: Project, raw: list, kind="правка", undo_of="") -> d
 
 def undo_last(prj: Project) -> dict:
     """Отменить последнюю не отменённую запись (одну книгу)."""
-    rows = [r for r in read_journal(prj, 10_000) if r.get("batch") and not r["undone"] and r.get("kind") != "отмена"]
+    rows = [r for r in read_journal(prj, 10_000)
+            if r.get("batch") and not r["undone"] and r.get("kind") not in ("отмена", "структура")]
     if not rows:
         return {"ok": False, "errors": ["нечего отменять"]}
     last = rows[-1]

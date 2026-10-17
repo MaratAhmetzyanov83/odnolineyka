@@ -5,6 +5,7 @@ import { toPanel } from "../nav.js";
 import { mount } from "../grid.js";
 import { lineColumns, lineRef, lineAttrs } from "../columns.js";
 import * as issues from "./issues.js";
+import * as structure from "./structure.js";
 
 const kv = (k, v, cls = "", tip = "") => v === "" || v == null ? "" :
   `<div ${tip ? `title="${esc(tip)}"` : ""}><span class="k">${k}</span><b class="${cls}">${v}</b></div>`;
@@ -54,6 +55,8 @@ export const TABS = [
       mount(host, {key: "lines", title: p.name, columns: lineColumns(), rows, freeze: 3, rowRef: lineRef, rowAttrs: lineAttrs,
         rowId: l => l.panel + "#" + l.number, focusRowId: prm.line ? p.id + "#" + prm.line : ""});
     } },
+  { id: "structure", title: p => `Структура${p.nodes && p.nodes.length ? ` (${p.nodes.length} узл.)` : ""}`, bar: structure.bar0,
+    html: p => structure.render(p), mount: (host, p) => structure.bind(host.closest("main"), p) },
   { id: "issues", title: p => `Замечания (${(S.issuesBy[p.id] || []).length})`, bar: issues.filters,
     mount: (host, p) => issues.mountTable(host, S.issuesBy[p.id] || [], false) },
 ];
@@ -67,7 +70,7 @@ export function render({ id, params }){
     <div class="kv">${KV.map(f => f(p)).join("")}</div>
     <div class="bar">${TABS.map(t => `<button data-go="${esc(toPanel(p.id, "", t.id))}" class="${t === tab ? "on" : ""}">${esc(t.title(p))}</button>`).join("")}
       <span class="sep"></span>${tab.bar(p)}</div>
-    <div class="ghost" id="ghost"></div>`;
+    <div class="ghost" id="ghost">${tab.html ? tab.html(p) : ""}</div>`;
 }
 
 export function bind(root, rerender, { id, params }){
