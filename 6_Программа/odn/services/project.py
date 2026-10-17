@@ -68,6 +68,14 @@ def step_calc(prj, ctx):
     nodes.run(prj)                                  # узлы каскада; остальной расчёт — пока из Excel
 
 
+def step_drawing(prj, ctx):
+    from . import drawing_export
+    try:
+        drawing_export.export(prj)                  # узлы для SXDRAW: «<книга>.nodes.txt»
+    except OSError as e:
+        ctx["progress"](f"файл узлов для чертежа не записан: {e}")
+
+
 def step_revision(prj, ctx):
     for p in prj.panels():
         p.revision = panel_revision(p)
@@ -77,7 +85,7 @@ def step_checks(prj, ctx):
     prj.issues = checks.run(prj, ctx.get("disabled", ()))
 
 
-STEPS = [("read", step_read), ("structure", step_structure), ("link", step_link), ("calc", step_calc),
+STEPS = [("read", step_read), ("structure", step_structure), ("link", step_link), ("calc", step_calc), ("drawing", step_drawing),
          ("revision", step_revision), ("checks", step_checks)]
 
 

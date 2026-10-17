@@ -94,6 +94,31 @@ class TestNodes(unittest.TestCase):
         recheck(self.prj)
         self.assertIn(("nodes.lost_lines", "R.1"), {(i.rule, i.line) for i in self.prj.issues})
 
+    def test_drawing_export(self):
+        from odn.services import drawing_export as D
+        self.op(op="add_node", kind="УЗО", lines=["R.1", "R.2"])
+        self.op(op="add_node", kind="Автомат", parent="У1", lines=["L.1"])
+        path = os.path.join(self.dir, "ЩР.nodes.txt")
+        self.assertTrue(os.path.isfile(path))
+        with open(path, encoding="ascii") as f:
+            text = f.read()
+        rows = text.strip().splitlines()
+        self.assertTrue(rows[0].startswith(";; odn nodes"))
+        self.assertIn('(NODE (1065 1056) (1059 49) "RCD" (81 68 51 57)', text)          # ЩР, У1, QD39
+        self.assertIn("(LINE (1065 1056) (76 46 49) (1059 49))", text)                     # L.1 -> корень У1
+        self.assertEqual(sum(r.startswith("(LINE") for r in rows), 3)
+        hits = {(i.rule, i.line) for i in self.prj.issues}
+        self.assertIn(("nodes.drawing", "У2"), hits)                                       # уровень 2 — плоско
+        self.op(op="delete_node", id="У2"); self.op(op="delete_node", id="У1")
+        self.assertFalse(os.path.isfile(path))                                             # узлов нет — файла нет
+
+    def test_contiguous(self):
+        for i, ln in enumerate(self.prj.panel(P).lines):
+            ln.scheme.place, ln.scheme.sheet = i + 1, 1
+        self.op(op="add_node", kind="УЗО", lines=["R.1", "L.1"])                          # места 1 и 3, между — R.2
+        msg = [i.text for i in self.prj.issues if i.rule == "nodes.drawing"]
+        self.assertTrue(any("R.2" in m for m in msg), msg)
+
     def test_parse(self):
         self.assertEqual([text_in(t) for t in ("УЗО 2P 40А 30мА", "1P C16А", "QS 3P 63A", "2P С25А 30мА", "x")],
                          [40, 16, 63, 25, None])

@@ -86,3 +86,43 @@ def lost_lines(prj):
         for num, nid in data["panels"].get(p.id, {}).get("lines", {}).items():
             if num not in have:
                 yield Hit(1, f"линия {num} (узел {nid}) — её нет в книге (переименована или удалена)", p.id, num)
+
+
+def _root(n, ids):
+    seen = set()
+    while n.parent in ids and n.id not in seen:
+        seen.add(n.id)
+        n = ids[n.parent]
+    return n
+
+
+@rule("nodes.drawing", "Узел: на чертеже", G)
+def drawing(prj):
+    """SXDRAW v3.25: шина узла — от аппарата до последней линии; линии узла должны стоять подряд на одном листе.
+    Чертёж пока в один уровень: линии вложенных узлов встают на шину узла верхнего уровня."""
+    for p in prj.panels():
+        ids = {n.id: n for n in p.nodes}
+        if not ids:
+            continue
+        roots = {}
+        for ln in p.lines:
+            if ln.node in ids:
+                roots.setdefault(_root(ids[ln.node], ids).id, []).append(ln)
+        for rid, lines in roots.items():
+            sheets = {ln.scheme.sheet for ln in lines}
+            places = [ln.scheme.place for ln in lines if ln.scheme.place is not None]
+            if len(sheets) > 1:
+                yield Hit(1, f"узел {rid}: линии на разных листах схемы ({', '.join(str(s) for s in sorted(x or 0 for x in sheets))}) "
+                             f"— на чертеже шина узла будет на каждом листе отдельно", p.id, rid)
+            if places:
+                lo, hi = min(places), max(places)
+                mine = {ln.number for ln in lines}
+                strangers = [ln.number for ln in p.lines if ln.number not in mine and ln.scheme.place is not None
+                             and lo < ln.scheme.place < hi and ln.scheme.sheet in sheets]
+                if strangers:
+                    yield Hit(1, f"узел {rid}: между его линиями стоят чужие ({', '.join(strangers[:5])}) — поставьте линии узла "
+                                 f"подряд, иначе на чертеже шина узла пройдёт над чужими", p.id, rid)
+        for n in p.nodes:
+            if n.level > 1:
+                yield Hit(1, f"узел {n.id} (уровень {n.level}): чертёж пока в один уровень — аппарат {n.designation} не рисуется, "
+                             f"его линии — на шине {_root(n, ids).id}", p.id, n.id)

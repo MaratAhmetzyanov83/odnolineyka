@@ -1,5 +1,5 @@
 ;;; ============================================================================
-;;;  SX_Schema.lsp  v3.24 —  однолинейная схема из Excel на ВАШИХ блоках
+;;;  SX_Schema.lsp  v3.25 —  однолинейная схема из Excel на ВАШИХ блоках
 ;;;
 ;;;  Команды:
 ;;;    SXDRAW    — окно: файл Excel, лист «Однолинейка», щит, точка вставки,
@@ -32,7 +32,7 @@
 ;;; ============================================================================
 
 (vl-load-com)
-(setq sx:ver "v3.24")
+(setq sx:ver "v3.25")
 
 
 ;;; ---------------------------------------------------------------- настройки
@@ -1357,7 +1357,7 @@
       (sx:line (+ us 3) vL (- ue 1) vL sx:L) (sx:line (+ us 3) vN (- ue 1) vN sx:LN)
       (sx:text (+ us 4) (+ vL 1) 2.5 name sx:T) (sx:text (+ us 4) (+ vN 1) 2.5 "N" sx:T))))
 
-(defun sx:draw-sheets (draw panel / sheets s us ue onsheet b2 segs k input left busus fd g xr notch q bus2us)
+(defun sx:draw-sheets (draw panel / sheets s us ue onsheet b2 segs k input left busus fd g xr notch q bus2us sp nd)
   (setq sheets '())
   (foreach d draw
     (if (and (or (sx:content-p d) (sx:dsup-p d)) (not (member (sx:sheet (sx:i d)) sheets)))
@@ -1398,6 +1398,10 @@
     ;; узел КМ на листе: его шина начинается от силового контакта (третий элемент T)
     (foreach d onsheet
       (if (and (sx:kma-p d) (sx:has d sx:cQFown)) (setq b2 (cons (list (sx:kma-name d) (sx:kma-x d) T) b2))))
+    ;; v3.25: узлы каскада (программа «Объект») — шина от аппарата узла до последней линии узла
+    (foreach nd sx:nodes
+      (if (and (= (nth 5 nd) 1) (setq sp (sx:node-span (car nd) onsheet)))
+        (setq b2 (cons (list (car nd) (sx:node-x sp) T (+ (cadr sp) (* 0.5 *sx-step*) -1.0)) b2))))
     ;; вторые шины — до конца листа; если на листе несколько разных, каждая до начала следующей
     (setq segs '())
     (foreach sg (vl-sort b2 '(lambda (a b) (< (cadr a) (cadr b))))
@@ -1408,11 +1412,16 @@
       (sx:bus (cond ((caddr sg) (- (cadr sg) 5.0))
                     ((= k 0) (if bus2us bus2us busus))
                     (t (- (cadr sg) 9.0)))
-              (if (< (1+ k) (length segs))
-                (- (cadr (nth (1+ k) segs)) (if (caddr (nth (1+ k) segs)) 6.0 11.0))
-                ue)
+              (cond ((cadddr sg) (cadddr sg))                     ; v3.25: узел — до своей последней линии
+                    ((< (1+ k) (length segs))
+                     (- (cadr (nth (1+ k) segs)) (if (caddr (nth (1+ k) segs)) 6.0 11.0)))
+                    (t ue))
               sx:vBus2L sx:vBus2N
-              (if (sx:kma-find (car sg) draw) (strcat "L1,L2,L3 (" (car sg) ")") (car sg)))
+              (cond ((sx:kma-find (car sg) draw) (strcat "L1,L2,L3 (" (car sg) ")"))
+                    ((setq nd (sx:node-find (car sg)))
+                     (strcat (if (= (nth 6 nd) 3) "L1,L2,L3" "L") " (" (car sg) ")"))
+                    (t (car sg))))
+      (if (and (setq nd (sx:node-find (car sg))) (caddr sg)) (sx:draw-node nd (+ (cadr sg) 0.0)))
       (setq k (1+ k)))
     ;; шина PE — одна на уровне sx:vPE: для клемм и для линий ДСУП
     (if (vl-some '(lambda (d) (or (sx:is1 d sx:cXT) (sx:dsup-p d))) onsheet)
@@ -1562,6 +1571,76 @@
   ;; механическая связь катушки и контакта
   (sx:line (+ u3 4.0) vm (- xk 1.5) vm sx:LN)
   (sx:line (- xk 1.5) vm (- xk 1.5) (+ sx:vBus2L 5.0) sx:LN))
+
+;;; ---------------------------------------------------------------- узлы каскада (программа «Объект»), v3.25
+;;; Файл рядом с книгой: <книга>.nodes.txt — пишет программа «Объект» (6_Программа, вкладка щита «Структура»).
+;;; Строки — формы LISP, тексты — коды символов (sx:ru):
+;;;   (NODE щит id вид обозн текст родитель уровень фаз)   вид: QF / RCD / RCBO / QS
+;;;   (LINE щит линия корень)                              линия под узлом верхнего уровня
+;;; Линии узла встают на его шину (как вторая шина: D = имя узла, BE = 1). Шина узла — от его аппарата
+;;; (полшага левее первой линии) до последней линии. Аппарат — между основной шиной и шиной узла.
+;;; Чертёж в один уровень: узлы уровня 2+ не рисуются, их линии — на шине корня (программа предупреждает).
+(setq sx:nodes nil sx:nodeLines nil sx:ndTop 214.6 sx:ndMid 209.4 sx:ndSenB 206.3 sx:ndSenT 208.1)
+(defun sx:nodes-file ( / b)
+  (if (and sx:path (/= sx:path ""))
+    (strcat (vl-filename-directory sx:path) "\\" (vl-filename-base sx:path) ".nodes.txt")))
+(defun sx:nodes-read (panel / f fh ln x)
+  (setq sx:nodes nil sx:nodeLines nil)
+  (if (and (setq f (sx:nodes-file)) (findfile f) (setq fh (open f "r")))
+    (progn
+      (while (setq ln (read-line fh))
+        (if (= (substr ln 1 1) "(")
+          (progn
+            (setq x (vl-catch-all-apply 'read (list ln)))
+            (if (and (not (vl-catch-all-error-p x)) (listp x))
+              (cond
+                ((and (= (car x) 'NODE) (= (sx:ru (nth 1 x)) panel))
+                 ;; (id вид обозн текст родитель уровень фаз)
+                 (setq sx:nodes (cons (list (sx:ru (nth 2 x)) (nth 3 x) (sx:ru (nth 4 x)) (sx:ru (nth 5 x))
+                                            (sx:ru (nth 6 x)) (nth 7 x) (nth 8 x)) sx:nodes)))
+                ((and (= (car x) 'LINE) (= (sx:ru (nth 1 x)) panel))
+                 (setq sx:nodeLines (cons (cons (strcase (sx:ru (nth 2 x))) (sx:ru (nth 3 x))) sx:nodeLines))))))))
+      (close fh)))
+  (sx:log (strcat "nodes=" (itoa (length sx:nodes)) " node lines=" (itoa (length sx:nodeLines)))))
+(defun sx:node-find (name) (if (/= name "") (assoc name sx:nodes)))
+(defun sx:node-of (d) (cdr (assoc (strcase (sx:s (sx:c d sx:cLine))) sx:nodeLines)))
+;;; запись с новым значением столбца col
+(defun sx:setc (rec col val / k)
+  (setq k 0)
+  (append (list (car rec) (cadr rec) (mapcar '(lambda (v) (setq k (1+ k)) (if (= k col) val v)) (caddr rec)))
+          (cdddr rec)))
+;;; линии под узлом -> на шину узла
+(defun sx:nodes-apply (lst / nd)
+  (mapcar '(lambda (d) (if (setq nd (sx:node-of d)) (sx:setc (sx:setc d sx:cBusName nd) sx:cBus2 1) d)) lst))
+;;; (min max) мест линий узла на листе
+(defun sx:node-span (id lst / us)
+  (setq us (mapcar 'sx:u (vl-remove-if-not '(lambda (d) (= (sx:node-of d) id)) lst)))
+  (if us (list (apply 'min us) (apply 'max us))))
+(defun sx:node-x (sp) (- (car sp) (* 0.5 *sx-step*)))
+;;; аппарат узла (ГОСТ 2.755 / 2.710): нож; автомат — крест у неподвижного контакта; УЗО — датчик тока на L и N
+(defun sx:draw-node (nd x / kind y1 y2)
+  (setq kind (nth 1 nd) y1 sx:ndTop y2 sx:ndMid)
+  (sx:dot x sx:vBusL sx:L)
+  (sx:line x sx:vBusL x y1 sx:L)
+  (sx:line x y2 (- x 2.6) (- y1 0.4) sx:L)
+  (sx:line x y2 x sx:vBus2L sx:L)
+  (if (member kind '("QF" "RCBO"))
+    (progn (sx:line (- x 0.8) (- y1 0.8) (+ x 0.8) (+ y1 0.8) sx:L)
+           (sx:line (- x 0.8) (+ y1 0.8) (+ x 0.8) (- y1 0.8) sx:L)))
+  (if (= kind "QS") (sx:line (- x 0.8) y1 (+ x 0.8) y1 sx:L))
+  ;; N узла — рядом, без разрыва (как у узла КМ)
+  (sx:line (+ x 2.5) sx:vBusN (+ x 2.5) sx:vBus2N sx:LN)
+  (sx:dot (+ x 2.5) sx:vBusN sx:LN)
+  (sx:dot (+ x 2.5) sx:vBus2N sx:LN)
+  (if (member kind '("RCD" "RCBO"))
+    (progn
+      (sx:rect (- x 1.6) sx:ndSenB (+ x 4.1) sx:ndSenT sx:L)
+      ;; связь датчика с ножом
+      (sx:line (- x 1.6) (/ (+ sx:ndSenB sx:ndSenT) 2.0) (- x 3.4) (/ (+ sx:ndSenB sx:ndSenT) 2.0) sx:LN)
+      (sx:line (- x 3.4) (/ (+ sx:ndSenB sx:ndSenT) 2.0) (- x 3.4) (- (/ (+ y1 y2) 2.0) 0.2) sx:LN)
+      (sx:line (- x 3.4) (- (/ (+ y1 y2) 2.0) 0.2) (- x 1.3) (- (/ (+ y1 y2) 2.0) 0.2) sx:LN)))
+  ;; подпись: обозначение и аппарат — над шиной N, правее стойки N
+  (sx:text (+ x 3.6) (+ sx:vBusN 1.2) 1.8 (strcat (nth 2 nd) " " (nth 3 nd)) sx:T))
 
 (setq sx:devRoom 24.0)   ; мм под автоматом для аппаратов (до клеммы XT остаётся место для засечек)
 (defun sx:qf-low (u) (cond ((cdr (assoc u sx:qflow))) (t sx:vComb)))
@@ -2447,6 +2526,9 @@
                (or (/= (sx:s (nth (1- sx:cLine) row)) "") (/= (sx:s (nth 4 row)) "")))
         (setq sx:nopos (append sx:nopos (list xrow))))))
   (setq recs (vl-sort recs '(lambda (a b) (< (car a) (car b)))))
+  ;; v3.25: узлы каскада из программы «Объект» (<книга>.nodes.txt): линии узла — на его шину
+  (sx:nodes-read panel)
+  (if sx:nodeLines (setq recs (sx:nodes-apply recs)))
   (setq draw (vl-remove-if-not '(lambda (d) (sx:is1 d sx:cDraw)) recs))
   (sx:log (strcat "recs=" (itoa (length recs)) " draw=" (itoa (length draw))))
   (if sx:part
@@ -2534,5 +2616,5 @@
   (princ))
 
 (princ (strcat "\n" (sx:ru '(83 88 95 83 99 104 101 109 97 32 118 51 46 49 55 32 1079 1072 1075 1088 1091 1078 1077 1085 32 40 1074 1072 1096 1080 32 1073 1083 1086 1082 1080 41 58 32 83 88 68 82 65 87 32 8212 32 1087 1086 1089 1090 1088 1086 1080 1090 1100 32 1089 1093 1077 1084 1091 44 32 83 88 67 76 69 65 82 32 8212 32 1089 1090 1077 1088 1077 1090 1100 46))))
-(princ "\n[SX_Schema v3.24] SXDRAW / SXUPDATE / SXUPDSEL / SXUPDSHEET / SXCLEAR")
+(princ "\n[SX_Schema v3.25] SXDRAW / SXUPDATE / SXUPDSEL / SXUPDSHEET / SXCLEAR")
 (princ)
