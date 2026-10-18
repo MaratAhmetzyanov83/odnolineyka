@@ -5,6 +5,7 @@ import { toObject, toPanel } from "../nav.js";
 import { mount } from "../grid.js";
 import { lineColumns, lineRef, lineAttrs } from "../columns.js";
 import * as issues from "./issues.js";
+import * as scheme from "./scheme.js";
 
 const kv = (k, v, cls = "") => `<div><span class="k">${k}</span><b class="${cls}">${v}</b></div>`;
 const ec = p => counts(S.issuesBy[p.id]);
@@ -66,6 +67,7 @@ export const TABS = [
   { id: "summary", title: () => "Сводка", bar: () => `<span class="sub">Тип замечания × щит. Щелчок по числу — эти замечания в щите.</span>`,
     render: summary },
   { id: "issues", title: () => `Замечания (${S.P.issues.length})`, bar: issues.filters, mount: host => issues.mountTable(host, S.P.issues, true) },
+  { id: "scheme", title: () => "Схема", bar: () => "", mount: scheme.mount },
   { id: "panels", title: () => `Щиты (${Object.keys(S.panels).length})`, bar: () => "", mount: panelsGrid },
   { id: "lines", title: () => `Все линии (${Object.values(S.panels).reduce((s, p) => s + p.lines.length, 0)})`, bar: () => "", mount: allLinesGrid },
 ];
