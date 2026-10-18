@@ -125,19 +125,33 @@ class ExcelV312(Source):
         return cells_for(prj, changes)
 
     def open_at(self, path, ref):
-        """Книга — в Excel пользователя (видимый), лист и ячейка выделены. Без pywin32 — просто открыть файл."""
+        """Книга — в Excel пользователя (видимый, под его управлением), лист и ячейка выделены.
+        Excel уже открыт — берём его; нет — запускаем и отдаём пользователю (UserControl), чтобы он мог сохранять
+        и Excel не закрылся вместе с программой. Без pywin32 — просто открыть файл."""
         try:
+            import pythoncom  # type: ignore
             import win32com.client  # type: ignore
-            xl = win32com.client.Dispatch("Excel.Application")
+            pythoncom.CoInitialize()                     # запрос окна идёт в своём потоке
+            try:
+                xl = win32com.client.GetActiveObject("Excel.Application")
+            except Exception:  # noqa: BLE001 — Excel не запущен
+                xl = win32com.client.Dispatch("Excel.Application")
             xl.Visible = True
+            xl.UserControl = True
             wb = next((w for w in xl.Workbooks if os.path.normcase(w.FullName) == os.path.normcase(path)), None)
             if wb is None:
                 wb = xl.Workbooks.Open(path)
+            if wb.ReadOnly:
+                return "книга открылась только для чтения: она открыта в другом Excel или у другого пользователя"
             wb.Activate()
             if ref.sheet and ref.cell:
                 ws = wb.Worksheets(ref.sheet)
                 ws.Activate()
                 xl.Goto(ws.Range(ref.cell), True)
+            try:
+                xl.WindowState = -4137                   # развернуть
+            except Exception:  # noqa: BLE001
+                pass
             return "ok"
         except Exception as e:  # noqa: BLE001
             if sys.platform == "win32":
@@ -271,5 +285,15 @@ def _panels(doc, odn: Rows, net: Rows):
             p.scheme.avr = txt(net.get(X.NET_AVR_ROW, c))
             if k == 0:
                 p.result.category = txt(net.get(X.NET_CAT_ROW, "C"))
+            # вводы 2 и 3
+            if txt(net.get(X.NET_IN23_MARK[0], X.NET_IN23_MARK[1])).upper() == X.NET_IN23_MARK[2]:
+                for j in range(2):
+                    r = 6 + k * 2 + j
+                    sp = M.Supply()
+                    for f, col in X.NET_IN23.items():
+                        set_path(sp, f, net.get(r, col))
+                    sp.input = sp.input or (2 + j)
+                    if (p.scheme.inputs or 1) >= sp.input:
+                        p.inputs_more.append(sp)
         panels[name] = p
     return panels

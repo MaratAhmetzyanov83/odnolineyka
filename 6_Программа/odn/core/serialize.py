@@ -17,6 +17,7 @@ LIST_ITEMS = {
     (model.Panel, "feeders_seen"): model.FeederSeen,
     (model.Panel, "notes"): model.Note,
     (model.Panel, "nodes"): model.Node,
+    (model.Panel, "inputs_more"): model.Supply,
 }
 # поля-словари: какой класс у значений
 DICT_ITEMS = {

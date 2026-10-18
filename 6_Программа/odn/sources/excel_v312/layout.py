@@ -19,6 +19,7 @@ SRC_FIELDS = {
     "input.p_kw": "E", "input.u_v": "F", "input.count": "G", "input.phases": "H", "input.length_plan": "I",
     "input.length": "M", "input.cable_code": "N", "input.cores": "O", "input.cos": "P", "input.s_min": "Q",
     "input.in_manual": "R", "input.group_ks": "BC", "input.parallel": "CC", "input.low_current": "CB",
+    "input.section": "BB",
     "result.i_calc": "T", "result.in_by_current": "U", "result.s_mm2": "V", "result.du": "AB",
     "result.i_start": "AT", "result.du_max": "BF", "result.du_sum": "BG", "result.ikz_min": "BI",
     "result.ikz_ratio": "BJ", "result.ikz_check": "BK", "result.ikz_max": "BM", "result.category": "BP",
@@ -63,4 +64,8 @@ NET_VRU_ROW = 26                 # «Этот щит — ВРУ здания» (
 NET_LOAD_ROW = 45                # раздел 4: Руст щита (строка 45 + № щита), столбец C
 NET_INPUTS_ROW, NET_AVR_ROW, NET_CAT_ROW = 65, 66, 68
 NET_SUB_ROW, NET_SUB_COUNT = 94, 30      # раздел Б: фидеры к нижестоящим
+# «Вводы 2 и 3» (patch_inputs.py): U4 = метка; щит k (1–3): строки 6 + (k-1)·2 (ввод 2) и +1 (ввод 3)
+NET_IN23_MARK = (4, "U", "ВВОДЫ 2 И 3")
+NET_IN23 = {"input": "V", "du_bus": "W", "ikz_max": "Y", "in_a": "Z", "from_doc": "AA",
+            "qf": "AL", "breaker": "AM", "cable": "AN", "length": "AO", "from_panel": "AP"}
 NET_SUB = {"line": "B", "doc": "C", "p_inst": "D", "i_calc": "J", "in_a": "N", "check": "O"}

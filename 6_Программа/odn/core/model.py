@@ -47,6 +47,7 @@ class LineInput:
     group_ks: str = ""                  # Быт / Сил / Пост / Нет / Щит
     parallel: Optional[int] = None      # кабелей параллельно
     low_current: bool = False           # слаботочная
+    section: Optional[int] = None       # секция щита (ввод): 1 / 2 / 3, пусто = 1 («Исходные данные» BB)
 
 
 @dataclass
@@ -101,6 +102,7 @@ class Line:
     result: LineResult = field(default_factory=LineResult)
     refs: dict = field(default_factory=dict)    # где в источнике: {"input": Ref, "scheme": Ref, ...} как dict
     feeds: str = ""                     # id щита, который питает эта линия (фидер)
+    feeds_input: int = 0                # какой ввод того щита питает эта линия (1–3)
     node: str = ""                      # узел щита, под которым линия (структура программы); пусто — на шине
     rcd_node: str = ""                  # узел выше с 30 мА (УЗО / АВДТ) — заполняет calc.nodes
 
@@ -128,6 +130,10 @@ class Supply:
     in_a: Optional[float] = None
     du_bus: Optional[float] = None
     ikz_max: Optional[float] = None
+    input: int = 1                      # номер ввода щита (1 — основной, 2–3 — «Вводы 2 и 3»)
+    # связь ввода (services.linking): от какого щита и линии
+    parent: str = ""
+    parent_line: str = ""
 
 
 @dataclass
@@ -210,6 +216,7 @@ class Panel:
     feeders_seen: list = field(default_factory=list)     # list[FeederSeen]
     notes: list = field(default_factory=list)            # list[Note]
     nodes: list = field(default_factory=list)            # list[Node] — структура щита (каскад)
+    inputs_more: list = field(default_factory=list)      # list[Supply] — вводы 2 и 3 («Сеть_щита» строки 6–11)
     refs: dict = field(default_factory=dict)             # именованные места: {"supply": Ref, ...}
     # заполняет services.linking
     parent: str = ""

@@ -235,5 +235,34 @@ class TestExternal(unittest.TestCase):
             shutil.rmtree(d, ignore_errors=True)
 
 
+
+
+class TestInputs(unittest.TestCase):
+    """Вводы 2 и 3: ЩР-2 — ввод 2 от ГРЩ по линии Щ.3 («Сеть_щита» C65 = 2, AA6)."""
+
+    def test_second_input(self):
+        TestExcelV312.setUpClass()
+        import openpyxl
+        d = tempfile.mkdtemp(prefix="odn_in2_")
+        try:
+            obj = os.path.join(d, "объект")
+            shutil.copytree(FOLDER, obj, ignore=shutil.ignore_patterns("_окно", "*.nodes.txt"))
+            path = os.path.join(obj, "Корпус 2", "ЩР-2.xlsx")
+            wb = openpyxl.load_workbook(path)
+            net = wb["Сеть_щита"]
+            net["C65"], net["U4"], net["V6"], net["AA6"], net["AM6"], net["AO6"] = 2, "ВВОДЫ 2 И 3", 2, "..\\ГРЩ.xlsx / Щ.3", "3P C16А", 20
+            wb.save(path)
+            prj = load_project(obj, progress=lambda s: None, use_cache=False)
+            p = {x.name: x for x in prj.panels()}
+            sp = p["ЩР-2"].inputs_more
+            self.assertEqual([(x.input, x.parent, x.parent_line, x.breaker, x.length) for x in sp],
+                             [(2, p["ГРЩ"].id, "Щ.3", "3P C16А", 20.0)])
+            ln = prj.line(p["ГРЩ"].id, "Щ.3")
+            self.assertEqual((ln.feeds, ln.feeds_input), (p["ЩР-2"].id, 2))
+            self.assertNotIn(("links.feeder_no_book", "Щ.3"), {(i.rule, i.line) for i in prj.issues})
+        finally:
+            shutil.rmtree(d, ignore_errors=True)
+
+
 if __name__ == "__main__":
     unittest.main()

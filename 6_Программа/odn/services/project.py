@@ -87,7 +87,7 @@ def linked_paths(prj, doc):
     base = os.path.dirname(os.path.join(prj.folder, doc.file))
     out = []
     for p in doc.panels:
-        refs = [p.supply.from_doc] + [x.from_doc for x in getattr(p, "inputs", [])] + [fs.doc for fs in p.feeders_seen]
+        refs = [p.supply.from_doc] + [x.from_doc for x in p.inputs_more] + [fs.doc for fs in p.feeders_seen]
         for r in refs:
             f = (r or "").partition(" / ")[0].strip()
             if f and ".xls" in f.lower():

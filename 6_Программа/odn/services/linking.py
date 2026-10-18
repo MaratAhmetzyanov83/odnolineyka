@@ -32,9 +32,9 @@ def suggest_feeder(par, child):
     return ""
 
 
-def _book_link(prj, p, by_doc):
-    """Связь, как она записана в книге щита: (id вышестоящего, линия) или ошибка."""
-    s = p.supply
+def _book_link(prj, p, by_doc, s=None):
+    """Связь ввода, как она записана в книге щита: (id вышестоящего, линия) или ошибка."""
+    s = s or p.supply
     fpath, _, pname = (x.strip() for x in s.from_doc.partition(" / "))
     pname = pname or s.from_panel
     cands = by_doc.get(_abs(prj.folder, p.doc, fpath))
@@ -68,7 +68,7 @@ def link(prj: Project, overrides: dict | None = None) -> None:
     for p in prj.panels():
         p.parent = p.parent_line = p.link_error = p.book_parent = p.book_line = p.link_src = ""
         for ln in p.lines:
-            ln.feeds = ""
+            ln.feeds, ln.feeds_input = "", 0
     for p in prj.panels():
         if p.supply.from_doc:
             p.book_parent, p.book_line, p.link_error = _book_link(prj, p, by_doc)
@@ -81,5 +81,14 @@ def link(prj: Project, overrides: dict | None = None) -> None:
         if p.parent:
             ln = next((x for x in prj.panel_raw(p.parent).lines if x.number == p.parent_line), None)
             if ln:
-                ln.feeds = p.id
+                ln.feeds, ln.feeds_input = p.id, 1
+        # вводы 2 и 3: свой вышестоящий и линия (в дереве щит стоит по вводу 1)
+        for sp in p.inputs_more:
+            sp.parent = sp.parent_line = ""
+            if sp.from_doc:
+                sp.parent, sp.parent_line, err = _book_link(prj, p, by_doc, sp)
+                if sp.parent:
+                    ln = next((x for x in prj.panel_raw(sp.parent).lines if x.number == sp.parent_line), None)
+                    if ln and not ln.feeds:
+                        ln.feeds, ln.feeds_input = p.id, sp.input
     prj.reindex()
