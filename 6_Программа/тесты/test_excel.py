@@ -412,5 +412,39 @@ class TestFixes(unittest.TestCase):
             shutil.rmtree(d, ignore_errors=True)
 
 
+class TestPhasesFeeders(unittest.TestCase):
+    """Фазы с нижестоящими щитами; кабель фидера в двух книгах (лоток / ПВХ / ПНД)."""
+
+    def test_phases_and_cable(self):
+        TestExcelV312.setUpClass()
+        import openpyxl
+        d = tempfile.mkdtemp(prefix="odn_ph_")
+        try:
+            obj = os.path.join(d, "объект")
+            shutil.copytree(FOLDER, obj, ignore=shutil.ignore_patterns("_окно", "*.nodes.txt", "*.drawn.txt"))
+            prj = load_project(obj, progress=lambda s: None, use_cache=False)
+            p = {x.name: x for x in prj.panels()}
+            g = p["ГРЩ"]
+            for k in ("L1", "L2", "L3"):          # ГРЩ = свои линии + ЩР-1 + ЩР-2
+                self.assertAlmostEqual(g.phase_i[k], g.phase_own[k] + p["ЩР-1"].phase_i[k] + p["ЩР-2"].phase_i[k], places=2)
+            feeder = prj.line(g.id, p["ЩР-1"].parent_line)
+            self.assertEqual(feeder.phase_i, p["ЩР-1"].phase_i)
+            # строка ввода в ЩР-1: гофра ПНД 9 м, а у фидера в ГРЩ — другое
+            path = os.path.join(obj, "ЩР-1.xlsx")
+            wb = openpyxl.load_workbook(path)
+            ws = wb["Исходные данные"]
+            r = next(r for r in range(3, 21) if not ws[f"D{r}"].value)
+            ws[f"D{r}"], ws[f"K{r}"], ws[f"L{r}"], ws[f"M{r}"] = "Ввод", 0, (feeder.input.pnd or 0) + 9, feeder.input.length
+            wb.save(path)
+            prj = load_project(obj, progress=lambda s: None, use_cache=False)
+            p = {x.name: x for x in prj.panels()}
+            feeder = prj.line(p["ГРЩ"].id, p["ЩР-1"].parent_line)
+            self.assertEqual(list(feeder.mismatch), ["input.pnd"])
+            self.assertEqual(list(prj.line(p["ЩР-1"].id, "Ввод").mismatch), ["input.pnd"])
+            self.assertTrue(any(i.rule == "links.cable_mismatch" and "гофра ПНД" in i.text for i in prj.issues))
+        finally:
+            shutil.rmtree(d, ignore_errors=True)
+
+
 if __name__ == "__main__":
     unittest.main()

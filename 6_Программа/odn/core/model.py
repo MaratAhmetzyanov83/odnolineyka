@@ -16,7 +16,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Optional
 
-SCHEMA = 3            # версия формата JSON (и кэша): менять, когда модель или чтение книг меняются несовместимо
+SCHEMA = 4            # версия формата JSON (и кэша): менять, когда модель или чтение книг меняются несовместимо
 
 
 # ---------------------------------------------------------------- место в источнике (куда идти править)
@@ -38,6 +38,9 @@ class LineInput:
     phases: Optional[int] = None
     count: Optional[int] = None         # кол-во потребителей (для длины)
     length_plan: Optional[float] = None
+    tray: Optional[float] = None        # по лотку, м («Исходные данные» J; DLN — с плана)
+    pvc: Optional[float] = None         # в гофре ПВХ, м (K)
+    pnd: Optional[float] = None         # в гофре ПНД, м (L)
     length: Optional[float] = None      # L итог, м
     cable_code: str = ""                # код марки (мс, мфр…)
     cores: Optional[int] = None
@@ -106,6 +109,8 @@ class Line:
     feeds_input: int = 0                # какой ввод того щита питает эта линия (1–3)
     node: str = ""                      # узел щита, под которым линия (структура программы); пусто — на шине
     rcd_node: str = ""                  # узел выше с 30 мА (УЗО / АВДТ) — заполняет calc.nodes
+    phase_i: dict = field(default_factory=dict)   # линия-фидер: фазные токи щита, который она питает (calc.phases)
+    mismatch: dict = field(default_factory=dict)  # фидер ≠ строка ввода нижестоящего: {поле: значение на той стороне}
 
     @property
     def id(self):
@@ -226,6 +231,11 @@ class Panel:
     link_src: str = ""                  # откуда связь: «книга» / «программа»
     vru: bool = False                   # ВРУ здания (итог: программа, иначе книга) — calc.du
     vru_src: str = ""                   # «книга» / «программа»
+    # заполняет calc.phases: ΣIр по фазам (без Кс) с учётом нижестоящих щитов
+    phase_i: dict = field(default_factory=dict)          # {"L1": А, "L2": А, "L3": А}
+    phase_own: dict = field(default_factory=dict)        # только свои линии (без фидеров)
+    phase_skew: float = 0.0                              # перекос, % = (max − min) / max
+    phase_unknown: int = 0                               # линий с током, но без фазы
     book_parent: str = ""               # связь, как записана в книге (для сверки со связью программы)
     book_line: str = ""
     # заполняет core.revision

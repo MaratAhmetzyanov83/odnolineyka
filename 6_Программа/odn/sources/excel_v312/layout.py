@@ -19,6 +19,7 @@ SRC_NUMBER = "D"
 SRC_NAME = ("C", "AJ", "B")      # ручное, итоговое, автоматическое — первое непустое
 SRC_FIELDS = {
     "input.p_kw": "E", "input.u_v": "F", "input.count": "G", "input.phases": "H", "input.length_plan": "I",
+    "input.tray": "J", "input.pvc": "K", "input.pnd": "L",
     "input.length": "M", "input.cable_code": "N", "input.cores": "O", "input.cos": "P", "input.s_min": "Q",
     "input.in_manual": "R", "input.group_ks": "BC", "input.parallel": "CC", "input.low_current": "CB",
     "input.section": "BB",

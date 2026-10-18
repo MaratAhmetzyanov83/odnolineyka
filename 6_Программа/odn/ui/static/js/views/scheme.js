@@ -4,7 +4,7 @@ import { esc, num } from "../fmt.js";
 import { S, roots, worst } from "../store.js";
 import { toPanel } from "../nav.js";
 
-const W = 184, H = 66, DX = W + 240, DY = 22, PAD = 16, SRC = 160;
+const W = 184, H = 80, DX = W + 240, DY = 22, PAD = 16, SRC = 160;
 let zoom = 1;
 
 const cut = (s, n) => (s = String(s || "")).length > n ? s.slice(0, n - 1) + "…" : s;
@@ -21,6 +21,8 @@ function inputsOf(p){
     const l = i.parent && S.panels[i.parent].lines.find(x => x.number === i.line);
     if (!l) continue;
     i.breaker ||= l.scheme.breaker; i.cable ||= l.scheme.cable; i.length ??= l.input.length;
+    i.lay = [["лоток", l.input.tray], ["ПВХ", l.input.pvc], ["ПНД", l.input.pnd]].filter(x => x[1]).map(([k, v]) => `${k} ${num(v, 0)} м`).join(" · ");
+    i.mm = Object.keys(l.mismatch || {}).length > 0;
   }
   return [main, ...more];
 }
@@ -60,6 +62,7 @@ function box(p, at, ext){
     <text x="${at.x + 19}" y="${at.y + 17}" class="nm">${esc(cut(p.name, 18))}${ext ? " ↗" : ""}</text>
     ${p.vru ? `<rect class="vru" x="${at.x + W - 38}" y="${at.y + 5}" width="32" height="15" rx="3"/><text class="vrut" x="${at.x + W - 22}" y="${at.y + 16}">ВРУ</text>` : ""}
     <text x="${at.x + 8}" y="${at.y + 33}">Рр ${num(p.result.p_calc, 1)} кВт · Iр ${num(p.result.i_calc, 1)} А</text>
+    <text x="${at.x + 8}" y="${at.y + 73}" class="mu${p.phase_skew > 15 ? " sk" : ""}"><title>ΣIр по фазам с нижестоящими, перекос ${num(p.phase_skew, 0)} %</title>${["L1", "L2", "L3"].map(k => `${k} ${num((p.phase_i || {})[k] || 0, 0)}`).join(" · ")} А${p.phase_skew > 15 ? ` · ${num(p.phase_skew, 0)} %` : ""}</text>
     <text x="${at.x + 8}" y="${at.y + 47}" class="mu">${n} ввод${n > 1 ? "а" : ""}${p.scheme.avr ? " · АВР " + esc(p.scheme.avr) : ""} · ${p.lines.length} лин.</text>
     ${sec ? `<text x="${at.x + 8}" y="${at.y + 60}" class="mu">${esc(sec)}</text>` : ""}
     ${ports}</g>`;
@@ -70,8 +73,9 @@ function edgeLabel(inp, x, y, one){
   const len = inp.length != null ? num(inp.length, 0) + " м" : "";
   const head = [`В${inp.input}`, inp.line, inp.breaker, one ? "" : len].filter(Boolean).join(" · ");
   const tail = one ? [inp.cable, len].filter(Boolean).join(" · ") : "";
-  const full = [`Ввод ${inp.input}`, inp.line && "линия " + inp.line, inp.breaker, inp.cable, len].filter(Boolean).join("\n");
-  return `<g class="elab"><title>${esc(full)}</title>
+  const full = [`Ввод ${inp.input}`, inp.line && "линия " + inp.line, inp.breaker, inp.cable, len, inp.lay,
+                inp.mm && "кабель в книгах разный (см. замечания)"].filter(Boolean).join("\n");
+  return `<g class="elab${inp.mm ? " warn" : ""}"><title>${esc(full)}</title>
     <text x="${x}" y="${one ? y - 4 : y - 3}">${esc(cut(head, 40))}</text>${tail ? `<text x="${x}" y="${y + 10}" class="mu">${esc(cut(tail, 40))}</text>` : ""}</g>`;
 }
 

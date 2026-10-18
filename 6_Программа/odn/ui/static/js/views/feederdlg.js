@@ -39,7 +39,9 @@ export function open(p){
   d.className = "gpop dlg";
   d.innerHTML = `<div class="ph"><b>Фидер ${esc(p.name)}</b>
       <div class="sub">линия ${esc(ln.number)} щита ${esc(par.name)} (${esc(par.doc)}):
-      ${esc(ln.scheme.breaker)} · ${esc(ln.scheme.cable)} · Iр ${num(ln.result.i_calc, 1)} А · ΔU ${num(ln.result.du, 2)} %</div></div>
+      ${esc(ln.scheme.breaker)} · ${esc(ln.scheme.cable)} · Iр ${num(ln.result.i_calc, 1)} А · ΔU ${num(ln.result.du, 2)} %<br>
+      прокладка: лоток ${num(ln.input.tray || 0, 0)} м · гофра ПВХ ${num(ln.input.pvc || 0, 0)} м · гофра ПНД ${num(ln.input.pnd || 0, 0)} м
+      ${Object.keys(ln.mismatch || {}).length ? `<br><b class="w">Строка ввода ${esc(p.name)} не совпадает: ${esc(Object.entries(ln.mismatch).map(([k, v]) => k.split(".").pop() + " там " + (v ?? "пусто")).join("; "))}</b>` : ""}</div></div>
     ${FIELDS.filter(f => f[0] !== "scheme.breaker_set" || brkOk).map(([path, t, get]) => {
       const o = (OPTIONS[path] || {}).options || [];
       return `<div class="row"><label>${t}</label><input data-p="${path}" value="${esc(cur(path, get(ln)))}" list="fd-${path.replace(/\W/g, "_")}">

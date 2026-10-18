@@ -148,3 +148,23 @@ def input_no_device(prj):
             if _is_input(ln) and not ln.scheme.breaker and not ln.scheme.breaker_set:
                 yield Hit(1, f"ввод {ln.number} без аппарата — в «Автомат» впишите «авто» (QS по фидеру) или текст",
                           p.id, ln.number, ln.refs.get("scheme") or ln.refs.get("input"))
+
+
+@rule("links.cable_mismatch", "Кабель фидера: книги расходятся", G)
+def cable_mismatch(prj):
+    """Строка фидера вышестоящего и строка ввода нижестоящего: марка, жилы, сечение, L, лоток, гофра ПВХ / ПНД."""
+    from ..calc.feeders import LABEL
+    for par in prj.panels():
+        for ln in par.lines:
+            if ln.mismatch and ln.feeds:
+                child = prj.panel(ln.feeds)
+                parts = []
+                for k, other in ln.mismatch.items():
+                    obj = ln
+                    for a in k.split("."):
+                        obj = getattr(obj, a)
+                    parts.append(f"{LABEL[k]} {f(obj) if isinstance(obj, (int, float)) else obj or '—'} ≠ "
+                                 f"{f(other) if isinstance(other, (int, float)) else other or '—'}")
+                yield Hit(2, f"кабель фидера {ln.number} → {child.name}: в книгах разный ({'; '.join(parts)}) — "
+                             f"слева {par.name}, справа строка ввода {child.name}", par.id, ln.number,
+                          ln.refs.get("input"))

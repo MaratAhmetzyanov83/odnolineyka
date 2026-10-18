@@ -14,17 +14,6 @@ const kv = (k, v, cls = "", tip = "") => v === "" || v == null ? "" :
   `<div ${tip ? `title="${esc(tip)}"` : ""}><span class="k">${k}</span><b class="${cls}">${v}</b></div>`;
 const lf = { q: "", only: false };              // фильтр линий
 
-// Σ Iр по фазам (без Кс): однофазные — на свою фазу, трёхфазные — на все
-function phases(p){
-  const s = {L1: 0, L2: 0, L3: 0};
-  for (const l of p.lines){
-    const i = l.result.i_calc || 0, ph = (l.scheme.phase || "").split(/[,\s]+/).filter(x => s[x] != null);
-    if (ph.length >= 3) for (const k in s) s[k] += i; else for (const k of ph) s[k] += i;
-  }
-  const v = Object.values(s), mx = Math.max(...v), mn = Math.min(...v);
-  return {s, skew: mx > 0 ? (mx - mn) / mx * 100 : 0};
-}
-
 export const KV = [
   p => { const par = S.panels[p.parent];
     const src = p.link_src ? ` <span class="tag" title="${p.link_src === "программа" ? "связь хранит программа" : "связь записана в книге"}">${esc(p.link_src)}</span>` : "";
@@ -47,9 +36,11 @@ export const KV = [
   p => kv("Iкз max", p.result.ikz_max_bus != null ? num(p.result.ikz_max_bus, 2) + " кА" : ""),
   p => kv("Вводы", esc([p.scheme.inputs, p.scheme.avr && p.scheme.avr !== "нет" ? "АВР" : ""].filter(Boolean).join(" + "))),
   p => kv("Кат.", esc(p.result.category)),
-  p => { const {s, skew} = phases(p);
-    return kv("Фазы ΣIр", Object.entries(s).map(([k, v]) => `${k} ${num(v, 1)}`).join(" · ") + (skew > 15 ? ` (перекос ${num(skew, 0)} %)` : ""),
-      skew > 15 ? "w" : "", "Сумма Iр линий по фазам, без Кс; перекос = (max − min) / max"); },
+  p => { const s = p.phase_i || {}, own = p.phase_own || {}, skew = p.phase_skew || 0, fed = p.lines.some(l => Object.keys(l.phase_i || {}).length);
+    const txt = o => ["L1", "L2", "L3"].map(k => `${k} ${num(o[k] || 0, 1)}`).join(" · ");
+    return kv(fed ? "Фазы ΣIр (с нижними)" : "Фазы ΣIр", txt(s) + (skew > 15 ? ` (перекос ${num(skew, 0)} %)` : ""), skew > 15 ? "w" : "",
+      "Сумма Iр по фазам, без Кс; перекос = (max − min) / max." + (fed ? `\nФидеры несут фазные токи своих щитов.\nТолько свои линии: ${txt(own)}` : "")
+      + (p.phase_unknown ? `\nЛиний без фазы: ${p.phase_unknown}` : "")); },
   p => { const [e, w] = counts(S.issuesBy[p.id]); return kv("Ошибок / вн.", `<span class="${e ? "e" : ""}">${e}</span> / <span class="${w ? "w" : ""}">${w}</span>`); },
   p => { const d = drawState(p); return kv("Однолинейка", `<span class="${d.cls}">${esc(d.txt)}</span>`, "", d.tip); },
   p => { const d = kjState(p); return kv("КЖ", `<span class="${d.cls}">${esc(d.txt)}</span>`, "", d.tip); },

@@ -194,3 +194,6 @@ svg.scheme .elab text,svg.scheme .src text{paint-order:stroke;stroke:var(--panel
 .fixdlg .tbl{max-height:60vh}
 .fixdlg td.w{white-space:normal;max-width:520px}
 tr.mut td{color:var(--muted)}
+svg.scheme text.sk{fill:var(--warn)}
+td.mm{background:var(--warn-bg);box-shadow:inset 0 0 0 1.5px var(--warn);font-weight:600}
+svg.scheme .elab.warn text{fill:var(--warn)}

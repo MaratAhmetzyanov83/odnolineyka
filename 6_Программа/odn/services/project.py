@@ -142,8 +142,10 @@ def step_link(prj, ctx):
 
 
 def step_calc(prj, ctx):
-    from ..calc import du, nodes
+    from ..calc import du, feeders, nodes, phases
     nodes.run(prj)                                  # узлы каскада; остальной расчёт — пока из Excel
+    phases.run(prj)                                 # фазы с учётом нижестоящих щитов
+    feeders.run(prj)                                # кабель фидера: книга вышестоящего ≠ строка ввода нижестоящего
     du.run(prj, structure.vru_flags(prj.folder))   # ВРУ зданий, ΔU от ВРУ, ΔUдоп с надбавкой за длину > 100 м
 
 

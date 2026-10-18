@@ -8,6 +8,11 @@ const load = l => { const i = l.result.i_calc, n = lineIn(l); return i != null &
 const duMax = l => l.result.du_max_eff ?? l.result.du_max;
 const duSum = l => l.result.du_sum_eff ?? l.result.du_sum;
 const duReserve = l => duMax(l) != null && duSum(l) != null ? duMax(l) - duSum(l) : null;
+// фидер ≠ строка ввода нижестоящего (calc/feeders.py): подсветка ячейки и значение в другой книге
+const mmOf = (l, path) => (l.mismatch || {})[path];
+const mmTip = (l, path) => mmOf(l, path) !== undefined ? `в другой книге: ${mmOf(l, path) === "" || mmOf(l, path) == null ? "пусто" : mmOf(l, path)}`
+  + (l.feeds ? ` (строка ввода ${S.panels[l.feeds]?.name || ""})` : " (линия-фидер вышестоящего)") : "";
+const mm = (path, cls) => ({cls: l => mmOf(l, path) !== undefined ? "mm" : (cls ? cls(l) : ""), tip: l => mmTip(l, path)});
 const lvl = (x, warn, err) => x == null ? 0 : x >= err ? 2 : x >= warn ? 1 : 0;
 
 export function lineColumns({ withPanel = false } = {}){
@@ -34,17 +39,21 @@ export function lineColumns({ withPanel = false } = {}){
       edit: {path: "scheme.breaker_set", ok: l => l.scheme.group_head || !l.scheme.qf, cur: l => l.scheme.breaker_set}},
     {id: "brs", t: "Автомат задан", title: "«авто» или текст (Однолинейка E)", w: 90, hidden: 1, v: l => l.scheme.breaker_set},
     {id: "cab", t: "Кабель", w: 170, v: l => cableShort(l.scheme.cable), tip: l => l.scheme.cable},
-    {id: "code", t: "Марка", title: "Код марки (Исходные данные N)", w: 52, v: l => l.input.cable_code, edit: {path: "input.cable_code"}},
-    {id: "cores", t: "Жил", n: 1, w: 40, d: 0, v: l => l.input.cores, edit: {path: "input.cores"}},
+    {id: "code", t: "Марка", title: "Код марки (Исходные данные N)", w: 52, v: l => l.input.cable_code, edit: {path: "input.cable_code"},
+      ...mm("input.cable_code")},
+    {id: "cores", t: "Жил", n: 1, w: 40, d: 0, v: l => l.input.cores, edit: {path: "input.cores"}, ...mm("input.cores")},
     {id: "s", t: "S, мм²", title: "Сечение. Правка — Sмин (Исходные данные Q): не меньше; пусто — по расчёту", n: 1, w: 54, d: 1,
-      v: l => l.result.s_mm2, edit: {path: "input.s_min", cur: l => l.input.s_min ?? ""}},
+      v: l => l.result.s_mm2, edit: {path: "input.s_min", cur: l => l.input.s_min ?? ""}, ...mm("result.s_mm2")},
     {id: "smin", t: "Sмин", title: "Сечение ручное / мин. по коду, мм²", n: 1, w: 50, d: 1, hidden: 1, v: l => l.input.s_min, edit: {path: "input.s_min"}},
     {id: "inm", t: "In ручн.", title: "In ручной, А", n: 1, w: 56, d: 0, hidden: 1, v: l => l.input.in_manual, edit: {path: "input.in_manual"}},
     {id: "low", t: "Слаб.", title: "Слаботочная линия (DALI, KNX…): без тока, потерь и нагрузки щита. Правка: по коду / да / нет", w: 44,
       v: l => l.input.low_current ? "да" : "", edit: {path: "input.low_current_set", cur: l => l.input.low_current_set}},
     {id: "par", t: "∥", title: "Кабелей параллельно", n: 1, w: 34, d: 0, hidden: 1, v: l => l.input.parallel, edit: {path: "input.parallel"}},
     {id: "lp", t: "Lпл, м", title: "Длина по плану (правится)", n: 1, w: 66, d: 1, v: l => l.input.length_plan, agg: "sum", edit: {path: "input.length_plan"}},
-    {id: "len", t: "L, м", title: "Длина итог (с опусками, лотком)", n: 1, w: 60, d: 0, v: l => l.input.length, agg: "sum"},
+    {id: "len", t: "L, м", title: "Длина итог (с опусками, лотком)", n: 1, w: 60, d: 0, v: l => l.input.length, agg: "sum", ...mm("input.length")},
+    {id: "tray", t: "Лоток", title: "По лотку, м (Исходные данные J; DLN — с плана)", n: 1, w: 50, d: 0, v: l => l.input.tray, agg: "sum", ...mm("input.tray")},
+    {id: "pvc", t: "ПВХ", title: "В гофре ПВХ, м (Исходные данные K)", n: 1, w: 46, d: 0, v: l => l.input.pvc, agg: "sum", ...mm("input.pvc")},
+    {id: "pnd", t: "ПНД", title: "В гофре ПНД, м (Исходные данные L)", n: 1, w: 46, d: 0, v: l => l.input.pnd, agg: "sum", ...mm("input.pnd")},
     {id: "du", t: "ΔU, %", n: 1, w: 54, v: l => l.result.du, agg: "max"},
     {id: "dus", t: "ΔUΣ, %", title: "ΔU от ВРУ (полоса — доля от допустимой с надбавкой за длину > 100 м)", n: 1, w: 66,
       v: duSum, agg: "max",
