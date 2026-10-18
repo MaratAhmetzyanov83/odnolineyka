@@ -268,6 +268,7 @@ class Issue:
     line: str = ""
     ref: Ref = field(default_factory=Ref)
     group: str = ""                     # группа правила — для фильтров окна
+    hint: str = ""                      # пояснение: что значит и как исправить (checks.hints)
 
 
 @dataclass

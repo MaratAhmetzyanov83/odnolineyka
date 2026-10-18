@@ -74,8 +74,9 @@ export function lineColumns({ withPanel = false } = {}){
     {id: "grp", t: "Кс", title: "Группа для Кс", w: 44, hidden: 1, v: l => l.input.group_ks},
     {id: "bus", t: "Шина", w: 60, hidden: 1, v: l => l.scheme.bus, edit: {path: "scheme.bus"}},
     {id: "term", t: "Клемма", w: 56, hidden: 1, v: l => l.scheme.terminal},
-    {id: "st", t: "Статус", w: 220, v: l => l.result.status, nogroup: 1,
+    {id: "st", t: "Статус", title: "Наведите — пояснение: что значит и как исправить", w: 220, v: l => l.result.status, nogroup: 1,
       cls: l => l.result.level >= 2 ? "lv2" : l.result.level ? "lv1" : "",
+      tip: l => [l.result.status, ...new Set((S.issuesBy[l.panel] || []).filter(i => i.line === l.number && i.hint).map(i => i.hint))].filter(Boolean).join("\n\n"),
       h: l => `${refLink(l.refs.scheme || l.refs.input, "✎")} ${esc(l.result.status)}`},
   ];
 }

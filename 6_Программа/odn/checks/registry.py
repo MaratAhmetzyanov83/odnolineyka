@@ -16,6 +16,7 @@ from dataclasses import dataclass, field
 from typing import Callable, Optional
 
 from ..core.model import Issue, Project, Ref
+from .hints import hint_for
 
 
 @dataclass
@@ -59,7 +60,7 @@ def run(prj: Project, disabled=()) -> list:
             continue
         try:
             for h in r.fn(prj) or ():
-                out.append(Issue(r.id, h.level, h.text, h.panel, h.line, h.ref or Ref(), r.group))
+                out.append(Issue(r.id, h.level, h.text, h.panel, h.line, h.ref or Ref(), r.group, hint_for(h.text, r.doc)))
         except Exception as e:  # noqa: BLE001 — ошибка в правиле не должна ронять окно
             out.append(Issue(r.id, 1, f"проверка «{r.title}» не выполнена: {e}", group=r.group))
     out.sort(key=lambda i: (-i.level, i.panel, i.line))

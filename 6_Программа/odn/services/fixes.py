@@ -139,7 +139,44 @@ def fix_cable(prj):
                        "now": f(now).replace(",", ".") if isinstance(now, float) else str(now), "checked": True}
 
 
-FIXERS = [fix_feeders, fix_sync, fix_nodes, fix_extra_rcd, fix_cable, fix_manual]
+def _next_s(s):
+    from ..core.changes import S_SERIES
+    return next((x for x in S_SERIES if s is not None and x > s + 1e-9), None)
+
+
+def fix_book_status(prj):
+    """Замечания самой книги (статус строки «Однолинейки») — правка, которая их снимает:
+    ПЕРЕГРУЗ — In по току; 5 жил на 1 фазе — 3 жилы; кабель не защищён / потери / Iкз мало — сечение на ступень больше;
+    пуск двигателя — характеристика D. Сечение и характеристика — не отмечены сразу (проверить)."""
+    for p in prj.panels():
+        for ln in p.lines:
+            st = ln.result.status or ""
+            if not st:
+                continue
+            own = ln.scheme.group_head or not ln.scheme.qf          # свой автомат (не продолжение группы)
+            if "ПЕРЕГРУЗ" in st and own and ln.result.i_calc:
+                now = pick_in(ln.result.i_calc)
+                if ln.in_a is None or now > ln.in_a:
+                    yield {"rule": "source.row_status", "kind": "edit", "panel": p.id, "line": ln.number, "path": "input.in_manual",
+                           "text": f"ПЕРЕГРУЗ: Iр {f(ln.result.i_calc)} А > In — In ручной {now} А",
+                           "was": f"{f(ln.in_a)} А", "now": str(now), "checked": True}
+            if "жил на 1 фазе" in st and ln.input.cores != 3:
+                yield {"rule": "source.row_status", "kind": "edit", "panel": p.id, "line": ln.number, "path": "input.cores",
+                       "text": "однофазная линия: 3 жилы (L, N, PE)", "was": str(ln.input.cores or "—"), "now": "3", "checked": True}
+            why = [w for k, w in (("КАБЕЛЬ НЕ ЗАЩИЩ", "кабель не защищён"), ("потери", "потери ΔU"), ("Iкз мало", "Iкз мало"))
+                   if k in st]
+            ns = _next_s(ln.result.s_mm2) if why else None
+            if ns:
+                yield {"rule": "source.row_status", "kind": "edit", "panel": p.id, "line": ln.number, "path": "input.s_min",
+                       "text": f"{', '.join(why)}: сечение на ступень больше (книга пересчитает и проверит снова)",
+                       "was": f"{f(ln.result.s_mm2)} мм²", "now": f(ns).replace(",", "."), "checked": False}
+            if "нужна характеристика D" in st and own and re.search(r"\b[BCВС](\d)", ln.scheme.breaker or ""):
+                now = re.sub(r"\b[BCВС](\d)", r"D\1", ln.scheme.breaker, count=1)
+                yield {"rule": "source.row_status", "kind": "edit", "panel": p.id, "line": ln.number, "path": "scheme.breaker_set",
+                       "text": "пуск двигателя: характеристика D", "was": ln.scheme.breaker, "now": now, "checked": False}
+
+
+FIXERS = [fix_feeders, fix_sync, fix_nodes, fix_extra_rcd, fix_cable, fix_book_status, fix_manual]
 
 
 def propose(prj) -> list:

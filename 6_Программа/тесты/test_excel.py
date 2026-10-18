@@ -438,6 +438,12 @@ class TestFixes(unittest.TestCase):
             prj = load_project(obj, progress=lambda s: None, use_cache=False)
             p = {x.name: x for x in prj.panels()}
             got = {(x["kind"], x["panel_name"], x["line"]): x for x in fixes.propose(prj)}
+            # замечания самой книги: «5 жил на 1 фазе» -> 3 жилы; у замечаний — пояснение
+            cores = [x for x in got.values() if x["rule"] == "source.row_status" and x["path"] == "input.cores"]
+            self.assertTrue(cores and all(x["now"] == "3" and x["checked"] for x in cores))
+            self.assertTrue(all(i.hint for i in prj.issues if "жил на 1 фазе" in i.text))
+            from odn.checks.hints import hint_for
+            self.assertIn("Iдоп", hint_for("КАБЕЛЬ НЕ ЗАЩИЩЁН"))
             fx = got[("edit", "ГРЩ", p["ЩР-1"].parent_line)]
             self.assertEqual((fx["path"], fx["now"]), ("input.in_manual", "32"))   # 1,6 × 16 А -> 32 А
             # УЗО над линиями ЩР-1 — их дифавтоматы лишние: предложение «без 30 мА», не отмечено сразу
