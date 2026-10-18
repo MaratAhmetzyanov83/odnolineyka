@@ -204,5 +204,36 @@ class TestExclude(unittest.TestCase):
             shutil.rmtree(d, ignore_errors=True)
 
 
+
+
+class TestExternal(unittest.TestCase):
+    """Связи в другие папки: открыта только «Корпус 2» — ГРЩ (выше) и ЩР-1 (его нижестоящий) читаются по связям."""
+
+    def test_external(self):
+        TestExcelV312.setUpClass()
+        d = tempfile.mkdtemp(prefix="odn_ext_")
+        try:
+            obj = os.path.join(d, "комплекс")
+            shutil.copytree(FOLDER, obj, ignore=shutil.ignore_patterns("_окно", "*.nodes.txt", "_резерв"))
+            sub = os.path.join(obj, "Корпус 2")
+            prj = load_project(sub, progress=lambda s: None, use_cache=False)
+            docs = {x.file.replace("\\\\", "/"): x.external for x in prj.documents}
+            self.assertEqual(docs, {"ЩР-2.xlsx": False, "../ГРЩ.xlsx": True, "../ЩР-1.xlsx": True})
+            p = {x.name: x for x in prj.panels()}
+            self.assertEqual((p["ЩР-2"].parent, p["ЩР-1"].parent), (p["ГРЩ"].id, p["ГРЩ"].id))
+            # запись в книгу из другой папки: резервная копия — внутри _окно/резерв
+            from odn.services import edit
+            os.environ["ODN_TEST_WRITER"] = "1"
+            try:
+                r = edit.apply_changes(prj, [{"panel": p["ГРЩ"].id, "line": "Щ.1", "path": "input.length_plan", "new": 33}])
+            finally:
+                os.environ.pop("ODN_TEST_WRITER", None)
+            self.assertEqual(r["written"], 1, r)
+            j = [x for x in edit.read_journal(prj) if x.get("kind") == "правка"][-1]
+            self.assertTrue(j["backup"].startswith(os.path.join("_окно", "резерв")) and ".." not in j["backup"], j["backup"])
+        finally:
+            shutil.rmtree(d, ignore_errors=True)
+
+
 if __name__ == "__main__":
     unittest.main()

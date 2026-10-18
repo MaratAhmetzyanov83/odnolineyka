@@ -229,6 +229,7 @@ class Panel:
 class Document:
     file: str                           # путь относительно папки объекта
     kind: str = ""                      # адаптер: excel_v312, …
+    external: bool = False              # книга из другой папки: найдена по связям (вверх / вниз)
     mtime: float = 0.0
     error: str = ""
     panels: list = field(default_factory=list)           # list[Panel]

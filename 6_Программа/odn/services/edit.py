@@ -28,6 +28,15 @@ def _dir(prj, *parts):
     return d
 
 
+def backup_path(prj, stamp, docname):
+    """Куда копировать книгу перед записью: _окно/резерв/<время>/<книга>; «..» (другая папка) -> «^».""" 
+    safe = os.path.normpath(docname).replace("\\", "/").split("/")
+    safe = ["^" if x == ".." else x for x in safe if x not in ("", ".")]
+    path = os.path.join(_dir(prj, "резерв", stamp), *safe)
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    return path
+
+
 def _journal(prj):
     return os.path.join(_dir(prj), "журнал.jsonl")
 
@@ -110,8 +119,7 @@ def apply_changes(prj: Project, raw: list, kind="правка", undo_of="") -> d
     stamp = time.strftime("%Y-%m-%d_%H%M%S")
     backups = {}
     for d in list(cells_by_doc) + related:
-        bak = os.path.join(_dir(prj, "резерв", stamp), d)
-        os.makedirs(os.path.dirname(bak), exist_ok=True)
+        bak = backup_path(prj, stamp, d)
         shutil.copy2(os.path.join(prj.folder, d), bak)
         backups[d] = os.path.relpath(bak, prj.folder)
     from ..sources.excel_v312.writer import write_batch
@@ -156,8 +164,7 @@ def sync_books(prj: Project) -> dict:
     stamp = time.strftime("%Y-%m-%d_%H%M%S")
     backups = {}
     for d in ok:
-        bak = os.path.join(_dir(prj, "резерв", stamp), d)
-        os.makedirs(os.path.dirname(bak), exist_ok=True)
+        bak = backup_path(prj, stamp, d)
         shutil.copy2(os.path.join(prj.folder, d), bak)
         backups[d] = os.path.relpath(bak, prj.folder)
     try:

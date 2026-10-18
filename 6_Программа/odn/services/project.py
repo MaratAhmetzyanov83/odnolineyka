@@ -69,20 +69,65 @@ def find_files(folder: str):
 
 
 # ---------------------------------------------------------------- шаги
+MAX_EXTERNAL = 300                  # книг из других папок — не больше (защита от «всего диска»)
+
+
+def _read_one(prj, path, src, old, ctx, label):
+    rel = os.path.relpath(path, prj.folder)
+    c = old.get(rel)
+    if c and c.kind == src.kind and abs(c.mtime - os.path.getmtime(path)) < 1e-6:
+        return c
+    ctx["progress"](f"{label} {rel}")
+    d = src.read(path, rel)
+    return None if d.error == "не книга «Однолинейка»" else d
+
+
+def linked_paths(prj, doc):
+    """Книги, на которые ссылается doc: вышестоящие (Сеть_щита G6, вводы 2–3) и нижестоящие (раздел Б)."""
+    base = os.path.dirname(os.path.join(prj.folder, doc.file))
+    out = []
+    for p in doc.panels:
+        refs = [p.supply.from_doc] + [x.from_doc for x in getattr(p, "inputs", [])] + [fs.doc for fs in p.feeders_seen]
+        for r in refs:
+            f = (r or "").partition(" / ")[0].strip()
+            if f and ".xls" in f.lower():
+                f = f.replace("\\", "/")
+                out.append(os.path.normpath(f if os.path.isabs(f) or f[1:3] == ":/" else os.path.join(base, f)))
+    return out
+
+
 def step_read(prj: Project, ctx):
     old = cache.load(prj.folder) if ctx.get("cache", True) else {}
     paths = list(find_files(prj.folder))
     for i, (path, src) in enumerate(paths, 1):
-        rel = os.path.relpath(path, prj.folder)
-        c = old.get(rel)
-        if c and c.kind == src.kind and abs(c.mtime - os.path.getmtime(path)) < 1e-6:
-            prj.documents.append(c)
-            continue
-        ctx["progress"](f"[{i}/{len(paths)}] {rel}")
-        d = src.read(path, rel)
-        if d.error == "не книга «Однолинейка»":
-            continue                                # чужой Excel в папке объекта — молча мимо
-        prj.documents.append(d)
+        d = _read_one(prj, path, src, old, ctx, f"[{i}/{len(paths)}]")
+        if d:
+            prj.documents.append(d)
+    # связи в другие папки: вверх и вниз, пока находятся новые книги (ГРЩ-ЖД <- ГРЩ-ХБК соседнего тома)
+    if ctx.get("external", True):
+        masks = exclusions(prj.folder)
+        seen = {os.path.normcase(os.path.normpath(os.path.join(prj.folder, d.file))) for d in prj.documents}
+        queue = [d for d in prj.documents]
+        n = 0
+        while queue and n < MAX_EXTERNAL:
+            doc = queue.pop(0)
+            for path in linked_paths(prj, doc):
+                key = os.path.normcase(path)
+                if key in seen or not os.path.isfile(path):
+                    continue
+                seen.add(key)
+                rel = os.path.relpath(path, prj.folder)
+                if not rel.startswith(".."):
+                    continue                        # внутри папки объекта — решают её правила (архив, исключения)
+                src = sources.source_for(path)
+                if not src or skipped(rel, masks):
+                    continue
+                d = _read_one(prj, path, src, old, ctx, "[другая папка]")
+                if d:
+                    d.external = True
+                    prj.documents.append(d)
+                    queue.append(d)
+                    n += 1
     prj.reindex()
     cache.save(prj.folder, prj.documents)
 

@@ -30,7 +30,7 @@ def _rel(base_dir, target):
 
 
 def write_link(prj: Project, child_id: str, parent_id: str, feeder: str, inp: int = 1) -> dict:
-    from .edit import _dir, _journal, _user
+    from .edit import _journal, _user, backup_path
     child, par = prj.panel(child_id), prj.panel(parent_id)
     if child is None or par is None:
         raise EditError("нет щита")
@@ -48,8 +48,7 @@ def write_link(prj: Project, child_id: str, parent_id: str, feeder: str, inp: in
     stamp = time.strftime("%Y-%m-%d_%H%M%S")
     backups = {}
     for d, path in ((child.doc, cpath), (par.doc, ppath)):
-        bak = os.path.join(_dir(prj, "резерв", stamp), d)
-        os.makedirs(os.path.dirname(bak), exist_ok=True)
+        bak = backup_path(prj, stamp, d)
         shutil.copy2(path, bak)
         backups[d] = os.path.relpath(bak, prj.folder)
     idx = next(i for i, p in enumerate(next(x for x in prj.documents if x.file == child.doc).panels) if p.id == child_id) + 1
