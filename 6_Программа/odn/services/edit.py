@@ -120,11 +120,13 @@ def apply_changes(prj: Project, raw: list, kind="правка", undo_of="") -> d
                 "skipped": len(raw) - len(chs)}
     stamp = time.strftime("%Y-%m-%d_%H%M%S")
     backups = {}
+    t0 = time.time()
     for d in list(cells_by_doc) + related:
         bak = backup_path(prj, stamp, d)
         shutil.copy2(os.path.join(prj.folder, d), bak)
         backups[d] = os.path.relpath(bak, prj.folder)
     from ..sources.excel_v312.writer import write_batch
+    t1 = time.time()
     try:
         write_batch({os.path.join(prj.folder, d): c for d, (_, c) in cells_by_doc.items()},
                     [os.path.join(prj.folder, d) for d in related])
@@ -133,6 +135,7 @@ def apply_changes(prj: Project, raw: list, kind="правка", undo_of="") -> d
             shutil.copy2(os.path.join(prj.folder, bak), os.path.join(prj.folder, d))
         return {"ok": False, "written": 0, "docs": [], "related": [], "errors": errors + [str(e)], "warnings": warnings,
                 "skipped": len(raw) - len(chs)}
+    timing = {"копии": round(t1 - t0, 1), "Excel": round(time.time() - t1, 1)}
     done = []
     for docname, (items, cells) in cells_by_doc.items():
         entry = {"batch": f"{stamp}|{docname}|{uuid.uuid4().hex[:8]}", "at": time.strftime("%d.%m.%Y %H:%M:%S"),
@@ -142,7 +145,7 @@ def apply_changes(prj: Project, raw: list, kind="правка", undo_of="") -> d
         with open(_journal(prj), "a", encoding="utf-8") as f:
             f.write(json.dumps(entry, ensure_ascii=False, default=str) + "\n")
         done.append(entry)
-    return {"ok": not errors, "written": sum(len(e["changes"]) for e in done), "docs": [e["doc"] for e in done],
+    return {"ok": not errors, "timing": timing, "written": sum(len(e["changes"]) for e in done), "docs": [e["doc"] for e in done],
             "related": related, "errors": errors, "warnings": warnings, "skipped": len(raw) - len(chs)}
 
 
@@ -171,7 +174,7 @@ def sync_books(prj: Project) -> dict:
         shutil.copy2(os.path.join(prj.folder, d), bak)
         backups[d] = os.path.relpath(bak, prj.folder)
     try:
-        write_batch({}, [os.path.join(prj.folder, d) for d in ok])
+        write_batch({}, [os.path.join(prj.folder, d) for d in ok], full=True)
     except Exception as e:  # noqa: BLE001
         for d, bak in backups.items():
             shutil.copy2(os.path.join(prj.folder, bak), os.path.join(prj.folder, d))

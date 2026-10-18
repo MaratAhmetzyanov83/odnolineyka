@@ -167,9 +167,13 @@ def _write_com(path, cells):
             pass
 
 
-def write_batch(cells_by_path: dict, related: list) -> None:
+XL_MANUAL, XL_AUTO = -4135, -4105
+
+
+def write_batch(cells_by_path: dict, related: list, full: bool = False) -> None:
     """Одна сессия Excel: связанные книги открыты вместе с изменяемыми — формулы связей между ними считаются вживую.
-    cells_by_path: {путь: [(лист, адрес, значение)]}; related — книги только пересчитать и сохранить."""
+    cells_by_path: {путь: [(лист, адрес, значение)]}; related — книги только пересчитать и сохранить.
+    Пересчёт: обычный (изменённые ячейки и зависимые — быстро); full — полный (синхронизация книг)."""
     if os.environ.get("ODN_TEST_WRITER") == "1":
         for path, cells in cells_by_path.items():
             _write_openpyxl(path, cells)               # тест: без пересчёта связанных
@@ -186,6 +190,11 @@ def write_batch(cells_by_path: dict, related: list) -> None:
         app.DisplayAlerts = False
         app.AskToUpdateLinks = False
         app.AutomationSecurity = 3
+        app.ScreenUpdating = False
+        app.EnableEvents = False
+        tmp = app.Workbooks.Add()                      # режим пересчёта ставится, когда открыта хоть одна книга
+        app.Calculation = XL_MANUAL                    # не пересчитывать на каждой записанной ячейке и при открытии
+        tmp.Close(False)
         books = {}
         for path in list(related) + list(cells_by_path):
             wb = app.Workbooks.Open(os.path.abspath(path), 0, False)
@@ -210,7 +219,8 @@ def write_batch(cells_by_path: dict, related: list) -> None:
                     if opts:
                         ws.Protect(PWD, *opts)
         for _ in range(2):                             # вниз и вверх по связям — до устойчивых значений
-            app.CalculateFull()
+            app.CalculateFull() if full else app.Calculate()
+        app.Calculation = XL_AUTO                      # книги сохраняются с автопересчётом, как были
         for wb in books.values():
             wb.Save()
         for wb in books.values():

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import threading
+import time
 import uuid
 
 from .. import checks
@@ -99,7 +100,9 @@ def get_journal(app: App, body):
 
 def _after_write(app: App, res: dict):
     if res.get("docs"):
+        t = time.time()
         app.reload()                      # перечитать изменённые книги (кэш: остальные — из кэша)
+        res.setdefault("timing", {})["чтение"] = round(time.time() - t, 1)
     else:
         app.reload_quiet()                # модель в памяти могла поменяться — вернуть как в файлах
     return res

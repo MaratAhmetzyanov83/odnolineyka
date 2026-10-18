@@ -83,6 +83,7 @@ async function saveAll(){
     if (r.written){ pending.clear(); await load(); }
     toast((r.written ? `Записано: ${r.written} (${r.docs.join(", ")}). Книги пересчитаны, проверки обновлены.` : "Ничего не записано.")
       + (r.related?.length ? `\nПересчитаны связанные: ${r.related.join(", ")}` : "")
+      + (r.timing ? "\nВремя, с: " + Object.entries(r.timing).map(([k, v]) => `${k} ${String(v).replace(".", ",")}`).join(" · ") : "")
       + (r.warnings?.length ? "\nВнимание: " + r.warnings.join("; ") : "")
       + (r.errors?.length ? "\nОшибки: " + r.errors.join("; ") : ""), r.errors?.length || r.warnings?.length ? 12000 : 6000);
   } catch (e){ toast("Не записано: " + e.message, 10000); }
