@@ -1,5 +1,5 @@
 ;;; ============================================================================
-;;;  SX_Schema.lsp  v3.25 —  однолинейная схема из Excel на ВАШИХ блоках
+;;;  SX_Schema.lsp  v3.26 —  однолинейная схема из Excel на ВАШИХ блоках
 ;;;
 ;;;  Команды:
 ;;;    SXDRAW    — окно: файл Excel, лист «Однолинейка», щит, точка вставки,
@@ -32,7 +32,7 @@
 ;;; ============================================================================
 
 (vl-load-com)
-(setq sx:ver "v3.25")
+(setq sx:ver "v3.26")
 
 
 ;;; ---------------------------------------------------------------- настройки
@@ -1585,7 +1585,7 @@
   (if (and sx:path (/= sx:path ""))
     (strcat (vl-filename-directory sx:path) "\\" (vl-filename-base sx:path) ".nodes.txt")))
 (defun sx:nodes-read (panel / f fh ln x)
-  (setq sx:nodes nil sx:nodeLines nil)
+  (setq sx:nodes nil sx:nodeLines nil sx:nodeRev nil)
   (if (and (setq f (sx:nodes-file)) (findfile f) (setq fh (open f "r")))
     (progn
       (while (setq ln (read-line fh))
@@ -1599,7 +1599,10 @@
                  (setq sx:nodes (cons (list (sx:ru (nth 2 x)) (nth 3 x) (sx:ru (nth 4 x)) (sx:ru (nth 5 x))
                                             (sx:ru (nth 6 x)) (nth 7 x) (nth 8 x)) sx:nodes)))
                 ((and (= (car x) 'LINE) (= (sx:ru (nth 1 x)) panel))
-                 (setq sx:nodeLines (cons (cons (strcase (sx:ru (nth 2 x))) (sx:ru (nth 3 x))) sx:nodeLines))))))))
+                 (setq sx:nodeLines (cons (cons (strcase (sx:ru (nth 2 x))) (sx:ru (nth 3 x))) sx:nodeLines)))
+                ;; v3.26: (REV щит "отпечаток") — в отметку построения
+                ((and (= (car x) 'REV) (= (sx:ru (nth 1 x)) panel) (= (type (nth 2 x)) 'STR))
+                 (setq sx:nodeRev (nth 2 x))))))))
       (close fh)))
   (sx:log (strcat "nodes=" (itoa (length sx:nodes)) " node lines=" (itoa (length sx:nodeLines)))))
 (defun sx:node-find (name) (if (/= name "") (assoc name sx:nodes)))
@@ -1612,6 +1615,53 @@
 ;;; линии под узлом -> на шину узла
 (defun sx:nodes-apply (lst / nd)
   (mapcar '(lambda (d) (if (setq nd (sx:node-of d)) (sx:setc (sx:setc d sx:cBusName nd) sx:cBus2 1) d)) lst))
+;;; ---------------------------------------------------------------- отметка построения (программа «Объект»), v3.26
+;;; Файл рядом с книгой: <книга>.drawn.txt. Строка на (щит, чертёж) — последнее полное построение (SXDRAW / SXUPDATE):
+;;;   (DRAWN щит dwg "время книги" "отпечаток узлов" "время построения" сохранена)   тексты — коды символов
+;;; Время книги — дата изменения файла книги. Программа сверяет отметку с книгой: «однолинейка устарела».
+;;; SXUPDSEL / SXUPDSHEET и построение с ошибками отметку не меняют.
+(setq sx:nodeRev nil sx:wbsaved T)
+(defun sx:p2 (n) (if (< n 10) (strcat "0" (itoa n)) (itoa n)))
+(defun sx:ftime (path / tm)
+  (if (and path (setq tm (vl-file-systime path)))
+    (strcat (itoa (nth 0 tm)) "-" (sx:p2 (nth 1 tm)) "-" (sx:p2 (nth 3 tm)) " "
+            (sx:p2 (nth 4 tm)) ":" (sx:p2 (nth 5 tm)) ":" (sx:p2 (nth 6 tm)))
+    ""))
+;;; книга в Excel сохранена? Открыта самой SXDRAW — да (взята с диска)
+(defun sx:wb-saved ( / v)
+  (cond ((null sx:wb) T)
+        ((member sx:wb sx:wb-opened) T)
+        (T (setq v (vl-catch-all-apply 'vlax-get-property (list sx:wb 'Saved)))
+           (or (vl-catch-all-error-p v) (/= v :vlax-false)))))
+(defun sx:stamp-file ()
+  (if (and sx:path (/= sx:path ""))
+    (strcat (vl-filename-directory sx:path) "\\" (vl-filename-base sx:path) ".drawn.txt")))
+(defun sx:stamp (panel / f fh ln x keep me)
+  (setq me (list 'DRAWN (vl-string->list panel)
+                 (vl-string->list (strcat (getvar "DWGPREFIX") (getvar "DWGNAME")))
+                 (sx:ftime sx:path) (if sx:nodeRev sx:nodeRev "-")
+                 (menucmd "M=$(edtime,$(getvar,date),YYYY-MO-DD HH:MM:SS)")
+                 (if sx:wbsaved T nil)))
+  (if (and (setq f (sx:stamp-file)) (findfile f) (setq fh (open f "r")))
+    (progn
+      (while (setq ln (read-line fh))
+        (if (= (substr ln 1 1) "(")
+          (progn
+            (setq x (vl-catch-all-apply 'read (list ln)))
+            (if (and (not (vl-catch-all-error-p x)) (listp x) (= (car x) 'DRAWN)
+                     (not (and (equal (nth 1 x) (nth 1 me)) (equal (nth 2 x) (nth 2 me)))))
+              (setq keep (cons ln keep))))))
+      (close fh)))
+  (setq keep (reverse keep))
+  (while (> (length keep) 300) (setq keep (cdr keep)))
+  (if (and f (setq fh (open f "w")))
+    (progn
+      (write-line ";; odn drawn v1 - SXDRAW stamps for program Objekt (6_Programma). One line per panel and DWG." fh)
+      (foreach s keep (write-line s fh))
+      (write-line (vl-prin1-to-string me) fh)
+      (close fh)
+      (sx:log (strcat "stamp: " f " book=" (nth 3 me) " nodes=" (nth 4 me) " saved=" (sx:str (nth 6 me)))))
+    (sx:log "stamp: file not written")))
 ;;; (min max) мест линий узла на листе
 (defun sx:node-span (id lst / us)
   (setq us (mapcar 'sx:u (vl-remove-if-not '(lambda (d) (= (sx:node-of d) id)) lst)))
@@ -2498,6 +2548,7 @@
   (sx:log (strcat "style=" sx:style))
   (sx:stg "read excel")
   (setq data (sx:read-data))
+  (setq sx:wbsaved (sx:wb-saved))
   (setq sx:summary (sx:read-summary panel))
   (setq sx:sources (vl-catch-all-apply 'sx:read-sources (list panel)))
   (if (vl-catch-all-error-p sx:sources) (setq sx:sources nil sx:cats nil))
@@ -2601,6 +2652,10 @@
   (sx:stg "done")
   (vla-endundomark sx:doc)
   (setvar "CMDECHO" oldcmd)
+  ;; v3.26: отметка построения для программы «Объект» (контроль актуальности схемы)
+  (if (and (not sx:part) (null sx:errs) panel)
+    (sx:try (function (lambda () (sx:stamp panel))) "stamp")
+    (sx:log "stamp: skipped (partial update or errors)"))
   (if sx:part
     (princ (strcat "\n" (sx:ru '(1055 1077 1088 1077 1089 1090 1088 1086 1077 1085 1086 32 1074 1099 1073 1086 1088 1086 1095 1085 1086 58 32 1083 1080 1089 1090 1086 1074 32)) (itoa (length sx:onlyS))
                    (sx:ru '(44 32 1084 1077 1089 1090 32)) (itoa (length (vl-remove-if-not '(lambda (d) (sx:wantP (sx:i d))) recs)))
@@ -2616,5 +2671,5 @@
   (princ))
 
 (princ (strcat "\n" (sx:ru '(83 88 95 83 99 104 101 109 97 32 118 51 46 49 55 32 1079 1072 1075 1088 1091 1078 1077 1085 32 40 1074 1072 1096 1080 32 1073 1083 1086 1082 1080 41 58 32 83 88 68 82 65 87 32 8212 32 1087 1086 1089 1090 1088 1086 1080 1090 1100 32 1089 1093 1077 1084 1091 44 32 83 88 67 76 69 65 82 32 8212 32 1089 1090 1077 1088 1077 1090 1100 46))))
-(princ "\n[SX_Schema v3.25] SXDRAW / SXUPDATE / SXUPDSEL / SXUPDSHEET / SXCLEAR")
+(princ "\n[SX_Schema v3.26] SXDRAW / SXUPDATE / SXUPDSEL / SXUPDSHEET / SXCLEAR")
 (princ)

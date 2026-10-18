@@ -264,5 +264,48 @@ class TestInputs(unittest.TestCase):
             shutil.rmtree(d, ignore_errors=True)
 
 
+class TestDrawingStamp(unittest.TestCase):
+    """Отметки SXDRAW (<книга>.drawn.txt) -> «однолинейка устарела»."""
+
+    def test_stamps(self):
+        TestExcelV312.setUpClass()
+        import openpyxl
+        from odn.services import drawing_stamp as ds
+        d = tempfile.mkdtemp(prefix="odn_drawn_")
+        try:
+            obj = os.path.join(d, "объект")
+            shutil.copytree(FOLDER, obj, ignore=shutil.ignore_patterns("_окно", "*.nodes.txt", "*.drawn.txt"))
+            book = os.path.join(obj, "ГРЩ.xlsx")
+            load = lambda: {p.name: p for p in load_project(obj, progress=lambda s: None, use_cache=False).panels()}  # noqa: E731
+            p = load()
+            codes = lambda x: "(" + " ".join(str(ord(c)) for c in x) + ")"  # noqa: E731
+            when = ds.book_time(os.path.getmtime(book))
+            with open(os.path.join(obj, "ГРЩ.drawn.txt"), "w", encoding="ascii") as f:
+                f.write(";; odn drawn v1\n")
+                f.write(f'(DRAWN {codes("ГРЩ")} {codes("C:\\Чертежи\\ЭМ.dwg")} "{when}" "-" "2026-10-18 10:00:00" T)\n')
+                # cp1251 (старый AutoLISP): тот же щит, другой чертёж, время книги — неизвестная версия
+                f.write(f'(DRAWN ({" ".join(str(b) for b in "ГРЩ".encode("cp1251"))}) (65 46 100 119 103) "2001-01-01 00:00:00" "-" '
+                        f'"2026-10-18 09:00:00" T)\n')
+            p = load()
+            st = {x["dwg"]: x["state"] for x in p["ГРЩ"].drawings}
+            self.assertEqual(st, {"C:\\Чертежи\\ЭМ.dwg": "ok", "A.dwg": "check"})
+            # книгу пересохранили без изменений — схема актуальна
+            os.utime(book, (os.path.getmtime(book) + 120,) * 2)
+            self.assertEqual(load()["ГРЩ"].drawings[0]["state"], "ok")
+            # данные схемы изменились — устарела, замечание
+            wb = openpyxl.load_workbook(book)
+            ws = wb["Исходные данные"]
+            r = next(r for r in range(3, 300) if ws[f"D{r}"].value and ws[f"E{r}"].value)
+            ws[f"E{r}"] = ws[f"E{r}"].value + 1          # Pу линии
+            wb.save(book)
+            os.utime(book, (os.path.getmtime(book) + 240,) * 2)
+            prj = load_project(obj, progress=lambda s: None, use_cache=False)
+            g = {x.name: x for x in prj.panels()}["ГРЩ"]
+            self.assertEqual(g.drawings[0]["state"], "stale")
+            self.assertTrue(any(i.rule == "drawings.stale" and i.panel == g.id for i in prj.issues))
+        finally:
+            shutil.rmtree(d, ignore_errors=True)
+
+
 if __name__ == "__main__":
     unittest.main()

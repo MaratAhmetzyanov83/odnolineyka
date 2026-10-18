@@ -189,3 +189,4 @@ svg.scheme .port{fill:var(--panel);stroke-width:2}
 svg.scheme .elab text,svg.scheme .src text{text-anchor:end}
 svg.scheme .src.warn text{fill:var(--warn)}
 svg.scheme .elab text,svg.scheme .src text{paint-order:stroke;stroke:var(--panel);stroke-width:3px;stroke-linejoin:round}
+.ok{color:var(--ok)}

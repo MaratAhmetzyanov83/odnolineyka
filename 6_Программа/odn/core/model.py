@@ -229,6 +229,8 @@ class Panel:
     book_line: str = ""
     # заполняет core.revision
     revision: str = ""
+    # заполняет services.drawing_stamp: построения щита по чертежам (SXDRAW), последнее на каждый DWG
+    drawings: list = field(default_factory=list)          # [{dwg, at, book_time, state ok/stale/check, why}]
 
 
 # ---------------------------------------------------------------- документ, объект

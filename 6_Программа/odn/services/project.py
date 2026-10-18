@@ -4,7 +4,7 @@
     read      — документы папки (адаптеры odn.sources, кэш по дате файла)
     link      — связи щитов
     calc      — расчёт в Python (шаг 3 плана; пока пусто — результаты из Excel)
-    revision  — отпечатки щитов (для актуальности DWG / КЖ)
+    revision  — отпечатки щитов, сверка с отметками построения DWG (services.drawing_stamp)
     checks    — замечания (odn.checks)
 """
 from __future__ import annotations
@@ -157,6 +157,8 @@ def step_drawing(prj, ctx):
 def step_revision(prj, ctx):
     for p in prj.panels():
         p.revision = panel_revision(p)
+    from . import drawing_stamp
+    drawing_stamp.apply(prj, record="cache" in ctx)   # отметки SXDRAW: схема актуальна / устарела; история — только при чтении книг
 
 
 def step_checks(prj, ctx):

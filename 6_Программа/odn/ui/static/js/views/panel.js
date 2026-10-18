@@ -1,6 +1,6 @@
 // Экран щита: строка показателей (KV — список функций), вкладки (TABS).
 import { esc, num, refLink } from "../fmt.js";
-import { S, counts } from "../store.js";
+import { S, counts, drawState } from "../store.js";
 import { toPanel } from "../nav.js";
 import { mount } from "../grid.js";
 import { lineColumns, lineRef, lineAttrs } from "../columns.js";
@@ -51,7 +51,8 @@ export const KV = [
     return kv("Фазы ΣIр", Object.entries(s).map(([k, v]) => `${k} ${num(v, 1)}`).join(" · ") + (skew > 15 ? ` (перекос ${num(skew, 0)} %)` : ""),
       skew > 15 ? "w" : "", "Сумма Iр линий по фазам, без Кс; перекос = (max − min) / max"); },
   p => { const [e, w] = counts(S.issuesBy[p.id]); return kv("Ошибок / вн.", `<span class="${e ? "e" : ""}">${e}</span> / <span class="${w ? "w" : ""}">${w}</span>`); },
-  p => kv("Отпечаток", esc(p.revision), "", "Отпечаток данных схемы. Позже — сверка с отметкой в DWG / КЖ"),
+  p => { const d = drawState(p); return kv("Однолинейка", `<span class="${d.cls}">${esc(d.txt)}</span>`, "", d.tip); },
+  p => kv("Отпечаток", esc(p.revision), "", "Отпечаток данных схемы: по нему сверяется отметка построения DWG"),
 ];
 
 export const TABS = [

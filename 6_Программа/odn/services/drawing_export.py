@@ -4,10 +4,12 @@
 Только ASCII: строки — формы LISP, русские тексты — списки кодов символов (в LISP — sx:ru), так нет проблем с кодировкой.
     (NODE щит id вид обозн текст родитель уровень фаз)   вид: QF / RCD / RCBO / QS
     (LINE щит линия корень)                              линия под узлом верхнего уровня «корень»
+    (REV щит "отпечаток")                                 узлы щита — SXDRAW пишет его в отметку построения
 Файл пишется, только если содержимое изменилось; книга без узлов — свой старый файл удаляется.
 """
 from __future__ import annotations
 
+import hashlib
 import os
 
 from ..core.model import Project
@@ -28,18 +30,32 @@ def _root(n, ids):
     return n
 
 
+def _rows(p) -> list:
+    if not p.nodes:
+        return []
+    ids = {n.id: n for n in p.nodes}
+    rows = []
+    for n in p.nodes:
+        rows.append(f'(NODE {codes(p.name)} {codes(n.id)} "{KIND.get(n.kind, "QF")}" {codes(n.designation)} '
+                    f'{codes(n.text)} {codes(n.parent if n.parent in ids else "")} {n.level} {n.phases})')
+    for ln in p.lines:
+        if ln.node in ids:
+            rows.append(f"(LINE {codes(p.name)} {codes(ln.number)} {codes(_root(ids[ln.node], ids).id)})")
+    return rows
+
+
+def panel_rev(p) -> str:
+    """Отпечаток узлов щита (строка REV): SXDRAW пишет его в отметку построения. «-» — узлов нет."""
+    rows = _rows(p)
+    return hashlib.sha1("\n".join(rows).encode("ascii")).hexdigest()[:10] if rows else "-"
+
+
 def content(doc) -> str:
     rows = []
     for p in doc.panels:
-        if not p.nodes:
-            continue
-        ids = {n.id: n for n in p.nodes}
-        for n in p.nodes:
-            rows.append(f'(NODE {codes(p.name)} {codes(n.id)} "{KIND.get(n.kind, "QF")}" {codes(n.designation)} '
-                        f'{codes(n.text)} {codes(n.parent if n.parent in ids else "")} {n.level} {n.phases})')
-        for ln in p.lines:
-            if ln.node in ids:
-                rows.append(f"(LINE {codes(p.name)} {codes(ln.number)} {codes(_root(ids[ln.node], ids).id)})")
+        r = _rows(p)
+        if r:
+            rows += r + [f'(REV {codes(p.name)} "{panel_rev(p)}")']
     return (HEADER + "\n" + "\n".join(rows) + "\n") if rows else ""
 
 
