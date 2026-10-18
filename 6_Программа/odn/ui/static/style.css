@@ -190,3 +190,7 @@ svg.scheme .elab text,svg.scheme .src text{text-anchor:end}
 svg.scheme .src.warn text{fill:var(--warn)}
 svg.scheme .elab text,svg.scheme .src text{paint-order:stroke;stroke:var(--panel);stroke-width:3px;stroke-linejoin:round}
 .ok{color:var(--ok)}
+.gpop.dlg.fixdlg{width:min(1100px,94vw);max-height:84vh;top:8%!important;display:flex;flex-direction:column}
+.fixdlg .tbl{max-height:60vh}
+.fixdlg td.w{white-space:normal;max-width:520px}
+tr.mut td{color:var(--muted)}

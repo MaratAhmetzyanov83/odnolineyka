@@ -36,7 +36,10 @@ def cells_for(prj, changes):
             if ref is None:
                 raise EditError(f"линия {ch.line}: нет строки на листе «{sheet}»")
             row = "".join(c for c in ref.cell if c.isdigit())
-            out.append((sheet, f"{col}{row}", ch.new))
+            v = ch.new
+            if ch.path == "input.low_current_set":     # да / нет — число; по коду (и пусто — отмена) — формула
+                v = X.LOW_VALUE.get(v, X.LOW_FORMULA.format(r=row))
+            out.append((sheet, f"{col}{row}", v))
         elif ch.path == "scheme.is_vru":              # столбец щита: C / D / E по порядку щитов книги
             p = prj.panel(ch.panel)
             k = next(i for i, q in enumerate(next(d for d in prj.documents if d.file == p.doc).panels) if q.id == p.id)

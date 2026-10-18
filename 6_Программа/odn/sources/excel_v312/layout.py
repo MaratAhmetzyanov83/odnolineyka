@@ -30,7 +30,12 @@ SRC_FIELDS = {
 }
 # куда идти править поле (для правок из окна — шаг 2): ручные столбцы
 SRC_EDIT = {"input.p_kw": "E", "input.length_plan": "I", "input.cable_code": "N", "input.cores": "O",
-            "input.s_min": "Q", "input.in_manual": "R", "input.parallel": "CC", "name": "C"}
+            "input.s_min": "Q", "input.in_manual": "R", "input.parallel": "CC", "name": "C",
+            "input.low_current_set": "CB"}
+# слаботочная: «по коду» — формула patch_lowcurrent.py (1, если код потребителя AH в списке «Слаботочные_коды»)
+LOW_HDR = "Слаботочная линия (1 — да, по коду)"
+LOW_FORMULA = '=IF(D{r}="","",IF(ISNUMBER(MATCH(AH{r},Слаботочные_коды,0)),1,0))'
+LOW_VALUE = {"да": 1, "нет": 0}
 
 # ---------------------------------------------------------------- «Разбивка_по_щитам»: линия -> щит
 SPLIT_PANEL, SPLIT_LINE = "F", "H"

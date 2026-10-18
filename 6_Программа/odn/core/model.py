@@ -47,6 +47,7 @@ class LineInput:
     group_ks: str = ""                  # Быт / Сил / Пост / Нет / Щит
     parallel: Optional[int] = None      # кабелей параллельно
     low_current: bool = False           # слаботочная
+    low_current_set: str = ""           # правка из окна: «да» / «нет» / «по коду» (пусто — как в книге)
     section: Optional[int] = None       # секция щита (ввод): 1 / 2 / 3, пусто = 1 («Исходные данные» BB)
 
 
@@ -242,6 +243,7 @@ class Document:
     found_from: str = ""                # какая книга на неё ссылается (для книг из других папок)
     mtime: float = 0.0
     error: str = ""
+    features: list = field(default_factory=list)         # что умеет книга: «low_current» — столбец слаботочных (CB)
     cable_journal: list = field(default_factory=list)    # графы 1–8 КЖ (строки) — для сверки; в окно не уходит
     kj: dict = field(default_factory=dict)               # КЖ в DWG (services.drawing_stamp): {dwg, at, state, why}
     panels: list = field(default_factory=list)           # list[Panel]

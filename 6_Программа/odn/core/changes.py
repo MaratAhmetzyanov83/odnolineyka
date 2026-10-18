@@ -30,6 +30,9 @@ FIELDS = {
     "scheme.breaker_set": dict(kind="line", type="text", title="Автомат («авто» или текст)", options=["авто"],
                                when="group_head"),
     "scheme.bus":        dict(kind="line", type="text", title="Шина"),
+    "input.low_current_set": dict(kind="line", type="text", title="Слаботочная (по коду / да / нет)",
+                                  options=["по коду", "да", "нет"], choices=["", "по коду", "да", "нет"],
+                                  feature="low_current"),
     "supply.manual":     dict(kind="panel", type="text", title="Питается от (вручную)"),
     "scheme.is_vru":     dict(kind="panel", type="text", title="ВРУ здания (да / пусто)", options=["да", ""]),
 }
@@ -60,7 +63,10 @@ def convert(path: str, value):
     if value is None or (isinstance(value, str) and value.strip() == ""):
         return None if spec["type"] != "text" else ""
     if spec["type"] == "text":
-        return str(value).strip()
+        v = str(value).strip()
+        if "choices" in spec and v not in spec["choices"]:
+            raise EditError(f"{spec['title']}: «{v}» — можно {', '.join(x for x in spec['choices'] if x)}")
+        return v
     try:
         x = float(str(value).replace(",", ".").replace(" ", ""))
     except ValueError:
@@ -87,6 +93,11 @@ def target(prj: Project, ch: Change):
             raise EditError(f"нет линии {ch.line} в {ch.panel}")
         if spec.get("when") == "group_head" and obj.scheme.qf and not obj.scheme.group_head:
             raise EditError(f"линия {ch.line}: автомат задаётся в первой строке группы {obj.scheme.qf}")
+        if spec.get("feature"):
+            p = prj.panel(ch.panel)
+            doc = next((d for d in prj.documents if d.file == p.doc), None)
+            if doc is not None and spec["feature"] not in doc.features:
+                raise EditError(f"{spec['title']}: в книге {p.doc} нет этого столбца — сначала 5_Проверка/patch_lowcurrent.py")
     else:
         obj = prj.panel(ch.panel)
         if obj is None:

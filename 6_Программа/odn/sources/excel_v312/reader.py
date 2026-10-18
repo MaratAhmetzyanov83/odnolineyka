@@ -123,7 +123,10 @@ class ExcelV312(Source):
                 doc.error = "не книга «Однолинейка»"
                 return doc
             sh = lambda n, m=X.LAST_ROW: Rows(wb[n] if n in wb.sheetnames else None, m)  # noqa: E731
-            _fill(doc, sh(X.SRC), sh(X.ODN), sh(X.SPLIT), sh(X.NET, X.NET_ROWS))
+            src = sh(X.SRC)
+            _fill(doc, src, sh(X.ODN), sh(X.SPLIT), sh(X.NET, X.NET_ROWS))
+            if str(src.get(2, X.SRC_FIELDS["input.low_current"]) or "").strip() == X.LOW_HDR:
+                doc.features.append("low_current")
             if X.KJ in wb.sheetnames:
                 doc.cable_journal = _kj_rows(wb[X.KJ])
         finally:

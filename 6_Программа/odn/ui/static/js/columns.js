@@ -40,6 +40,8 @@ export function lineColumns({ withPanel = false } = {}){
       v: l => l.result.s_mm2, edit: {path: "input.s_min", cur: l => l.input.s_min ?? ""}},
     {id: "smin", t: "Sмин", title: "Сечение ручное / мин. по коду, мм²", n: 1, w: 50, d: 1, hidden: 1, v: l => l.input.s_min, edit: {path: "input.s_min"}},
     {id: "inm", t: "In ручн.", title: "In ручной, А", n: 1, w: 56, d: 0, hidden: 1, v: l => l.input.in_manual, edit: {path: "input.in_manual"}},
+    {id: "low", t: "Слаб.", title: "Слаботочная линия (DALI, KNX…): без тока, потерь и нагрузки щита. Правка: по коду / да / нет", w: 44,
+      v: l => l.input.low_current ? "да" : "", edit: {path: "input.low_current_set", cur: l => l.input.low_current_set}},
     {id: "par", t: "∥", title: "Кабелей параллельно", n: 1, w: 34, d: 0, hidden: 1, v: l => l.input.parallel, edit: {path: "input.parallel"}},
     {id: "lp", t: "Lпл, м", title: "Длина по плану (правится)", n: 1, w: 66, d: 1, v: l => l.input.length_plan, agg: "sum", edit: {path: "input.length_plan"}},
     {id: "len", t: "L, м", title: "Длина итог (с опусками, лотком)", n: 1, w: 60, d: 0, v: l => l.input.length, agg: "sum"},

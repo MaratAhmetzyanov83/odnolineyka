@@ -10,6 +10,7 @@ import * as tree from "./views/tree.js";
 import * as objectView from "./views/object.js";
 import * as panelView from "./views/panel.js";
 import * as journalView from "./views/journal.js";
+import * as fixdlg from "./views/fixdlg.js";
 
 const VIEWS = { object: objectView, panel: panelView, journal: journalView };
 const $ = s => document.querySelector(s);
@@ -107,6 +108,7 @@ $("#sync").onclick = async () => {
 };
 
 $("#journal").onclick = () => { location.hash = "#/journal"; };
+$("#fix").onclick = () => fixdlg.open();
 
 // горячие клавиши окна
 document.addEventListener("keydown", ev => {

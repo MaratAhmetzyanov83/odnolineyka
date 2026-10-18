@@ -10,7 +10,7 @@ from .. import checks
 from ..core import serialize
 from ..core.model import Ref
 from ..core.changes import EditError
-from ..services import edit, export, link_writer, structure
+from ..services import edit, export, fixes, link_writer, structure
 from ..services.project import add_exclusion, load_project, open_at, recheck
 
 _ROUTES = {}
@@ -84,6 +84,12 @@ class File:
 @route("GET", "/api/options")
 def get_options(app: App, body):
     return edit.options(app.prj)
+
+
+@route("GET", "/api/fixes")
+def get_fixes(app: App, body):
+    """«Исправить ошибки»: предложения правок (ничего не пишет)."""
+    return {"items": fixes.propose(app.prj)}
 
 
 @route("GET", "/api/journal")

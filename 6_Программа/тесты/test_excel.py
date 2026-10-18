@@ -85,6 +85,41 @@ class TestEdit(unittest.TestCase):
     def load(self):
         return load_project(self.folder, progress=lambda s: None)
 
+    def test_low_current(self):
+        """Слаботочная: без столбца CB — отказ; да — 1 в CB, по коду — формула назад."""
+        import openpyxl
+        from odn.services import edit
+        folder = os.path.join(self.dir, "слаботочные")              # своя копия: журнал общей папки не трогаем
+        shutil.copytree(FOLDER, folder, ignore=shutil.ignore_patterns("_окно"))
+        load = lambda: load_project(folder, progress=lambda s: None)  # noqa: E731
+        prj = load()
+        pid = next(p.id for p in prj.panels() if p.name == "ЩР-2")
+        doc = next(d for d in prj.documents if d.file.endswith("ЩР-2.xlsx"))
+        path = os.path.join(folder, doc.file)
+        wb = openpyxl.load_workbook(path)
+        wb["Исходные данные"]["CB2"] = None                  # книга без столбца слаботочных
+        wb.save(path)
+        prj = load()
+        ch = [{"panel": pid, "line": prj.panel(pid).lines[0].number, "path": "input.low_current_set", "new": "да"}]
+        from odn.core.changes import EditError
+        with self.assertRaisesRegex(EditError, "patch_lowcurrent"):
+            edit.apply_changes(prj, ch)
+        wb = openpyxl.load_workbook(path)
+        wb["Исходные данные"]["CB2"] = "Слаботочная линия (1 — да, по коду)"
+        wb.save(path)
+        prj = load()
+        ln = prj.panel(pid).lines[0]
+        cell = ln.refs["input"].cell
+        row = "".join(c for c in cell if c.isdigit())
+        r = edit.apply_changes(prj, ch)
+        self.assertEqual((r["written"], r["errors"]), (1, []))
+        self.assertEqual(openpyxl.load_workbook(path)["Исходные данные"][f"CB{row}"].value, 1)
+        r = edit.apply_changes(load(), [dict(ch[0], new="по коду")])
+        self.assertEqual(r["written"], 1)
+        self.assertTrue(str(openpyxl.load_workbook(path)["Исходные данные"][f"CB{row}"].value).startswith("=IF(D"))
+        with self.assertRaises(EditError):
+            edit.apply_changes(load(), [dict(ch[0], new="может")])
+
     def test_write_undo(self):
         from odn.services import edit
         prj = self.load()
@@ -344,6 +379,35 @@ class TestKJStamp(unittest.TestCase):
             self.assertIn("W2 (гр. 5: 5х10 → 5х16)", doc.kj["why"])
             self.assertIn("новые 1: W3", doc.kj["why"])
             self.assertTrue(any(i.rule == "drawings.kj_stale" for i in prj.issues))
+        finally:
+            shutil.rmtree(d, ignore_errors=True)
+
+
+class TestFixes(unittest.TestCase):
+    """«Исправить ошибки»: предложения правок по замечаниям."""
+
+    def test_propose(self):
+        TestExcelV312.setUpClass()
+        from odn.services import fixes, structure
+        from odn.services.project import recheck
+        self.assertEqual(fixes._no_rcd("2P C16А 30мА"), "1P C16А")
+        self.assertEqual(fixes.pick_in(25.6), 32)
+        d = tempfile.mkdtemp(prefix="odn_fix_")
+        try:
+            obj = os.path.join(d, "объект")
+            shutil.copytree(FOLDER, obj, ignore=shutil.ignore_patterns("_окно", "*.nodes.txt", "*.drawn.txt"))
+            prj = load_project(obj, progress=lambda s: None, use_cache=False)
+            p = {x.name: x for x in prj.panels()}
+            got = {(x["kind"], x["panel_name"], x["line"]): x for x in fixes.propose(prj)}
+            fx = got[("edit", "ГРЩ", p["ЩР-1"].parent_line)]
+            self.assertEqual((fx["path"], fx["now"]), ("input.in_manual", "32"))   # 1,6 × 16 А -> 32 А
+            # УЗО над линиями ЩР-1 — их дифавтоматы лишние: предложение «без 30 мА», не отмечено сразу
+            heads = [ln.number for ln in p["ЩР-1"].lines if "мА" in ln.scheme.breaker and (ln.scheme.group_head or not ln.scheme.qf)][:2]
+            structure.operate(prj, {"op": "add_node", "panel": p["ЩР-1"].id, "kind": "УЗО", "lines": heads})
+            recheck(prj)
+            rcd = [x for x in fixes.propose(prj) if x["rule"] == "nodes.extra_rcd"]
+            self.assertEqual(sorted(x["line"] for x in rcd), sorted(heads))
+            self.assertTrue(all(x["path"] == "scheme.breaker_set" and "мА" not in x["now"] and not x["checked"] for x in rcd))
         finally:
             shutil.rmtree(d, ignore_errors=True)
 
