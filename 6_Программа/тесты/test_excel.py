@@ -453,6 +453,16 @@ class TestPhasesFeeders(unittest.TestCase):
             self.assertEqual(list(feeder.mismatch), ["input.pnd"])
             self.assertEqual(list(prj.line(p["ЩР-1"].id, "Ввод").mismatch), ["input.pnd"])
             self.assertTrue(any(i.rule == "links.cable_mismatch" and "гофра ПНД" in i.text for i in prj.issues))
+            # «Исправить ошибки»: строка ввода = фидер; запись в книгу — и расхождения нет
+            from unittest import mock
+            from odn.services import edit, fixes
+            fx = [x for x in fixes.propose(prj) if x["rule"] == "links.cable_mismatch"]
+            self.assertEqual([(x["line"], x["path"]) for x in fx], [("Ввод", "input.pnd")])
+            with mock.patch.dict(os.environ, {"ODN_TEST_WRITER": "1"}):
+                r = edit.apply_changes(prj, [{k: fx[0][k] for k in ("panel", "line", "path")} | {"new": fx[0]["now"]}])
+            self.assertEqual((r["written"], r["errors"]), (1, []))
+            prj = load_project(obj, progress=lambda s: None, use_cache=False)
+            self.assertFalse(any(i.rule == "links.cable_mismatch" for i in prj.issues))
         finally:
             shutil.rmtree(d, ignore_errors=True)
 

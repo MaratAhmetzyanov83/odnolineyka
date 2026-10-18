@@ -105,7 +105,41 @@ def fix_manual(prj):
                    "text": f"КЖ устарел — в книге {d.file} «КЖ в DWG»", "was": "устарел", "now": "КЖ в DWG", "checked": False}
 
 
-FIXERS = [fix_feeders, fix_sync, fix_nodes, fix_extra_rcd, fix_manual]
+# кабель фидера разный в книгах -> строка ввода нижестоящего = фидер вышестоящего (фидер правят у вышестоящего)
+CABLE_EDIT = {  # поле расхождения -> (что править в строке ввода, значение с фидера)
+    "input.cable_code": ("input.cable_code", lambda l: l.input.cable_code),
+    "input.cores": ("input.cores", lambda l: l.input.cores),
+    "result.s_mm2": ("input.s_min", lambda l: l.result.s_mm2),
+    "input.length": ("input.length_plan", lambda l: l.input.length_plan),
+    "input.tray": ("input.tray", lambda l: l.input.tray),
+    "input.pvc": ("input.pvc", lambda l: l.input.pvc),
+    "input.pnd": ("input.pnd", lambda l: l.input.pnd),
+}
+
+
+def fix_cable(prj):
+    from ..calc.feeders import LABEL, input_line
+    for par in prj.panels():
+        for ln in par.lines:
+            child = prj.panel(ln.feeds) if ln.feeds else None
+            inp = input_line(child, ln.feeds_input or 1) if child and ln.mismatch else None
+            if inp is None:
+                continue
+            for k in ln.mismatch:
+                path, get = CABLE_EDIT[k]
+                now, was = get(ln), inp
+                for a in path.split("."):
+                    was = getattr(was, a)
+                if now is None or now == was:
+                    continue
+                yield {"rule": "links.cable_mismatch", "kind": "edit", "panel": child.id, "line": inp.number, "path": path,
+                       "text": f"{LABEL[k]}: строка ввода {child.name} = фидер {ln.number} щита {par.name}"
+                               + (" (L — через Lпл)" if k == "input.length" else ""),
+                       "was": "—" if was in (None, "") else (f(was) if isinstance(was, (int, float)) else str(was)),
+                       "now": f(now).replace(",", ".") if isinstance(now, float) else str(now), "checked": True}
+
+
+FIXERS = [fix_feeders, fix_sync, fix_nodes, fix_extra_rcd, fix_cable, fix_manual]
 
 
 def propose(prj) -> list:
