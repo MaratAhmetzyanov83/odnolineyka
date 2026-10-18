@@ -40,6 +40,15 @@ document.addEventListener("click", async ev => {
     catch (e){ toast("Не открыто: " + e.message); }
     return;
   }
+  const ex = ev.target.closest("[data-exclude]");
+  if (ex){
+    ev.preventDefault();
+    if (!confirm(`Не читать книгу «${ex.dataset.exclude}»?\nОна попадёт в список исключений объекта (_окно\\исключить.txt). Вернуть — убрать строку из этого файла.`)) return;
+    try { const r = await api.exclude(ex.dataset.exclude); if (r.ok === false) throw new Error((r.errors || []).join("; "));
+          location.hash = "#/"; await load(); toast("Книга больше не читается: " + ex.dataset.exclude); }
+    catch (e){ toast("Не сделано: " + e.message); }
+    return;
+  }
   const go = ev.target.closest("[data-go]");
   if (go){ ev.preventDefault(); location.hash = go.dataset.go; }
 });

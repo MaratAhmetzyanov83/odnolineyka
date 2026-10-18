@@ -18,6 +18,8 @@ from ..core.revision import panel_revision
 from . import cache, linking, structure
 
 SKIP_DIRS = ("архив", "резерв", "резервные копии")
+SKIP_WORDS = ("резерв", "копия", "backup", "~$")                # в имени файла — резервная копия, не читаем
+EXCLUDE_FILE = os.path.join("_окно", "исключить.txt")           # свой список объекта: по строке — путь или маска
 
 
 def _skip_dir(name: str) -> bool:
@@ -25,12 +27,42 @@ def _skip_dir(name: str) -> bool:
     return n.startswith((".", "_")) or n.startswith(SKIP_DIRS)
 
 
+def exclusions(folder: str) -> list:
+    try:
+        with open(os.path.join(folder, EXCLUDE_FILE), encoding="utf-8") as f:
+            return [x.strip().replace("\\", "/") for x in f if x.strip() and not x.startswith("#")]
+    except OSError:
+        return []
+
+
+def add_exclusion(folder: str, rel: str):
+    os.makedirs(os.path.join(folder, "_окно"), exist_ok=True)
+    path = os.path.join(folder, EXCLUDE_FILE)
+    new = not os.path.isfile(path)
+    with open(path, "a", encoding="utf-8") as f:
+        if new:
+            f.write("# Книги, которые программа не читает (путь от папки объекта или маска *, ?). Правьте свободно.\n")
+        f.write(rel.replace("\\", "/") + "\n")
+
+
+def skipped(rel: str, masks) -> bool:
+    import fnmatch
+    r = rel.replace("\\", "/")
+    name = os.path.basename(r).lower()
+    if any(w in name for w in SKIP_WORDS):
+        return True
+    return any(fnmatch.fnmatch(r.lower(), m.lower()) or fnmatch.fnmatch(name, m.lower()) for m in masks)
+
+
 def find_files(folder: str):
-    """Файлы папки объекта, которые может прочитать какой-нибудь источник (без архивов и резервов)."""
+    """Файлы папки объекта, которые может прочитать какой-нибудь источник (без архивов, резервов и исключённых)."""
+    masks = exclusions(folder)
     for root, dirs, files in os.walk(folder):
         dirs[:] = sorted(d for d in dirs if not _skip_dir(d))
         for f in sorted(files):
             path = os.path.join(root, f)
+            if skipped(os.path.relpath(path, folder), masks):
+                continue
             src = sources.source_for(path)
             if src:
                 yield path, src

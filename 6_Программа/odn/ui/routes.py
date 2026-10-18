@@ -11,7 +11,7 @@ from ..core import serialize
 from ..core.model import Ref
 from ..core.changes import EditError
 from ..services import edit, export, structure
-from ..services.project import load_project, open_at, recheck
+from ..services.project import add_exclusion, load_project, open_at, recheck
 
 _ROUTES = {}
 
@@ -112,6 +112,17 @@ def post_undo(app: App, body):
             app.reload_quiet()
             return {"ok": False, "errors": [str(e)]}
         return _after_write(app, res)
+
+
+@route("POST", "/api/exclude")
+def post_exclude(app: App, body):
+    rel = body.get("file", "")
+    if not rel or not any(d.file == rel for d in app.prj.documents):
+        return {"ok": False, "errors": ["нет такой книги в объекте"]}
+    with app.write_lock:
+        add_exclusion(app.folder, rel)
+        app.reload_quiet()
+    return {"ok": True}
 
 
 @route("POST", "/api/structure")

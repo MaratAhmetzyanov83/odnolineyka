@@ -66,7 +66,8 @@ export function render({ id, params }){
   if (!p) return `<div class="empty">Щит не найден (объект перечитан?).</div>`;
   const tab = TABS.find(t => t.id === params.tab) || TABS[0];
   return `<div class="top"><h2>${esc(p.name)}</h2><span class="sub">${esc(p.doc)}</span>
-      ${refLink({file: p.doc, sheet: "Однолинейка", cell: "A1"}, "открыть в Excel")}</div>
+      ${refLink({file: p.doc, sheet: "Однолинейка", cell: "A1"}, "открыть в Excel")}
+      <a data-exclude="${esc(p.doc)}" title="Резервная или лишняя книга: программа перестанет её читать (список — _окно\\исключить.txt)">не читать эту книгу</a></div>
     <div class="kv">${KV.map(f => f(p)).join("")}</div>
     <div class="bar">${TABS.map(t => `<button data-go="${esc(toPanel(p.id, "", t.id))}" class="${t === tab ? "on" : ""}">${esc(t.title(p))}</button>`).join("")}
       <span class="sep"></span>${tab.bar(p)}</div>

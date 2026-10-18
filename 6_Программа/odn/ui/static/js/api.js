@@ -13,6 +13,7 @@ export const openRef = ref => call("POST", "/api/open", {ref});
 export const edit = changes => call("POST", "/api/edit", {changes});
 export const undo = () => call("POST", "/api/undo");
 export const structure = body => call("POST", "/api/structure", body);
+export const exclude = file => call("POST", "/api/exclude", {file});
 export const structureUndo = () => call("POST", "/api/structure/undo");
 
 export async function download(path, body){

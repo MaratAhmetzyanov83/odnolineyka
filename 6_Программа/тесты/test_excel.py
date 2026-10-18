@@ -145,5 +145,36 @@ class TestEdit(unittest.TestCase):
         self.assertEqual([[c.value for c in r] for r in ws.iter_rows()], [["Линия", "P"], ["R.1", 0.5], ["R.2", None]])
 
 
+
+
+class TestExclude(unittest.TestCase):
+    """Резервные книги: слова в имени, свой список исключений, предупреждение о двойном щите."""
+
+    def test_exclude(self):
+        TestExcelV312.setUpClass()
+        from odn.services.project import add_exclusion, skipped
+        d = tempfile.mkdtemp(prefix="odn_excl_")
+        try:
+            obj = os.path.join(d, "объект")
+            shutil.copytree(FOLDER, obj, ignore=shutil.ignore_patterns("_окно", "*.nodes.txt"))
+            shutil.copy(os.path.join(obj, "ЩР-1.xlsx"), os.path.join(obj, "ЩР-1 резерв.xlsx"))     # пропустится по слову
+            shutil.copy(os.path.join(obj, "ЩР-1.xlsx"), os.path.join(obj, "ЩР-1 старая.xlsx"))     # не пропустится
+            prj = load_project(obj, progress=lambda s: None, use_cache=False)
+            docs = sorted(x.file for x in prj.documents)
+            self.assertNotIn("ЩР-1 резерв.xlsx", docs)
+            self.assertIn("ЩР-1 старая.xlsx", docs)
+            dup = [i for i in prj.issues if i.rule == "links.duplicate_panel"]
+            self.assertEqual(len(dup), 2)
+            add_exclusion(obj, "ЩР-1 старая.xlsx")
+            prj = load_project(obj, progress=lambda s: None)
+            self.assertNotIn("ЩР-1 старая.xlsx", [x.file for x in prj.documents])
+            self.assertFalse([i for i in prj.issues if i.rule == "links.duplicate_panel"])
+            self.assertTrue(skipped("Корпус 2/ЩР-2.xlsx", ["корпус 2/*"]))
+            self.assertTrue(skipped("a/b.xlsx", ["b.xlsx"]))
+            self.assertFalse(skipped("a/b.xlsx", ["c.xlsx"]))
+        finally:
+            shutil.rmtree(d, ignore_errors=True)
+
+
 if __name__ == "__main__":
     unittest.main()

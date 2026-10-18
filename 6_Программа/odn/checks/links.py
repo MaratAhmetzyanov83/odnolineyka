@@ -103,3 +103,16 @@ def feeder_no_book(prj):
             if ln.input.group_ks == "Щит" and not ln.feeds:
                 yield Hit(1, f"фидер «{ln.name}»: книги щита нет в папке объекта (или не связана)",
                           p.id, ln.number, ln.refs.get("input"))
+
+
+@rule("links.duplicate_panel", "Щит в нескольких книгах", G)
+def duplicate_panel(prj):
+    """Один щит в двух книгах — обычно резервная копия. «Не читать эту книгу» у лишней."""
+    seen = {}
+    for p in prj.panels():
+        seen.setdefault(p.name.strip().lower(), []).append(p)
+    for ps in seen.values():
+        if len(ps) > 1:
+            for p in ps:
+                others = ", ".join(q.doc for q in ps if q is not p)
+                yield Hit(1, f"щит {p.name} есть и в другой книге: {others} — лишнюю исключите («Не читать эту книгу»)", p.id)
