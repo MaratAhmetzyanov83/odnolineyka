@@ -223,7 +223,7 @@ def sync_books(prj: Project) -> dict:
 def undo_last(prj: Project) -> dict:
     """Отменить последнюю не отменённую запись — все её книги (группа), старые записи — по одной книге."""
     rows = [r for r in read_journal(prj, 10_000)
-            if r.get("batch") and not r["undone"] and r.get("kind") not in ("отмена", "структура", "связь", "синхронизация")]
+            if r.get("batch") and not r["undone"] and r.get("kind") not in ("отмена", "структура", "связь", "синхронизация", "доработка")]
     if not rows:
         return {"ok": False, "errors": ["нечего отменять"]}
     last = rows[-1]

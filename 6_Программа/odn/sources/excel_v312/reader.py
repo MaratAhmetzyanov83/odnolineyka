@@ -89,6 +89,30 @@ class Rows:
             yield i
 
 
+def _low_current(doc, src):
+    """Столбец «Слаботочная линия» (patch_lowcurrent.py) — по заголовку строки 2: обычно CB, но скрипт берёт
+    первый свободный от CB. Нет столбца — книга без слаботочных (правка «Слаб.» недоступна)."""
+    hdr = src.rows[1] if len(src.rows) > 1 else ()
+    i = next((k for k, v in enumerate(hdr) if str(v or "").strip() == X.LOW_HDR), None)
+    if i is None:
+        return
+    doc.features.append("low_current")
+    doc.low_col = _letters(i + 1)
+    if doc.low_col != X.SRC_FIELDS["input.low_current"]:
+        for p in doc.panels:
+            for ln in p.lines:
+                r = int("".join(c for c in ln.refs["input"].cell if c.isdigit()))
+                set_path(ln, "input.low_current", src.get(r, doc.low_col))
+
+
+def _letters(n):
+    s = ""
+    while n:
+        n, r = divmod(n - 1, 26)
+        s = chr(65 + r) + s
+    return s
+
+
 def _kj_rows(ws) -> list:
     """Графы 1–8 кабельного журнала — значения ячеек (сверка с отметкой «КЖ в DWG»)."""
     out = []
@@ -125,8 +149,7 @@ class ExcelV312(Source):
             sh = lambda n, m=X.LAST_ROW: Rows(wb[n] if n in wb.sheetnames else None, m)  # noqa: E731
             src = sh(X.SRC)
             _fill(doc, src, sh(X.ODN), sh(X.SPLIT), sh(X.NET, X.NET_ROWS))
-            if str(src.get(2, X.SRC_FIELDS["input.low_current"]) or "").strip() == X.LOW_HDR:
-                doc.features.append("low_current")
+            _low_current(doc, src)
             if X.KJ in wb.sheetnames:
                 doc.cable_journal = _kj_rows(wb[X.KJ])
         finally:

@@ -86,7 +86,9 @@ class TestEdit(unittest.TestCase):
         return load_project(self.folder, progress=lambda s: None)
 
     def test_low_current(self):
-        """Слаботочная: без столбца CB — отказ; да — 1 в CB, по коду — формула назад."""
+        """Слаботочная: без столбца — отказ, «включить слаботочные»; столбец по заголовку (не только CB);
+        да — 1, по коду — формула назад."""
+        from unittest import mock
         import openpyxl
         from odn.services import edit
         folder = os.path.join(self.dir, "слаботочные")              # своя копия: журнал общей папки не трогаем
@@ -102,10 +104,14 @@ class TestEdit(unittest.TestCase):
         prj = load()
         ch = [{"panel": pid, "line": prj.panel(pid).lines[0].number, "path": "input.low_current_set", "new": "да"}]
         from odn.core.changes import EditError
-        with self.assertRaisesRegex(EditError, "patch_lowcurrent"):
+        with self.assertRaisesRegex(EditError, "включить слаботочные"):
             edit.apply_changes(prj, ch)
-        wb = openpyxl.load_workbook(path)
-        wb["Исходные данные"]["CB2"] = "Слаботочная линия (1 — да, по коду)"
+        from odn.services import book_patch
+        with mock.patch.dict(os.environ, {"ODN_TEST_WRITER": "1"}):
+            self.assertTrue(book_patch.run_patch(prj, doc.file, "lowcurrent")["ok"])   # «включить слаботочные в книге»
+        wb = openpyxl.load_workbook(path)                    # столбец не в CB (скрипт берёт первый свободный)
+        ws = wb["Исходные данные"]
+        ws["CB2"], ws["CF2"] = None, "Слаботочная линия (1 — да, по коду)"
         wb.save(path)
         prj = load()
         ln = prj.panel(pid).lines[0]
@@ -113,10 +119,11 @@ class TestEdit(unittest.TestCase):
         row = "".join(c for c in cell if c.isdigit())
         r = edit.apply_changes(prj, ch)
         self.assertEqual((r["written"], r["errors"]), (1, []))
-        self.assertEqual(openpyxl.load_workbook(path)["Исходные данные"][f"CB{row}"].value, 1)
+        self.assertEqual(openpyxl.load_workbook(path)["Исходные данные"][f"CF{row}"].value, 1)
+        self.assertTrue(load().line(pid, ln.number).input.low_current)
         r = edit.apply_changes(load(), [dict(ch[0], new="по коду")])
         self.assertEqual(r["written"], 1)
-        self.assertTrue(str(openpyxl.load_workbook(path)["Исходные данные"][f"CB{row}"].value).startswith("=IF(D"))
+        self.assertTrue(str(openpyxl.load_workbook(path)["Исходные данные"][f"CF{row}"].value).startswith("=IF(D"))
         with self.assertRaises(EditError):
             edit.apply_changes(load(), [dict(ch[0], new="может")])
 

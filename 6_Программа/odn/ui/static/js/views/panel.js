@@ -1,7 +1,8 @@
 // Экран щита: строка показателей (KV — список функций), вкладки (TABS).
-import { esc, num, refLink } from "../fmt.js";
+import { esc, num, refLink, toast } from "../fmt.js";
 import { S, counts, drawState, kjState } from "../store.js";
 import { toPanel } from "../nav.js";
+import * as api from "../api.js";
 import { mount } from "../grid.js";
 import { lineColumns, lineRef, lineAttrs } from "../columns.js";
 import * as issues from "./issues.js";
@@ -72,6 +73,7 @@ export function render({ id, params }){
   return `<div class="top"><h2>${esc(p.name)}</h2><span class="sub">${esc(p.doc)}</span>
       ${doc?.external ? `<span class="tag" title="Книга не из папки объекта: программа нашла её по связи">↗ из другой папки, ссылка из ${esc(doc.found_from || "?")}</span>` : ""}
       ${refLink({file: p.doc, sheet: "Однолинейка", cell: "A1"}, "открыть в Excel")}
+      ${doc && !(doc.features || []).includes("low_current") ? `<a data-lowpatch="${esc(p.doc)}" title="Книга без столбца слаботочных: запустить 5_Проверка/patch_lowcurrent.py (копия книги — в _окно\\резерв). Книга должна быть закрыта">включить слаботочные в книге</a>` : ""}
       <a data-exclude="${esc(p.doc)}" title="Резервная или лишняя книга: программа перестанет её читать (список — _окно\\исключить.txt)">не читать эту книгу</a></div>
     <div class="kv">${KV.map(f => f(p)).join("")}</div>
     <div class="bar">${TABS.map(t => `<button data-go="${esc(toPanel(p.id, "", t.id))}" class="${t === tab ? "on" : ""}">${esc(t.title(p))}</button>`).join("")}
@@ -81,6 +83,16 @@ export function render({ id, params }){
 
 export function bind(root, rerender, { id, params }){
   issues.bind(root, rerender);
+  root.querySelectorAll("[data-lowpatch]").forEach(a => a.onclick = async ev => {
+    ev.preventDefault();
+    const d = a.dataset.lowpatch;
+    if (!confirm(`Включить слаботочные линии в книге «${d}»?\nЗапустится 5_Проверка/patch_lowcurrent.py (своя копия Excel, 10–60 с).\nКнига должна быть закрыта. Копия — в _окно\\резерв.`)) return;
+    a.textContent = "включаю…";
+    try { const r = await api.bookPatch(d, "lowcurrent");
+          toast(r.ok === false ? "Не сделано: " + (r.errors || []).join("; ") : "Слаботочные включены: " + r.msg, 10000);
+          window.dispatchEvent(new CustomEvent("odn:reload")); }
+    catch (e){ toast("Не сделано: " + e.message, 10000); }
+  });
   const q = root.querySelector("#lq");
   if (q) q.oninput = () => { lf.q = q.value.toLowerCase(); const pos = q.selectionStart; rerender();
     const q2 = document.querySelector("#lq"); q2.focus(); q2.setSelectionRange(pos, pos); };

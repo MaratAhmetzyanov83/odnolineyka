@@ -11,7 +11,7 @@ from .. import checks
 from ..core import serialize
 from ..core.model import Ref
 from ..core.changes import EditError
-from ..services import edit, export, fixes, link_writer, structure
+from ..services import book_patch, edit, export, fixes, link_writer, structure
 from ..services.project import add_exclusion, load_project, open_at, recheck
 
 _ROUTES = {}
@@ -85,6 +85,18 @@ class File:
 @route("GET", "/api/options")
 def get_options(app: App, body):
     return edit.options(app.prj)
+
+
+@route("POST", "/api/book/patch")
+def post_book_patch(app: App, body):
+    """Доработка книги скриптом 5_Проверка (например, слаботочные)."""
+    with app.write_lock:
+        try:
+            res = book_patch.run_patch(app.prj, body.get("doc", ""), body.get("name", ""))
+        except EditError as e:
+            return {"ok": False, "errors": [str(e)]}
+        app.reload()
+        return res
 
 
 @route("GET", "/api/fixes")

@@ -102,7 +102,7 @@ def target(prj: Project, ch: Change):
             p = prj.panel(ch.panel)
             doc = next((d for d in prj.documents if d.file == p.doc), None)
             if doc is not None and spec["feature"] not in doc.features:
-                raise EditError(f"{spec['title']}: в книге {p.doc} нет этого столбца — сначала 5_Проверка/patch_lowcurrent.py")
+                raise EditError(f"{spec['title']}: в книге {p.doc} нет этого столбца — включите: шапка щита → «включить слаботочные в книге»")
     else:
         obj = prj.panel(ch.panel)
         if obj is None:
