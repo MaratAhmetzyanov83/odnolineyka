@@ -3,6 +3,7 @@ Attribute VB_Name = "SX_KJ"
 ' DWG открывать не нужно: запись в фоне (ObjectDBX). Если DWG открыт в AutoCAD — правится и сохраняется открытый.
 ' В DWG одна таблица с разрывами: AutoCAD сам режет её на листы, программа добавляет или удаляет вкладки листов.
 ' Графы 9–13 (проложено, испытания, дата) заполняют в DWG вручную — при обновлении они сохраняются по маркировке.
+' После записи — отметка <книга>.kj.txt для программы «Объект» (КЖ актуален / устарел).
 Option Explicit
 
 Private Const KJ_SHEET As String = "Кабельный_журнал"
@@ -86,9 +87,38 @@ Private Sub KJ_Run(forced As String, ask As Boolean, Optional pickStamp As Boole
     If Left(msg, 1) = "!" Then
         KSay Mid(msg, 2), vbExclamation
     Else
+        KJ_Mark wb, dwg, rows
         If kjErr > 0 Then kjNote = kjNote & vbLf & "Ячеек Excel с ошибкой (перенесены как есть): " & kjErr & "."
         KSay msg & kjNote
     End If
+End Sub
+
+' Отметка для программы «Объект» (контроль актуальности КЖ): <книга>.kj.txt рядом с книгой, UTF-8.
+' Строки «ключ<Tab>значение»: DWG, AT (время записи), BOOK (дата файла книги), SAVED (1/0),
+' ROW — графы 1–8 (по проекту) в том виде, в каком ушли в DWG. Программа сравнит их с листом по маркировке.
+Private Sub KJ_Mark(wb As Workbook, dwg As String, rows As Collection)
+    Dim st As Object, a As Variant, i As Long, s As String
+    On Error GoTo fail
+    If wb.Path = "" Then Exit Sub
+    Set st = CreateObject("ADODB.Stream")
+    st.Type = 2: st.Charset = "utf-8": st.Open
+    st.WriteText ";; odn kj v1 - KJ stamp for program Objekt (6_Programma)" & vbCrLf
+    st.WriteText "DWG" & vbTab & dwg & vbCrLf
+    st.WriteText "AT" & vbTab & Format(Now, "yyyy-mm-dd hh:nn:ss") & vbCrLf
+    st.WriteText "BOOK" & vbTab & Format(FileDateTime(wb.FullName), "yyyy-mm-dd hh:nn:ss") & vbCrLf
+    st.WriteText "SAVED" & vbTab & IIf(wb.Saved, "1", "0") & vbCrLf
+    For Each a In rows
+        s = "ROW"
+        For i = 0 To MAN0 - 1
+            s = s & vbTab & Replace(Replace(Replace(a(i), vbTab, " "), vbCr, " "), vbLf, " ")
+        Next i
+        st.WriteText s & vbCrLf
+    Next a
+    st.SaveToFile Fso.BuildPath(wb.Path, Fso.GetBaseName(wb.Name) & ".kj.txt"), 2
+    st.Close
+    Exit Sub
+fail:
+    kjNote = kjNote & vbLf & "Отметка для программы «Объект» не записана: " & Err.Description
 End Sub
 
 ' Строки P:AB с 5-й: маркировка не пустая. Значение — как видно в ячейке.

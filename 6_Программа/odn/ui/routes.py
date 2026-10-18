@@ -27,6 +27,13 @@ def find(method, path):
     return _ROUTES.get((method, path))
 
 
+def _payload(prj):
+    data = serialize.to_dict(prj)
+    for d in data["documents"]:
+        d.pop("cable_journal", None)                # большие строки КЖ окну не нужны
+    return data
+
+
 class App:
     """Состояние окна: папка, загруженный объект. Один объект на окно."""
 
@@ -41,7 +48,7 @@ class App:
     def reload(self, progress=print):
         with self.lock:
             self.prj = load_project(self.folder, progress=progress)
-            data = serialize.to_dict(self.prj)
+            data = _payload(self.prj)
             data["rules"] = [{"id": r.id, "title": r.title, "group": r.group} for r in checks.rules()]
             self.payload = json.dumps(data, ensure_ascii=False).encode("utf-8")
 
@@ -49,7 +56,7 @@ class App:
         """Без чтения книг: структура, связи, расчёт, проверки — и новый JSON для окна."""
         with self.lock:
             recheck(self.prj)
-            data = serialize.to_dict(self.prj)
+            data = _payload(self.prj)
             data["rules"] = [{"id": r.id, "title": r.title, "group": r.group} for r in checks.rules()]
             self.payload = json.dumps(data, ensure_ascii=False).encode("utf-8")
 

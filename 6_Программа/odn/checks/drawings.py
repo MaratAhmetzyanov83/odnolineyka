@@ -25,3 +25,12 @@ def check(prj):
         for d in p.drawings:
             if d["state"] == "check":
                 yield Hit(1, f"однолинейка — проверить ({_name(d['dwg'])}, построена {d['at']}): {d['why']}", p.id)
+
+
+@rule("drawings.kj_stale", "КЖ устарел", G)
+def kj_stale(prj):
+    """Кабельный журнал в DWG не совпадает с листом «Кабельный_журнал»: «КЖ в DWG» в книге."""
+    for d in prj.documents:
+        if d.kj.get("state") == "stale" and d.panels:
+            yield Hit(2, f"КЖ устарел ({_name(d.kj['dwg'])}, записан {d.kj['at']}): {d.kj['why']} — «КЖ в DWG» в книге",
+                      d.panels[0].id)

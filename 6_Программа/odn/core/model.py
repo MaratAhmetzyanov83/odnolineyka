@@ -16,7 +16,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Optional
 
-SCHEMA = 2            # версия формата JSON; менять при несовместимых правках модели
+SCHEMA = 3            # версия формата JSON (и кэша): менять, когда модель или чтение книг меняются несовместимо
 
 
 # ---------------------------------------------------------------- место в источнике (куда идти править)
@@ -239,8 +239,11 @@ class Document:
     file: str                           # путь относительно папки объекта
     kind: str = ""                      # адаптер: excel_v312, …
     external: bool = False              # книга из другой папки: найдена по связям (вверх / вниз)
+    found_from: str = ""                # какая книга на неё ссылается (для книг из других папок)
     mtime: float = 0.0
     error: str = ""
+    cable_journal: list = field(default_factory=list)    # графы 1–8 КЖ (строки) — для сверки; в окно не уходит
+    kj: dict = field(default_factory=dict)               # КЖ в DWG (services.drawing_stamp): {dwg, at, state, why}
     panels: list = field(default_factory=list)           # list[Panel]
 
 

@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
-"""Актуальность однолинейных схем (DWG): по отметкам построения, которые пишет SXDRAW (v3.26+).
+"""Актуальность однолинейных схем (DWG) — по отметкам SXDRAW (v3.26+), и кабельных журналов (КЖ в DWG) — по отметкам
+надстройки (SX_KJ, кнопка «КЖ в DWG»): «<книга>.kj.txt» — графы 1–8 в том виде, в каком ушли в DWG; программа сравнивает
+их с листом «Кабельный_журнал» книги по маркировке (изменённые, новые, убранные кабели).
 
 Отметка — файл рядом с книгой «<книга>.drawn.txt», строка на (щит, чертёж) — последнее полное построение
 (SXDRAW / SXUPDATE; частичное SXUPDSEL отметку не меняет). Только ASCII, формы LISP, тексты — коды символов:
@@ -157,12 +159,105 @@ def state_of(st: dict, p, doc, hist: dict) -> tuple:
     return state, "; ".join(why)
 
 
+# ---------------------------------------------------------------- КЖ в DWG (надстройка SX_KJ, кнопка «КЖ в DWG»)
+KJ_EXT = ".kj.txt"
+KJ_NAMES = 8                     # графы 1–8: по проекту (9–13 заполняют в DWG вручную — не сверяются)
+
+
+def kj_path(prj: Project, doc) -> str:
+    base, _ = os.path.splitext(os.path.join(prj.folder, doc.file))
+    return base + KJ_EXT
+
+
+def read_kj(path):
+    """Отметка КЖ: UTF-8, строки «ключ<Tab>значения»: DWG, AT, BOOK, SAVED, ROW графа1…графа8 (как видно в Excel)."""
+    try:
+        with open(path, encoding="utf-8-sig", errors="replace") as f:
+            rows = f.read().splitlines()
+    except OSError:
+        return None
+    st = {"dwg": "", "at": "", "book_time": "", "saved": True, "rows": []}
+    for ln in rows:
+        k, _, v = ln.partition("\t")
+        if k == "ROW":
+            st["rows"].append((v.split("\t") + [""] * KJ_NAMES)[:KJ_NAMES])
+        elif k in ("DWG", "AT", "BOOK"):
+            st[{"DWG": "dwg", "AT": "at", "BOOK": "book_time"}[k]] = v.strip()
+        elif k == "SAVED":
+            st["saved"] = v.strip() != "0"
+    return st
+
+
+def _norm(s) -> str:
+    return " ".join(str(s).replace("\r", " ").replace("\n", " ").replace("\t", " ").split())
+
+
+def same_cell(txt: str, val) -> bool:
+    """Текст ячейки (как в Excel, с форматом) == значение ячейки (openpyxl)? Числа — с точностью показа."""
+    t = _norm(txt)
+    if val is None or val == "":
+        return t == ""
+    if isinstance(val, str):
+        v = _norm(val)
+        return t == v or (t.startswith("#") and v.startswith("#"))      # #Н/Д == #N/A
+    if isinstance(val, bool):
+        return t.upper() in (("ИСТИНА", "TRUE") if val else ("ЛОЖЬ", "FALSE"))
+    if t.startswith("#"):
+        return False
+    x = t.replace("\u00a0", "").replace(" ", "").replace(",", ".")
+    pct = x.endswith("%")
+    x = x.rstrip("%")
+    try:
+        f = float(x)
+    except ValueError:
+        return t == _norm(val)
+    dec = len(x.partition(".")[2])
+    v = val * 100 if pct else val
+    return abs(v - f) <= 0.5 * 10 ** -dec + 1e-9
+
+
+def kj_diff(stamp_rows, cur_rows) -> dict:
+    """{added, removed, changed: [(маркировка, графа, было, стало)]} — по маркировке кабеля."""
+    old = {_norm(r[0]): r for r in stamp_rows}
+    new = {_norm(r[0]): r for r in cur_rows}
+    changed = []
+    for mk, r in new.items():
+        o = old.get(mk)
+        if o is None:
+            continue
+        for k in range(1, KJ_NAMES):
+            v = r[k] if k < len(r) else None
+            if not same_cell(o[k], v):
+                changed.append((mk, k + 1, _norm(o[k]), "" if v is None else _norm(v)))
+    return {"added": [m for m in new if m not in old], "removed": [m for m in old if m not in new], "changed": changed}
+
+
+def kj_state(prj: Project, doc) -> dict:
+    st = read_kj(kj_path(prj, doc))
+    if st is None:
+        return {}
+    d = kj_diff(st["rows"], doc.cable_journal)
+    why = []
+    if d["changed"]:
+        cab = sorted({c[0] for c in d["changed"]})
+        why.append(f"изменено кабелей {len(cab)}: " + "; ".join(
+            f"{m} (гр. {g}: {a or '—'} → {b or '—'})" for m, g, a, b in
+            [next(c for c in d["changed"] if c[0] == m) for m in cab[:5]]) + (" …" if len(cab) > 5 else ""))
+    if d["added"]:
+        why.append(f"новые {len(d['added'])}: " + ", ".join(d["added"][:5]) + (" …" if len(d["added"]) > 5 else ""))
+    if d["removed"]:
+        why.append(f"убраны {len(d['removed'])}: " + ", ".join(d["removed"][:5]) + (" …" if len(d["removed"]) > 5 else ""))
+    return {"dwg": st["dwg"], "at": st["at"], "state": "stale" if why else "ok", "why": "; ".join(why),
+            "cables": len(doc.cable_journal), "saved": st["saved"]}
+
+
 def apply(prj: Project, record: bool):
     """Panel.drawings — построения щита по чертежам (последнее на каждый DWG) с состоянием."""
     hist = load_history(prj)
     if record:
         hist = record_history(prj, hist)
     for d in prj.documents:
+        d.kj = kj_state(prj, d) if not d.error else {}
         stamps = read_stamps(stamp_path(prj, d)) if not d.error else []
         for p in d.panels:
             last = {}

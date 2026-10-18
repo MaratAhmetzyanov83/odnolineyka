@@ -125,6 +125,7 @@ def step_read(prj: Project, ctx):
                 d = _read_one(prj, path, src, old, ctx, "[другая папка]")
                 if d:
                     d.external = True
+                    d.found_from = doc.file
                     prj.documents.append(d)
                     queue.append(d)
                     n += 1

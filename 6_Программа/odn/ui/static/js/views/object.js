@@ -1,6 +1,6 @@
 // Экран «Весь объект». Вкладки — TABS: новая вкладка = новый элемент {id, title, bar, render, mount}.
 import { esc, num } from "../fmt.js";
-import { S, counts, roots, drawState } from "../store.js";
+import { S, counts, roots, drawState, kjState } from "../store.js";
 import { toObject, toPanel } from "../nav.js";
 import { mount } from "../grid.js";
 import { lineColumns, lineRef, lineAttrs } from "../columns.js";
@@ -51,6 +51,8 @@ function panelsGrid(host){
     {id: "w", t: "Вн.", n: 1, w: 40, d: 0, v: p => ec(p)[1], agg: "sum", cls: p => ec(p)[1] ? "cw" : "c0"},
     {id: "dwg", t: "Однолинейка", title: "DWG: актуальна / устарела / проверить (отметки SXDRAW v3.26+). Подсказка — по чертежам", w: 90,
      v: p => drawState(p).txt, cls: p => drawState(p).cls, tip: p => drawState(p).tip},
+    {id: "kj", t: "КЖ", title: "Кабельный журнал в DWG: актуален / устарел (отметка «КЖ в DWG»). Подсказка — что изменилось", w: 80,
+     v: p => kjState(p).txt, cls: p => kjState(p).cls, tip: p => kjState(p).tip},
     {id: "rev", t: "Отпечаток", w: 100, hidden: 1, v: p => p.revision},
     {id: "doc", t: "Файл", w: 200, v: p => p.doc, cls: () => "mut"},
   ];

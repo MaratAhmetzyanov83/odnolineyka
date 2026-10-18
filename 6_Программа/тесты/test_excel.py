@@ -307,5 +307,46 @@ class TestDrawingStamp(unittest.TestCase):
             shutil.rmtree(d, ignore_errors=True)
 
 
+class TestKJStamp(unittest.TestCase):
+    """Отметка «КЖ в DWG» (<книга>.kj.txt) -> «КЖ устарел» с перечнем изменённых кабелей."""
+
+    def test_kj(self):
+        TestExcelV312.setUpClass()
+        import openpyxl
+        from odn.services.drawing_stamp import same_cell
+        self.assertTrue(same_cell("30", 30.456) and same_cell("0,5%", 0.005) and same_cell("#Н/Д", "#N/A"))
+        self.assertFalse(same_cell("31", 30.4))
+        d = tempfile.mkdtemp(prefix="odn_kj_")
+        try:
+            obj = os.path.join(d, "объект")
+            shutil.copytree(FOLDER, obj, ignore=shutil.ignore_patterns("_окно", "*.nodes.txt", "*.drawn.txt"))
+            book = os.path.join(obj, "ГРЩ.xlsx")
+            wb = openpyxl.load_workbook(book)
+            ws = wb.create_sheet("Кабельный_журнал")
+            rows = [("W1", "ГРЩ", "ЩР-1", "ВВГнг", "5х16", 30.456, "", ""), ("W2", "ГРЩ", "ЩР-2", "ВВГнг", "5х10", 45, "", "")]
+            for i, r in enumerate(rows):
+                for k, v in enumerate(r):
+                    ws.cell(row=5 + i, column=16 + k, value=v)
+            wb.save(book)
+            with open(os.path.join(obj, "ГРЩ.kj.txt"), "w", encoding="utf-8-sig") as f:
+                f.write("DWG\tD:\\КЖ_ГРЩ.dwg\nAT\t2026-10-18 21:00:00\nSAVED\t1\n")
+                f.write("ROW\tW1\tГРЩ\tЩР-1\tВВГнг\t5х16\t30\t\t\nROW\tW2\tГРЩ\tЩР-2\tВВГнг\t5х10\t45\t\t\n")
+            prj = load_project(obj, progress=lambda s: None, use_cache=False)
+            doc = next(x for x in prj.documents if x.file == "ГРЩ.xlsx")
+            self.assertEqual((doc.kj["state"], doc.kj["cables"]), ("ok", 2))
+            ws = wb["Кабельный_журнал"]
+            ws["T6"] = "5х16"                                   # W2: сечение (графа 5)
+            ws.cell(row=7, column=16, value="W3")               # новый кабель
+            wb.save(book)
+            prj = load_project(obj, progress=lambda s: None, use_cache=False)
+            doc = next(x for x in prj.documents if x.file == "ГРЩ.xlsx")
+            self.assertEqual(doc.kj["state"], "stale")
+            self.assertIn("W2 (гр. 5: 5х10 → 5х16)", doc.kj["why"])
+            self.assertIn("новые 1: W3", doc.kj["why"])
+            self.assertTrue(any(i.rule == "drawings.kj_stale" for i in prj.issues))
+        finally:
+            shutil.rmtree(d, ignore_errors=True)
+
+
 if __name__ == "__main__":
     unittest.main()

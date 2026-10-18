@@ -3,7 +3,10 @@ import { esc, num } from "../fmt.js";
 import { S, counts, worst, roots } from "../store.js";
 import { toObject, toPanel } from "../nav.js";
 
-const ext = p => S.P.documents.some(d => d.file === p.doc && d.external);
+const docOf = p => S.P.documents.find(d => d.file === p.doc);
+const ext = p => docOf(p)?.external;
+const tip = p => p.doc + (ext(p) ? `\nКнига из другой папки. Найдена по ссылке из ${docOf(p).found_from || "?"}` : "")
+  + (!p.parent ? "\nВышестоящий щит не найден: " + (p.link_error || p.supply.manual || "питание не задано") : "");
 const cnt = (n, cls) => `<span class="${n ? cls : "c0"}">${n}</span>`;
 
 export function render(selId){
@@ -14,7 +17,7 @@ export function render(selId){
   const byName = (a, b) => a.name.localeCompare(b.name, "ru", {numeric: true});
   const walk = (p, lvl) => {
     const [pe, pw] = counts(S.issuesBy[p.id]);
-    h += `<div class="node ${selId === p.id ? "sel" : ""}" data-go="${esc(toPanel(p.id))}" title="${esc(p.doc)}">
+    h += `<div class="node ${selId === p.id ? "sel" : ""}" data-go="${esc(toPanel(p.id))}" title="${esc(tip(p))}">
       <span class="nm" style="padding-left:${lvl * 14}px"><span class="dot d${worst(p.id)}"></span>${esc(p.name)}${p.vru ? ' <b class="vru" title="ВРУ здания: потери считаются от него">ВРУ</b>' : ""}${ext(p) ? ' <span class="ext" title="Книга из другой папки (найдена по связям)">↗</span>' : ""}</span>
       <span>${num(p.result.p_calc, 1)}</span>${cnt(pe, "ce")}${cnt(pw, "cw")}</div>`;
     for (const k of (S.kids[p.id] || []).sort(byName)) walk(k, lvl + 1);

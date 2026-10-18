@@ -24,3 +24,10 @@ export function drawState(p){
   return {txt: DW[w.state][0] + (ds.length > 1 ? ` (${ds.length} DWG)` : ""), cls: DW[w.state][1],
           tip: ds.map(d => `${name(d)}: ${DW[d.state][0]}, построена ${d.at}${d.why ? " — " + d.why : ""}`).join("\n")};
 }
+// КЖ в DWG (отметка надстройки «КЖ в DWG») — по книге щита
+export function kjState(p){
+  const k = S.P.documents.find(d => d.file === p.doc)?.kj || {};
+  if (!k.state) return {txt: "нет отметки", cls: "c0", tip: "КЖ не записывали кнопкой «КЖ в DWG» новой надстройки (отметка — «<книга>.kj.txt»)"};
+  const [txt, cls] = k.state === "stale" ? ["устарел", "ce"] : ["актуален", "ok"];
+  return {txt, cls, tip: `${k.dwg.split(/[\\/]/).pop()}: записан ${k.at}, кабелей в книге ${k.cables}${k.why ? "\n" + k.why : ""}`};
+}

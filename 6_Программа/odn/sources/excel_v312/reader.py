@@ -89,6 +89,18 @@ class Rows:
             yield i
 
 
+def _kj_rows(ws) -> list:
+    """Графы 1–8 кабельного журнала — значения ячеек (сверка с отметкой «КЖ в DWG»)."""
+    out = []
+    for r in ws.iter_rows(min_row=X.KJ_FIRST, max_row=X.LAST_ROW, min_col=X.KJ_COL, max_col=X.KJ_COL + X.KJ_N - 1,
+                          values_only=True):
+        mk = str(r[0] if r and r[0] is not None else "").strip()
+        if not mk or mk == "0":
+            continue
+        out.append([v if v is None or isinstance(v, (int, float, str)) else str(v) for v in r] + [None] * (X.KJ_N - len(r)))
+    return out
+
+
 # ---------------------------------------------------------------- адаптер
 class ExcelV312(Source):
     kind = "excel_v312"
@@ -112,6 +124,8 @@ class ExcelV312(Source):
                 return doc
             sh = lambda n, m=X.LAST_ROW: Rows(wb[n] if n in wb.sheetnames else None, m)  # noqa: E731
             _fill(doc, sh(X.SRC), sh(X.ODN), sh(X.SPLIT), sh(X.NET, X.NET_ROWS))
+            if X.KJ in wb.sheetnames:
+                doc.cable_journal = _kj_rows(wb[X.KJ])
         finally:
             wb.close()
         return doc

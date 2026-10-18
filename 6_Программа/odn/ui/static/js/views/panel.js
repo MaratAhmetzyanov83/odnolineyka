@@ -1,6 +1,6 @@
 // Экран щита: строка показателей (KV — список функций), вкладки (TABS).
 import { esc, num, refLink } from "../fmt.js";
-import { S, counts, drawState } from "../store.js";
+import { S, counts, drawState, kjState } from "../store.js";
 import { toPanel } from "../nav.js";
 import { mount } from "../grid.js";
 import { lineColumns, lineRef, lineAttrs } from "../columns.js";
@@ -52,6 +52,7 @@ export const KV = [
       skew > 15 ? "w" : "", "Сумма Iр линий по фазам, без Кс; перекос = (max − min) / max"); },
   p => { const [e, w] = counts(S.issuesBy[p.id]); return kv("Ошибок / вн.", `<span class="${e ? "e" : ""}">${e}</span> / <span class="${w ? "w" : ""}">${w}</span>`); },
   p => { const d = drawState(p); return kv("Однолинейка", `<span class="${d.cls}">${esc(d.txt)}</span>`, "", d.tip); },
+  p => { const d = kjState(p); return kv("КЖ", `<span class="${d.cls}">${esc(d.txt)}</span>`, "", d.tip); },
   p => kv("Отпечаток", esc(p.revision), "", "Отпечаток данных схемы: по нему сверяется отметка построения DWG"),
 ];
 
@@ -76,7 +77,9 @@ export function render({ id, params }){
   const p = S.panels[id];
   if (!p) return `<div class="empty">Щит не найден (объект перечитан?).</div>`;
   const tab = TABS.find(t => t.id === params.tab) || TABS[0];
+  const doc = S.P.documents.find(d => d.file === p.doc);
   return `<div class="top"><h2>${esc(p.name)}</h2><span class="sub">${esc(p.doc)}</span>
+      ${doc?.external ? `<span class="tag" title="Книга не из папки объекта: программа нашла её по связи">↗ из другой папки, ссылка из ${esc(doc.found_from || "?")}</span>` : ""}
       ${refLink({file: p.doc, sheet: "Однолинейка", cell: "A1"}, "открыть в Excel")}
       <a data-exclude="${esc(p.doc)}" title="Резервная или лишняя книга: программа перестанет её читать (список — _окно\\исключить.txt)">не читать эту книгу</a></div>
     <div class="kv">${KV.map(f => f(p)).join("")}</div>
