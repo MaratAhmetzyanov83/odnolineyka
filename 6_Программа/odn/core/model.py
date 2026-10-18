@@ -209,6 +209,9 @@ class Panel:
     parent: str = ""
     parent_line: str = ""
     link_error: str = ""
+    link_src: str = ""                  # откуда связь: «книга» / «программа»
+    book_parent: str = ""               # связь, как записана в книге (для сверки со связью программы)
+    book_line: str = ""
     # заполняет core.revision
     revision: str = ""
 
@@ -251,6 +254,10 @@ class Project:
             if p.parent:
                 self._kids.setdefault(p.parent, []).append(p)
         return self
+
+    def panel_raw(self, pid):
+        """Щит по id без reindex (во время связывания)."""
+        return next(p for d in self.documents for p in d.panels if p.id == pid)
 
     def panels(self):
         return list(self._panels.values())

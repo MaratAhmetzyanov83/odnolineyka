@@ -161,3 +161,6 @@ table.stree td.nw button{padding:0 6px;margin-left:2px}
 .gpop.dlg label{display:inline-block;width:100px;color:var(--muted)}
 .gpop.dlg input,.gpop.dlg select{flex:1}
 .tag{display:inline-block}
+button.mini{padding:0 6px;font-size:11px;margin-left:4px}
+.gpop.dlg{width:460px}
+.gpop.dlg select{max-width:330px}

@@ -14,6 +14,9 @@ export const edit = changes => call("POST", "/api/edit", {changes});
 export const undo = () => call("POST", "/api/undo");
 export const structure = body => call("POST", "/api/structure", body);
 export const exclude = file => call("POST", "/api/exclude", {file});
+export const linkSuggest = (parent, child) => call("GET", `/api/link/suggest?parent=${encodeURIComponent(parent)}&child=${encodeURIComponent(child)}`);
+export const linkWrite = body => call("POST", "/api/link/write", body);
+export const linkUndo = () => call("POST", "/api/link/undo");
 export const structureUndo = () => call("POST", "/api/structure/undo");
 
 export async function download(path, body){

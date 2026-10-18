@@ -116,3 +116,18 @@ def duplicate_panel(prj):
             for p in ps:
                 others = ", ".join(q.doc for q in ps if q is not p)
                 yield Hit(1, f"щит {p.name} есть и в другой книге: {others} — лишнюю исключите («Не читать эту книгу»)", p.id)
+
+
+@rule("links.mismatch", "Связь программы ≠ связь в книге", G)
+def mismatch(prj):
+    for p in prj.panels():
+        if p.link_src != "программа":
+            continue
+        par = prj.panel(p.parent)
+        if not p.book_parent:
+            yield Hit(1, f"связь {par.name} / {p.parent_line or '?'} есть только в программе — в книге щита её нет "
+                         f"(Excel не получает ΔU и Iкз от вышестоящего): «Связь…» → «Записать в книги»", p.id)
+        elif (p.book_parent, p.book_line) != (p.parent, p.parent_line):
+            bp = prj.panel(p.book_parent)
+            yield Hit(1, f"в программе: {par.name} / {p.parent_line or '?'}, в книге: {bp.name if bp else '?'} / "
+                         f"{p.book_line or '?'} — «Связь…» → «Записать в книги» или «Убрать связь программы»", p.id)

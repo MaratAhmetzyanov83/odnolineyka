@@ -99,7 +99,7 @@ class TestEdit(unittest.TestCase):
         self.assertEqual(prj.line(pid, "R.1.01.1").input.length_plan, 12.5)
         self.assertEqual(prj.line(pid, "R.1.01.1").scheme.breaker_set, "1P C10А")
         self.assertEqual(prj.line(pid, "R.1.02.1").input.cores, 5)
-        j = edit.read_journal(prj)
+        j = [r for r in edit.read_journal(prj) if r.get("kind") == "правка"]
         self.assertEqual(len(j), 1)
         self.assertEqual(j[0]["changes"][0]["cell"], "Исходные данные!I21")
         self.assertTrue(os.path.isfile(os.path.join(self.folder, j[0]["backup"])))
@@ -113,6 +113,34 @@ class TestEdit(unittest.TestCase):
         self.assertEqual(edit.undo_last(prj)["errors"], ["нечего отменять"])
         # служебная папка не читается как книга объекта
         self.assertEqual(sorted(p.name for p in prj.panels()), ["ГРЩ", "ЩР-1", "ЩР-2"])
+
+    def test_links_program_and_books(self):
+        from odn.core.changes import EditError
+        from odn.services import link_writer, structure
+        prj = self.load()
+        P = {p.name: p.id for p in prj.panels()}
+        # вариант А: связь в программе — ЩР-2 от ГРЩ по Щ.3 (в книге — Щ.2)
+        structure.operate(prj, {"op": "set_link", "panel": P["ЩР-2"], "parent": P["ГРЩ"], "line": "Щ.3"})
+        prj = self.load()
+        p2 = prj.panel(P["ЩР-2"])
+        self.assertEqual((p2.parent_line, p2.link_src, p2.book_line), ("Щ.3", "программа", "Щ.2"))
+        self.assertEqual(prj.line(P["ГРЩ"], "Щ.3").feeds, P["ЩР-2"])
+        self.assertIn(("links.mismatch", P["ЩР-2"]), {(i.rule, i.panel) for i in prj.issues})
+        with self.assertRaises(EditError):                                   # цикл: ГРЩ от ЩР-1
+            structure.operate(prj, {"op": "set_link", "panel": P["ГРЩ"], "parent": P["ЩР-1"], "line": ""})
+        # вариант Б: та же связь — в книги; связь программы снимается
+        r = link_writer.write_link(prj, P["ЩР-2"], P["ГРЩ"], "Щ.3")
+        self.assertTrue(r["ok"])
+        structure.operate(prj, {"op": "clear_link", "panel": P["ЩР-2"]})
+        prj = self.load()
+        p2 = prj.panel(P["ЩР-2"])
+        self.assertEqual((p2.parent_line, p2.link_src, p2.book_line), ("Щ.3", "книга", "Щ.3"))
+        self.assertNotIn(("links.mismatch", P["ЩР-2"]), {(i.rule, i.panel) for i in prj.issues})
+        # отмена записи связи — книги из копий
+        self.assertTrue(link_writer.undo_last(prj)["ok"])
+        prj = self.load()
+        self.assertEqual(prj.panel(P["ЩР-2"]).parent_line, "Щ.2")
+        self.assertFalse(link_writer.undo_last(prj)["ok"])
 
     def test_conflict(self):
         from odn.services import edit

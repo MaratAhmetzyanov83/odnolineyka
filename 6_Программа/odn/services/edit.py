@@ -92,7 +92,7 @@ def apply_changes(prj: Project, raw: list, kind="правка", undo_of="") -> d
 def undo_last(prj: Project) -> dict:
     """Отменить последнюю не отменённую запись (одну книгу)."""
     rows = [r for r in read_journal(prj, 10_000)
-            if r.get("batch") and not r["undone"] and r.get("kind") not in ("отмена", "структура")]
+            if r.get("batch") and not r["undone"] and r.get("kind") not in ("отмена", "структура", "связь")]
     if not rows:
         return {"ok": False, "errors": ["нечего отменять"]}
     last = rows[-1]

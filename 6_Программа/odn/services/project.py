@@ -92,7 +92,7 @@ def step_structure(prj, ctx):
 
 
 def step_link(prj, ctx):
-    linking.link(prj)
+    linking.link(prj, structure.links(prj.folder))
 
 
 def step_calc(prj, ctx):

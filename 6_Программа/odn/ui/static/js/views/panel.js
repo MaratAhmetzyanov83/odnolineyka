@@ -6,6 +6,7 @@ import { mount } from "../grid.js";
 import { lineColumns, lineRef, lineAttrs } from "../columns.js";
 import * as issues from "./issues.js";
 import * as structure from "./structure.js";
+import * as linkdlg from "./linkdlg.js";
 
 const kv = (k, v, cls = "", tip = "") => v === "" || v == null ? "" :
   `<div ${tip ? `title="${esc(tip)}"` : ""}><span class="k">${k}</span><b class="${cls}">${v}</b></div>`;
@@ -24,8 +25,10 @@ function phases(p){
 
 export const KV = [
   p => { const par = S.panels[p.parent];
-    return kv("Питание", par ? `<a data-go="${esc(toPanel(par.id, p.parent_line, "lines"))}">${esc(par.name)}</a> / ${esc(p.parent_line || "?")}`
-                             : esc(p.supply.manual || p.supply.from_doc || "не задано")); },
+    const src = p.link_src ? ` <span class="tag" title="${p.link_src === "программа" ? "связь хранит программа" : "связь записана в книге"}">${esc(p.link_src)}</span>` : "";
+    return kv("Питание", (par ? `<a data-go="${esc(toPanel(par.id, p.parent_line, "lines"))}">${esc(par.name)}</a> / ${esc(p.parent_line || "?")}${src}`
+                              : esc(p.supply.manual || p.supply.from_doc || "не задано"))
+      + ` <button class="mini" data-linkdlg title="Задать, от какого щита и по какой линии питается щит">Связь…</button>`); },
   p => kv("Фидер", esc([p.supply.breaker, p.supply.cable].filter(Boolean).join(", "))),
   p => kv("L", p.supply.length != null ? num(p.supply.length, 0) + " м" : ""),
   p => kv("Руст", num(p.result.p_inst, 2) + " кВт"),
@@ -83,6 +86,7 @@ export function bind(root, rerender, { id, params }){
   if (o) o.onchange = () => { lf.only = o.checked; rerender(); };
   const p = S.panels[id];
   if (!p) return;
+  root.querySelectorAll("[data-linkdlg]").forEach(b => b.onclick = () => linkdlg.open(p));
   const tab = TABS.find(t => t.id === params.tab) || TABS[0];
   tab.mount(root.querySelector("#ghost"), p, params);
 }

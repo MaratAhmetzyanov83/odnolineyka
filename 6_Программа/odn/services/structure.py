@@ -56,6 +56,11 @@ def apply(prj: Project, data: dict | None = None):
             ln.node = where.get(ln.number, "")
 
 
+def links(folder) -> dict:
+    """Связи щитов, заданные в программе: {id щита: {parent, line, input}}."""
+    return {pid: st["link"] for pid, st in load(folder)["panels"].items() if st.get("link")}
+
+
 # ---------------------------------------------------------------- операции
 def _panel_state(data, pid):
     return data["panels"].setdefault(pid, {"nodes": [], "lines": {}})
@@ -161,6 +166,25 @@ def operate(prj: Project, op: dict) -> dict:
             else:
                 st["lines"].pop(n, None)
         what = f"линии {', '.join(op.get('lines', []))} -> {target or 'шина'}"
+    elif kind == "set_link":
+        par = prj.panel(op.get("parent", ""))
+        if par is None:
+            raise EditError("выберите вышестоящий щит")
+        if par.id == pid:
+            raise EditError("щит не может питаться от себя")
+        x = par
+        while x is not None:                         # цикл: вышестоящий питается от этого щита
+            if x.parent == pid:
+                raise EditError(f"цикл: {par.name} питается от {panel.name}")
+            x = prj.panel(x.parent) if x.parent else None
+        line = str(op.get("line", "")).strip()
+        if line and line not in {ln.number for ln in par.lines}:
+            raise EditError(f"в щите {par.name} нет линии {line}")
+        st["link"] = {"parent": par.id, "line": line, "input": int(op.get("input") or 1)}
+        what = f"связь: {panel.name} <- {par.name} / {line or '?'}"
+    elif kind == "clear_link":
+        st.pop("link", None)
+        what = f"связь программы убрана: {panel.name} (снова — из книги)"
     else:
         raise EditError(f"неизвестная операция {kind}")
     save(prj.folder, data)

@@ -10,7 +10,7 @@ from .. import checks
 from ..core import serialize
 from ..core.model import Ref
 from ..core.changes import EditError
-from ..services import edit, export, structure
+from ..services import edit, export, link_writer, structure
 from ..services.project import add_exclusion, load_project, open_at, recheck
 
 _ROUTES = {}
@@ -123,6 +123,42 @@ def post_exclude(app: App, body):
         add_exclusion(app.folder, rel)
         app.reload_quiet()
     return {"ok": True}
+
+
+@route("GET", "/api/link/suggest")
+def get_link_suggest(app: App, body):
+    """Линия-фидер у выбранного вышестоящего щита для щита child — по имени щита."""
+    from ..services.linking import suggest_feeder
+    par, child = app.prj.panel(body.get("parent", "")), app.prj.panel(body.get("child", ""))
+    return {"ok": True, "line": suggest_feeder(par, child) if par and child else ""}
+
+
+@route("POST", "/api/link/write")
+def post_link_write(app: App, body):
+    """Вариант Б: связь в книги (функция надстройки). Удачно — связь программы снимается: теперь она в книге."""
+    with app.write_lock:
+        try:
+            res = link_writer.write_link(app.prj, body.get("panel", ""), body.get("parent", ""),
+                                         str(body.get("line", "")).strip(), int(body.get("input") or 1))
+        except EditError as e:
+            return {"ok": False, "errors": [str(e)]}
+        except Exception as e:  # noqa: BLE001 — Excel / COM
+            return {"ok": False, "errors": [f"Excel: {e}"]}
+        try:
+            structure.operate(app.prj, {"op": "clear_link", "panel": body.get("panel", "")})
+        except EditError:
+            pass
+        app.reload()
+        return res
+
+
+@route("POST", "/api/link/undo")
+def post_link_undo(app: App, body):
+    with app.write_lock:
+        res = link_writer.undo_last(app.prj)
+        if res.get("ok"):
+            app.reload()
+        return res
 
 
 @route("POST", "/api/structure")
