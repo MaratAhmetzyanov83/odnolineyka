@@ -51,8 +51,30 @@ def read_journal(prj: Project, limit=200):
     return rows[-limit:]
 
 
+def related_docs(prj: Project, docs) -> list:
+    """Книги, связанные с docs формулами Excel (связь «Связать с вышестоящим»): нижестоящие получают питание,
+    вышестоящие — нагрузку. Их надо пересчитать вместе с изменённой книгой."""
+    docs, rel = set(docs), set()
+    for p in prj.panels():
+        bp = prj.panel(p.book_parent) if p.book_parent else None
+        if not bp or bp.doc == p.doc:
+            continue
+        if bp.doc in docs and p.doc not in docs:
+            rel.add(p.doc)
+        if p.doc in docs and bp.doc not in docs:
+            rel.add(bp.doc)
+    return sorted(rel)
+
+
+def _fresh(prj, docname):
+    doc = next(d for d in prj.documents if d.file == docname)
+    return abs(os.path.getmtime(os.path.join(prj.folder, docname)) - doc.mtime) <= 1e-6
+
+
 def apply_changes(prj: Project, raw: list, kind="правка", undo_of="") -> dict:
-    """raw: [{panel, line, path, new}]. Пишет по книгам; ошибка в одной книге не мешает другим."""
+    """raw: [{panel, line, path, new}]. Пишет по книгам одной сессией Excel и пересчитывает связанные книги
+    (вышестоящую и нижестоящие), чтобы правка была видна с обеих сторон связи."""
+    from ..sources.excel_v312.writer import is_locked
     chs = []
     for r in raw:
         ch = C.Change(r["panel"], r["path"], r.get("new"), r.get("line", ""))
@@ -62,37 +84,100 @@ def apply_changes(prj: Project, raw: list, kind="правка", undo_of="") -> d
     by_doc = {}
     for ch in chs:
         by_doc.setdefault(prj.panel(ch.panel).doc, []).append(ch)
-    stamp = time.strftime("%Y-%m-%d_%H%M%S")
-    done, errors = [], []
+    errors, warnings, cells_by_doc = [], [], {}
     for docname, items in by_doc.items():
         doc = next(d for d in prj.documents if d.file == docname)
-        path = os.path.join(prj.folder, docname)
         src = sources.base.by_kind(doc.kind)
         try:
-            if abs(os.path.getmtime(path) - doc.mtime) > 1e-6:
+            if not _fresh(prj, docname):
                 raise C.EditError(f"{docname} изменилась после чтения — нажмите «Обновить» и повторите")
-            cells = src.cells_for(prj, items)
-            bak = os.path.join(_dir(prj, "резерв", stamp), docname)
-            os.makedirs(os.path.dirname(bak), exist_ok=True)
-            shutil.copy2(path, bak)
-            src.write(path, cells)
+            if is_locked(os.path.join(prj.folder, docname)):
+                raise C.EditError(f"{docname} открыта в Excel — закройте книгу и повторите")
+            cells_by_doc[docname] = (items, src.cells_for(prj, items))
         except (C.EditError, NotImplementedError) as e:
             errors.append(str(e))
-            continue
-        entry = {"batch": f"{stamp}|{docname}|{uuid.uuid4().hex[:8]}", "at": time.strftime("%d.%m.%Y %H:%M:%S"), "user": _user(),
-                 "kind": kind, "doc": docname, "backup": os.path.relpath(bak, prj.folder), "undo_of": undo_of,
+    related = []
+    for d in related_docs(prj, cells_by_doc):
+        if is_locked(os.path.join(prj.folder, d)):
+            warnings.append(f"{d} открыта в Excel — не пересчитана, связь обновится, когда её откроете")
+        elif not _fresh(prj, d):
+            warnings.append(f"{d} изменилась после чтения — не пересчитана («Обновить», затем «Синхронизировать книги»)")
+        else:
+            related.append(d)
+    if not cells_by_doc:
+        return {"ok": not errors, "written": 0, "docs": [], "related": [], "errors": errors, "warnings": warnings,
+                "skipped": len(raw) - len(chs)}
+    stamp = time.strftime("%Y-%m-%d_%H%M%S")
+    backups = {}
+    for d in list(cells_by_doc) + related:
+        bak = os.path.join(_dir(prj, "резерв", stamp), d)
+        os.makedirs(os.path.dirname(bak), exist_ok=True)
+        shutil.copy2(os.path.join(prj.folder, d), bak)
+        backups[d] = os.path.relpath(bak, prj.folder)
+    from ..sources.excel_v312.writer import write_batch
+    try:
+        write_batch({os.path.join(prj.folder, d): c for d, (_, c) in cells_by_doc.items()},
+                    [os.path.join(prj.folder, d) for d in related])
+    except (C.EditError, Exception) as e:  # noqa: BLE001 — Excel: книги вернуть из копий
+        for d, bak in backups.items():
+            shutil.copy2(os.path.join(prj.folder, bak), os.path.join(prj.folder, d))
+        return {"ok": False, "written": 0, "docs": [], "related": [], "errors": errors + [str(e)], "warnings": warnings,
+                "skipped": len(raw) - len(chs)}
+    done = []
+    for docname, (items, cells) in cells_by_doc.items():
+        entry = {"batch": f"{stamp}|{docname}|{uuid.uuid4().hex[:8]}", "at": time.strftime("%d.%m.%Y %H:%M:%S"),
+                 "user": _user(), "kind": kind, "doc": docname, "backup": backups[docname], "undo_of": undo_of,
+                 "related": {d: backups[d] for d in related},
                  "changes": [dict(dataclasses.asdict(ch), cell=f"{c[0]}!{c[1]}") for ch, c in zip(items, cells)]}
         with open(_journal(prj), "a", encoding="utf-8") as f:
             f.write(json.dumps(entry, ensure_ascii=False, default=str) + "\n")
         done.append(entry)
     return {"ok": not errors, "written": sum(len(e["changes"]) for e in done), "docs": [e["doc"] for e in done],
-            "errors": errors, "skipped": len(raw) - len(chs)}
+            "related": related, "errors": errors, "warnings": warnings, "skipped": len(raw) - len(chs)}
+
+
+def sync_books(prj: Project) -> dict:
+    """«Синхронизировать книги»: все книги со связями — в одну копию Excel, пересчёт, сохранение (копии — до)."""
+    from ..sources.excel_v312.writer import is_locked, write_batch
+    docs = set()
+    for p in prj.panels():
+        if p.book_parent and prj.panel(p.book_parent) and prj.panel(p.book_parent).doc != p.doc:
+            docs |= {p.doc, prj.panel(p.book_parent).doc}
+    ok, skipped = [], []
+    for d in sorted(docs):
+        if is_locked(os.path.join(prj.folder, d)):
+            skipped.append(f"{d}: открыта в Excel")
+        elif not _fresh(prj, d):
+            skipped.append(f"{d}: изменилась после чтения — «Обновить»")
+        else:
+            ok.append(d)
+    if not ok:
+        return {"ok": False, "errors": ["нет книг со связями для пересчёта"] + skipped}
+    stamp = time.strftime("%Y-%m-%d_%H%M%S")
+    backups = {}
+    for d in ok:
+        bak = os.path.join(_dir(prj, "резерв", stamp), d)
+        os.makedirs(os.path.dirname(bak), exist_ok=True)
+        shutil.copy2(os.path.join(prj.folder, d), bak)
+        backups[d] = os.path.relpath(bak, prj.folder)
+    try:
+        write_batch({}, [os.path.join(prj.folder, d) for d in ok])
+    except Exception as e:  # noqa: BLE001
+        for d, bak in backups.items():
+            shutil.copy2(os.path.join(prj.folder, bak), os.path.join(prj.folder, d))
+        return {"ok": False, "errors": [str(e)]}
+    entry = {"batch": f"{stamp}|синхронизация|{uuid.uuid4().hex[:8]}", "at": time.strftime("%d.%m.%Y %H:%M:%S"),
+             "user": _user(), "kind": "синхронизация", "changes": [], "related": backups,
+             "what": f"синхронизация связей: пересчитаны и сохранены {len(ok)} книг"}
+    with open(_journal(prj), "a", encoding="utf-8") as f:
+        f.write(json.dumps(entry, ensure_ascii=False) + "\n")
+    return {"ok": True, "docs": ok, "warnings": skipped}
 
 
 def undo_last(prj: Project) -> dict:
     """Отменить последнюю не отменённую запись (одну книгу)."""
     rows = [r for r in read_journal(prj, 10_000)
-            if r.get("batch") and not r["undone"] and r.get("kind") not in ("отмена", "структура", "связь")]
+            if r.get("batch") and not r["undone"] and r.get("kind") not in ("отмена", "структура", "связь", "синхронизация")]
     if not rows:
         return {"ok": False, "errors": ["нечего отменять"]}
     last = rows[-1]

@@ -103,6 +103,16 @@ def post_edit(app: App, body):
         return _after_write(app, res)
 
 
+@route("POST", "/api/sync")
+def post_sync(app: App, body):
+    """«Синхронизировать книги»: все связанные книги — пересчёт вместе и сохранение."""
+    with app.write_lock:
+        res = edit.sync_books(app.prj)
+        if res.get("ok"):
+            app.reload()
+        return res
+
+
 @route("POST", "/api/undo")
 def post_undo(app: App, body):
     with app.write_lock:

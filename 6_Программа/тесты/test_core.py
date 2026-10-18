@@ -114,9 +114,15 @@ class TestCore(unittest.TestCase):
                     changes.Change(P, "input.p_kw", "abc", line="R.1"),         # не число
                     changes.Change(P, "input.cores", "2,5", line="R.1"),        # не целое
                     changes.Change(P, "input.p_kw", -1, line="R.1"),            # меньше нуля
-                    changes.Change(P, "scheme.breaker_set", "авто", line="R.1")]:  # не первая строка группы
+                    ]:
             with self.assertRaises(changes.EditError, msg=bad.path):
                 changes.apply(prj, bad)
+        ln = prj.line(P, "R.1")
+        ln.scheme.qf, ln.scheme.group_head = "QF7", False          # продолжение чужой группы — нельзя
+        with self.assertRaises(changes.EditError):
+            changes.apply(prj, changes.Change(P, "scheme.breaker_set", "авто", line="R.1"))
+        ln.scheme.qf = ""                                           # строка без группы (ввод) — можно
+        changes.apply(prj, changes.Change(P, "scheme.breaker_set", "авто", line="R.1"))
         prj.line(P, "R.1").scheme.group_head = True
         changes.apply(prj, changes.Change(P, "scheme.breaker_set", "1P C10А", line="R.1"))
         self.assertEqual(prj.line(P, "R.1").scheme.breaker_set, "1P C10А")

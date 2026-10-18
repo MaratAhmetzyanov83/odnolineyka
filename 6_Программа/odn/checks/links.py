@@ -7,6 +7,10 @@ G = "Связи щитов"
 SEL_K = 1.6          # селективность: In фидера ≥ 1,6 · In отходящего (ориентир, как в книге)
 
 
+def _is_input(ln):
+    return ln.number.strip().lower().startswith("ввод")
+
+
 def _feeders(prj):
     """(нижестоящий, вышестоящий, линия-фидер) для связанных щитов."""
     for child in prj.panels():
@@ -78,10 +82,13 @@ def feeder_small(prj):
 def selectivity(prj):
     """In фидера ≥ 1,6 × наибольший отходящий автомат нижестоящего (ориентир; подтверждать по картам)."""
     for child, par, ln in _feeders(prj):
-        outs = [x.in_a for x in child.lines if x.in_a]
-        if ln.in_a and outs and ln.in_a < SEL_K * max(outs):
-            yield Hit(1, f"селективность: In фидера {f(ln.in_a)} А < 1,6 × {f(max(outs))} А "
-                         f"(наибольший отходящий в {child.name})", par.id, ln.number,
+        inp = next((x for x in child.lines if _is_input(x) and x.in_a), None)
+        outs = [x.in_a for x in child.lines if x.in_a and not _is_input(x)]
+        base, by = (inp.in_a, f"ввод {inp.number} в {child.name}") if inp else \
+                   ((max(outs), f"наибольший отходящий в {child.name}") if outs else (None, ""))
+        if ln.in_a and base and ln.in_a < SEL_K * base:
+            yield Hit(1, f"селективность: In фидера {f(ln.in_a)} А < 1,6 × {f(base)} А ({by}) — "
+                         f"у щита {child.name} «Фидер ✎» → «Подобрать In»", par.id, ln.number,
                       ln.refs.get("scheme") or ln.refs.get("input"))
 
 
@@ -131,3 +138,13 @@ def mismatch(prj):
             bp = prj.panel(p.book_parent)
             yield Hit(1, f"в программе: {par.name} / {p.parent_line or '?'}, в книге: {bp.name if bp else '?'} / "
                          f"{p.book_line or '?'} — «Связь…» → «Записать в книги» или «Убрать связь программы»", p.id)
+
+
+@rule("links.input_no_device", "Ввод без аппарата", G)
+def input_no_device(prj):
+    """Строка ввода без аппарата (E пусто): нет QS / автомата ввода. «авто» — Excel подберёт по фидеру."""
+    for p in prj.panels():
+        for ln in p.lines:
+            if _is_input(ln) and not ln.scheme.breaker and not ln.scheme.breaker_set:
+                yield Hit(1, f"ввод {ln.number} без аппарата — в «Автомат» впишите «авто» (QS по фидеру) или текст",
+                          p.id, ln.number, ln.refs.get("scheme") or ln.refs.get("input"))

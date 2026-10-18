@@ -81,7 +81,9 @@ async function saveAll(){
     const r = await api.edit(list.map(({panel, line, path, new: v}) => ({panel, line, path, new: v})));
     if (r.written){ pending.clear(); await load(); }
     toast((r.written ? `Записано: ${r.written} (${r.docs.join(", ")}). Книги пересчитаны, проверки обновлены.` : "Ничего не записано.")
-      + (r.errors?.length ? "\nОшибки: " + r.errors.join("; ") : ""), r.errors?.length ? 12000 : 5000);
+      + (r.related?.length ? `\nПересчитаны связанные: ${r.related.join(", ")}` : "")
+      + (r.warnings?.length ? "\nВнимание: " + r.warnings.join("; ") : "")
+      + (r.errors?.length ? "\nОшибки: " + r.errors.join("; ") : ""), r.errors?.length || r.warnings?.length ? 12000 : 6000);
   } catch (e){ toast("Не записано: " + e.message, 10000); }
   pendBar();
 }
@@ -94,6 +96,15 @@ async function undoWrite(){
   } catch (e){ toast("Не отменено: " + e.message); }
 }
 $("#undo").onclick = undoWrite;
+$("#sync").onclick = async () => {
+  if (!confirm("Пересчитать все связанные книги объекта вместе и сохранить?\nКниги должны быть закрыты в Excel. Перед этим — копии в _окно\\резерв.")) return;
+  const b = $("#sync"); b.disabled = true; b.textContent = "Пересчитываю…";
+  try { const r = await api.sync(); if (r.ok){ await load(); }
+    toast(r.ok ? `Синхронизировано книг: ${r.docs.length}` + (r.warnings?.length ? "\nНе тронуты: " + r.warnings.join("; ") : "")
+               : "Не сделано: " + (r.errors || []).join("; "), 10000); }
+  catch (e){ toast("Не сделано: " + e.message, 10000); }
+  b.disabled = false; b.textContent = "Синхронизировать книги";
+};
 
 $("#journal").onclick = () => { location.hash = "#/journal"; };
 

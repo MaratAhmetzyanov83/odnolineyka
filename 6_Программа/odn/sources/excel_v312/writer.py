@@ -124,3 +124,62 @@ def _write_com(path, cells):
             os.kill(pid, signal.SIGTERM)
         except Exception:  # noqa: BLE001
             pass
+
+
+def write_batch(cells_by_path: dict, related: list) -> None:
+    """Одна сессия Excel: связанные книги открыты вместе с изменяемыми — формулы связей между ними считаются вживую.
+    cells_by_path: {путь: [(лист, адрес, значение)]}; related — книги только пересчитать и сохранить."""
+    if os.environ.get("ODN_TEST_WRITER") == "1":
+        for path, cells in cells_by_path.items():
+            _write_openpyxl(path, cells)               # тест: без пересчёта связанных
+        return
+    try:
+        import win32com.client
+        import win32process
+    except ImportError:
+        raise EditError("для записи в книги нужен pywin32: py -m pip install pywin32") from None
+    app = win32com.client.DispatchEx("Excel.Application")
+    pid = win32process.GetWindowThreadProcessId(app.Hwnd)[1]
+    try:
+        app.Visible = False
+        app.DisplayAlerts = False
+        app.AskToUpdateLinks = False
+        app.AutomationSecurity = 3
+        books = {}
+        for path in list(related) + list(cells_by_path):
+            wb = app.Workbooks.Open(os.path.abspath(path), 0, False)
+            if wb.ReadOnly:
+                raise EditError(f"{os.path.basename(path)} открыта у другого пользователя — запись не сделана")
+            books[path] = wb
+        for path, cells in cells_by_path.items():
+            wb = books[path]
+            by_sheet = {}
+            for sheet, addr, v in cells:
+                by_sheet.setdefault(sheet, []).append((addr, v))
+            for sheet, items in by_sheet.items():
+                ws = wb.Worksheets(sheet)
+                opts = None
+                if ws.ProtectContents:
+                    opts = _protection(ws)
+                    ws.Unprotect(PWD)
+                try:
+                    for addr, v in items:
+                        ws.Range(addr).Value = v
+                finally:
+                    if opts:
+                        ws.Protect(PWD, *opts)
+        for _ in range(2):                             # вниз и вверх по связям — до устойчивых значений
+            app.CalculateFull()
+        for wb in books.values():
+            wb.Save()
+        for wb in books.values():
+            wb.Close(False)
+    finally:
+        try:
+            app.Quit()
+        except Exception:  # noqa: BLE001
+            pass
+        try:
+            os.kill(pid, signal.SIGTERM)
+        except Exception:  # noqa: BLE001
+            pass

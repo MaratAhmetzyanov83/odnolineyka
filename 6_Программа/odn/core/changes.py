@@ -84,7 +84,7 @@ def target(prj: Project, ch: Change):
         obj = prj.line(ch.panel, ch.line)
         if obj is None:
             raise EditError(f"нет линии {ch.line} в {ch.panel}")
-        if spec.get("when") == "group_head" and not obj.scheme.group_head:
+        if spec.get("when") == "group_head" and obj.scheme.qf and not obj.scheme.group_head:
             raise EditError(f"линия {ch.line}: автомат задаётся в первой строке группы {obj.scheme.qf}")
     else:
         obj = prj.panel(ch.panel)

@@ -7,6 +7,7 @@ import { lineColumns, lineRef, lineAttrs } from "../columns.js";
 import * as issues from "./issues.js";
 import * as structure from "./structure.js";
 import * as linkdlg from "./linkdlg.js";
+import * as feederdlg from "./feederdlg.js";
 
 const kv = (k, v, cls = "", tip = "") => v === "" || v == null ? "" :
   `<div ${tip ? `title="${esc(tip)}"` : ""}><span class="k">${k}</span><b class="${cls}">${v}</b></div>`;
@@ -29,7 +30,10 @@ export const KV = [
     return kv("Питание", (par ? `<a data-go="${esc(toPanel(par.id, p.parent_line, "lines"))}">${esc(par.name)}</a> / ${esc(p.parent_line || "?")}${src}`
                               : esc(p.supply.manual || p.supply.from_doc || "не задано"))
       + ` <button class="mini" data-linkdlg title="Задать, от какого щита и по какой линии питается щит">Связь…</button>`); },
-  p => kv("Фидер", esc([p.supply.breaker, p.supply.cable].filter(Boolean).join(", "))),
+  p => { const par = S.panels[p.parent], ln = par && par.lines.find(l => l.number === p.parent_line);
+    const txt = ln ? [ln.scheme.breaker, (ln.scheme.cable || "").replace(/\s*L=.*$/, "")].filter(Boolean).join(", ")
+                   : [p.supply.breaker, p.supply.cable].filter(Boolean).join(", ");
+    return kv("Фидер", esc(txt) + (ln ? ` <button class="mini" data-feederdlg title="Параметры фидера (строка ${esc(ln.number)} щита ${esc(par.name)})">✎</button>` : "")); },
   p => kv("L", p.supply.length != null ? num(p.supply.length, 0) + " м" : ""),
   p => kv("Руст", num(p.result.p_inst, 2) + " кВт"),
   p => kv("Рр", num(p.result.p_calc, 2) + " кВт"),
@@ -87,6 +91,7 @@ export function bind(root, rerender, { id, params }){
   const p = S.panels[id];
   if (!p) return;
   root.querySelectorAll("[data-linkdlg]").forEach(b => b.onclick = () => linkdlg.open(p));
+  root.querySelectorAll("[data-feederdlg]").forEach(b => b.onclick = () => feederdlg.open(p));
   const tab = TABS.find(t => t.id === params.tab) || TABS[0];
   tab.mount(root.querySelector("#ghost"), p, params);
 }

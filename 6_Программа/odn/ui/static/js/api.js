@@ -12,6 +12,7 @@ export const reload = () => call("POST", "/api/reload");
 export const openRef = ref => call("POST", "/api/open", {ref});
 export const edit = changes => call("POST", "/api/edit", {changes});
 export const undo = () => call("POST", "/api/undo");
+export const sync = () => call("POST", "/api/sync");
 export const structure = body => call("POST", "/api/structure", body);
 export const exclude = file => call("POST", "/api/exclude", {file});
 export const linkSuggest = (parent, child) => call("GET", `/api/link/suggest?parent=${encodeURIComponent(parent)}&child=${encodeURIComponent(child)}`);
