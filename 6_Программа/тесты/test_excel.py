@@ -120,6 +120,34 @@ class TestEdit(unittest.TestCase):
         with self.assertRaises(EditError):
             edit.apply_changes(load(), [dict(ch[0], new="может")])
 
+    def test_rename_line(self):
+        """Номер линии-фидера: книга, «Разбивка», раздел Б, G6 нижестоящего; связь жива; отмена — всё назад."""
+        import openpyxl
+        from odn.services import edit
+        folder = os.path.join(self.dir, "переименование")
+        shutil.copytree(FOLDER, folder, ignore=shutil.ignore_patterns("_окно"))
+        load = lambda: load_project(folder, progress=lambda s: None)  # noqa: E731
+        prj = load()
+        p = {x.name: x for x in prj.panels()}
+        old = p["ЩР-1"].parent_line
+        g6 = p["ЩР-1"].refs["supply"].cell
+        r = edit.apply_changes(prj, [{"panel": p["ГРЩ"].id, "line": old, "path": "number", "new": "Щ.1Н"}])
+        self.assertEqual(r["errors"], [])
+        wb = openpyxl.load_workbook(os.path.join(folder, "ГРЩ.xlsx"), read_only=True)
+        self.assertIn("Щ.1Н", [c for row in wb["Исходные данные"].iter_rows(min_col=4, max_col=4, values_only=True) for c in row])
+        self.assertIn("Щ.1Н", [c for row in wb["Сеть_щита"].iter_rows(min_row=94, max_row=123, min_col=2, max_col=2, values_only=True) for c in row])
+        self.assertTrue(openpyxl.load_workbook(os.path.join(folder, "ЩР-1.xlsx"))["Сеть_щита"][g6].value.endswith(" / Щ.1Н"))
+        prj = load()
+        p = {x.name: x for x in prj.panels()}
+        self.assertEqual((p["ЩР-1"].parent, p["ЩР-1"].parent_line), (p["ГРЩ"].id, "Щ.1Н"))
+        with self.assertRaisesRegex(Exception, "уже есть"):
+            edit.apply_changes(prj, [{"panel": p["ГРЩ"].id, "line": "Щ.1Н", "path": "number", "new": "Щ.2"}])
+        prj = load()
+        self.assertEqual(edit.undo_last(prj)["errors"], [])
+        prj = load()
+        p = {x.name: x for x in prj.panels()}
+        self.assertEqual(p["ЩР-1"].parent_line, old)
+
     def test_write_undo(self):
         from odn.services import edit
         prj = self.load()

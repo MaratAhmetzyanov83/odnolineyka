@@ -193,11 +193,13 @@ def _fill(doc: M.Document, src: Rows, odn: Rows, split: Rows, net: Rows):
     panels = _panels(doc, odn, net)
     names = list(panels)
 
-    line_panel = {}
+    line_panel, line_split = {}, {}
     for i in split.data():
         ln, pn = txt(split.get(i, X.SPLIT_LINE)), txt(split.get(i, X.SPLIT_PANEL))
         if ln and pn:
             line_panel.setdefault(ln, pn)
+        if ln:
+            line_split.setdefault(ln, i)
 
     # «Однолинейка»: строка по номеру линии; автомат группы (G одинаков) — с первой строки группы
     odn_rows, group = {}, {}
@@ -234,6 +236,8 @@ def _fill(doc: M.Document, src: Rows, odn: Rows, split: Rows, net: Rows):
             set_path(ln, path, src.get(i, c))
         ln.scheme.cable = ln.scheme.cable.replace("\n", " ")
         ln.refs["input"] = _ref(doc, X.SRC, X.SRC_NUMBER, i)
+        if number in line_split:
+            ln.refs["split"] = _ref(doc, X.SPLIT, X.SPLIT_LINE, line_split[number])
         if o:
             r, _, (brk, in_a) = o
             for path, c in X.ODN_FIELDS.items():
@@ -305,7 +309,7 @@ def _panels(doc, odn: Rows, net: Rows):
             # вводы 2 и 3
             if txt(net.get(X.NET_IN23_MARK[0], X.NET_IN23_MARK[1])).upper() == X.NET_IN23_MARK[2]:
                 for j in range(2):
-                    r = 6 + k * 2 + j
+                    r = X.NET_ROWS_IN23(k, 2 + j)
                     sp = M.Supply()
                     for f, col in X.NET_IN23.items():
                         set_path(sp, f, net.get(r, col))

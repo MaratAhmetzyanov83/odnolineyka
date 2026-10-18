@@ -75,6 +75,34 @@ def related_docs(prj: Project, docs) -> list:
     return sorted(rel)
 
 
+def renamed(prj: Project, ch) -> list:
+    """Переименование линии ch.old -> ch.new: что ещё поменять в книгах (по адресам).
+    «Разбивка_по_щитам» H; раздел Б «Сеть_щита» (фидер к нижестоящему); у нижестоящих — G6 / вводы 2–3 «книга / линия»."""
+    from ..sources.excel_v312 import layout as X
+    old, new, out = ch.old, ch.new, []
+    ln = prj.line(ch.panel, new)
+    p = prj.panel(ch.panel)
+    if ln is not None and ln.refs.get("split"):
+        r = ln.refs["split"]
+        out.append(C.Change(ch.panel, "_связь", new, new, old, addr=f"{r.sheet}!{r.cell}"))
+    for fs in p.feeders_seen:
+        if fs.line == old and fs.ref.cell:
+            row = "".join(c for c in fs.ref.cell if c.isdigit())
+            out.append(C.Change(ch.panel, "_связь", new, "", old, addr=f"{X.NET}!{X.NET_SUB['line']}{row}"))
+    suffix = lambda s: s.rpartition(" / ")[0] + " / " + new if " / " in (s or "") else s  # noqa: E731
+    for q in prj.panels():
+        if q.book_parent == p.id and q.book_line == old and q.refs.get("supply") and " / " in (q.supply.from_doc or ""):
+            r = q.refs["supply"]
+            out.append(C.Change(q.id, "_связь", suffix(q.supply.from_doc), "", q.supply.from_doc, addr=f"{r.sheet}!{r.cell}"))
+        doc = next((d for d in prj.documents if d.file == q.doc), None)
+        k = next((i for i, x in enumerate(doc.panels) if x.id == q.id), 0) if doc else 0
+        for sp in q.inputs_more:
+            if sp.parent == p.id and sp.parent_line == old and " / " in (sp.from_doc or ""):
+                row = X.NET_ROWS_IN23(k, sp.input)
+                out.append(C.Change(q.id, "_связь", suffix(sp.from_doc), "", sp.from_doc, addr=f"{X.NET}!{X.NET_IN23['from_doc']}{row}"))
+    return out
+
+
 def _fresh(prj, docname):
     doc = next(d for d in prj.documents if d.file == docname)
     return abs(os.path.getmtime(os.path.join(prj.folder, docname)) - doc.mtime) <= 1e-6
@@ -90,6 +118,7 @@ def apply_changes(prj: Project, raw: list, kind="правка", undo_of="") -> d
         C.apply(prj, ch)                              # тип, разрешено ли поле, old
         if ch.old != ch.new:
             chs.append(ch)
+    chs += [x for ch in chs if ch.path == "number" for x in renamed(prj, ch)]
     by_doc = {}
     for ch in chs:
         by_doc.setdefault(prj.panel(ch.panel).doc, []).append(ch)
@@ -136,9 +165,13 @@ def apply_changes(prj: Project, raw: list, kind="правка", undo_of="") -> d
         return {"ok": False, "written": 0, "docs": [], "related": [], "errors": errors + [str(e)], "warnings": warnings,
                 "skipped": len(raw) - len(chs)}
     timing = {"копии": round(t1 - t0, 1), "Excel": round(time.time() - t1, 1)}
-    done = []
+    for ch in chs:
+        if ch.path == "number":                       # данные программы: узлы, связи — на новый номер
+            from . import structure
+            structure.rename_line(prj, ch.panel, ch.old, ch.new)
+    done, group = [], f"{stamp}|{uuid.uuid4().hex[:8]}"   # группа: все книги одной записи — отмена вместе
     for docname, (items, cells) in cells_by_doc.items():
-        entry = {"batch": f"{stamp}|{docname}|{uuid.uuid4().hex[:8]}", "at": time.strftime("%d.%m.%Y %H:%M:%S"),
+        entry = {"batch": f"{stamp}|{docname}|{uuid.uuid4().hex[:8]}", "group": group, "at": time.strftime("%d.%m.%Y %H:%M:%S"),
                  "user": _user(), "kind": kind, "doc": docname, "backup": backups[docname], "undo_of": undo_of,
                  "related": {d: backups[d] for d in related},
                  "changes": [dict(dataclasses.asdict(ch), cell=f"{c[0]}!{c[1]}") for ch, c in zip(items, cells)]}
@@ -188,17 +221,21 @@ def sync_books(prj: Project) -> dict:
 
 
 def undo_last(prj: Project) -> dict:
-    """Отменить последнюю не отменённую запись (одну книгу)."""
+    """Отменить последнюю не отменённую запись — все её книги (группа), старые записи — по одной книге."""
     rows = [r for r in read_journal(prj, 10_000)
             if r.get("batch") and not r["undone"] and r.get("kind") not in ("отмена", "структура", "связь", "синхронизация")]
     if not rows:
         return {"ok": False, "errors": ["нечего отменять"]}
     last = rows[-1]
-    raw = [{"panel": c["panel"], "line": c["line"], "path": c["path"], "new": c["old"]} for c in last["changes"]]
+    batch = [r for r in rows if last.get("group") and r.get("group") == last["group"]] or [last]
+    # производные правки («_связь») отмена переименования сделает сама
+    raw = [{"panel": c["panel"], "line": c["new"] if c["path"] == "number" else c["line"], "path": c["path"], "new": c["old"]}
+           for e in batch for c in e["changes"] if c["path"] in C.FIELDS]
     res = apply_changes(prj, raw, kind="отмена", undo_of=last["batch"])
     if res["docs"]:
         with open(_journal(prj), "a", encoding="utf-8") as f:
-            f.write(json.dumps({"undo": last["batch"], "at": time.strftime("%d.%m.%Y %H:%M:%S")}, ensure_ascii=False) + "\n")
+            for e in batch:
+                f.write(json.dumps({"undo": e["batch"], "at": time.strftime("%d.%m.%Y %H:%M:%S")}, ensure_ascii=False) + "\n")
     res["undone"] = last["batch"]
     return res
 

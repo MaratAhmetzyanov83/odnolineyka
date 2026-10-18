@@ -213,6 +213,23 @@ def _journal(prj, entry):
         f.write(json.dumps(entry, ensure_ascii=False) + "\n")
 
 
+def rename_line(prj: Project, pid: str, old: str, new: str):
+    """Линия переименована в книге: узел линии и связи программы (линия-фидер) — на новый номер."""
+    data = load(prj.folder)
+    changed = False
+    st = data["panels"].get(pid)
+    if st and old in st.get("lines", {}):
+        st["lines"][new] = st["lines"].pop(old)
+        changed = True
+    for x in data["panels"].values():
+        lk = x.get("link")
+        if lk and lk.get("parent") == pid and lk.get("line") == old:
+            lk["line"] = new
+            changed = True
+    if changed:
+        save(prj.folder, data)
+
+
 def undo_last(prj: Project) -> dict:
     from .edit import read_journal, _journal as jpath
     rows = [r for r in read_journal(prj, 10_000) if r.get("kind") == "структура" and not r["undone"]]

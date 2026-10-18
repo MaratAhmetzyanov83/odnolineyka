@@ -30,7 +30,7 @@ SRC_FIELDS = {
     "scheme.cable": "AO",
 }
 # куда идти править поле (для правок из окна — шаг 2): ручные столбцы
-SRC_EDIT = {"input.p_kw": "E", "input.length_plan": "I", "input.cable_code": "N", "input.cores": "O",
+SRC_EDIT = {"number": SRC_NUMBER, "input.p_kw": "E", "input.length_plan": "I", "input.cable_code": "N", "input.cores": "O",
             "input.s_min": "Q", "input.in_manual": "R", "input.parallel": "CC", "name": "C",
             "input.low_current_set": "CB", "input.tray": "J", "input.pvc": "K", "input.pnd": "L"}
 # слаботочная: «по коду» — формула patch_lowcurrent.py (1, если код потребителя AH в списке «Слаботочные_коды»)
@@ -76,4 +76,8 @@ NET_SUB_ROW, NET_SUB_COUNT = 94, 30      # раздел Б: фидеры к ни
 NET_IN23_MARK = (4, "U", "ВВОДЫ 2 И 3")
 NET_IN23 = {"input": "V", "du_bus": "W", "ikz_max": "Y", "in_a": "Z", "from_doc": "AA",
             "qf": "AL", "breaker": "AM", "cable": "AN", "length": "AO", "from_panel": "AP"}
+def NET_ROWS_IN23(k, inp):      # noqa: N802 — строка «Вводов 2 и 3»: щит k (0–2) книги, ввод 2 / 3
+    return 6 + k * 2 + (inp - 2)
+
+
 NET_SUB = {"line": "B", "doc": "C", "p_inst": "D", "i_calc": "J", "in_a": "N", "check": "O"}

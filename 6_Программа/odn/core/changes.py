@@ -20,6 +20,7 @@ S_SERIES = [0.5, 0.75, 1.5, 2.5, 4, 6, 10, 16, 25, 35, 50, 70, 95, 120, 150, 185
 # путь поля -> что это. kind: line / panel; type: num / int / text; options: стандартные значения для списка
 FIELDS = {
     "name":              dict(kind="line", type="text", title="Наименование (ручное)"),
+    "number":            dict(kind="line", type="text", title="Номер линии"),   # + «Разбивка», связи (services.edit)
     "input.p_kw":        dict(kind="line", type="num", title="Pу, кВт", min=0),
     "input.length_plan": dict(kind="line", type="num", title="Lпл, м", min=0),
     "input.tray":        dict(kind="line", type="num", title="Лоток, м", min=0),
@@ -52,6 +53,7 @@ class Change:
     new: Any
     line: str = ""                # номер линии; пусто — поле щита
     old: Any = None               # заполняется при применении
+    addr: str = ""                # «Лист!A1» — производная правка по готовому адресу (связи при переименовании линии)
     at: str = field(default_factory=lambda: time.strftime("%Y-%m-%d %H:%M:%S"))
 
     def inverse(self) -> "Change":
@@ -117,6 +119,13 @@ def apply(prj: Project, ch: Change) -> Change:
     """Проверить, привести тип, применить к модели в памяти; вернуть правку с заполненным old."""
     ch.new = convert(ch.path, ch.new)
     obj, attr = target(prj, ch)
+    if ch.path == "number" and ch.new != ch.line:
+        if not ch.new:
+            raise EditError("номер линии не может быть пустым")
+        p = prj.panel(ch.panel)
+        book = [q for q in prj.panels() if q.doc == p.doc]
+        if any(ln.number.strip().lower() == ch.new.lower() for q in book for ln in q.lines):
+            raise EditError(f"линия {ch.new} уже есть в книге {p.doc}")
     ch.old = getattr(obj, attr)
     setattr(obj, attr, ch.new)
     return ch

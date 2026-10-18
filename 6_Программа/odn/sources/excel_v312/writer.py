@@ -23,8 +23,11 @@ def cells_for(prj, changes):
     """Правки -> [(лист, адрес, значение)] по layout.py и местам линий в книге (refs)."""
     out = []
     for ch in changes:
-        if ch.line:
-            ln = prj.line(ch.panel, ch.line)
+        if ch.addr:                                   # производная правка: адрес готов
+            sheet, _, a = ch.addr.partition("!")
+            out.append((sheet, a, ch.new))
+        elif ch.line:
+            ln = prj.line(ch.panel, ch.new if ch.path == "number" else ch.line)
             if ch.path in X.SRC_EDIT:
                 ref = ln.refs.get("input")
                 col, sheet = X.SRC_EDIT[ch.path], X.SRC
