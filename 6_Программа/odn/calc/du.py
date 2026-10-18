@@ -4,6 +4,10 @@
 
 Длина — от ВРУ (начала установки) до потребителя: длина линии (L итог) + длины фидеров всех щитов выше по цепочке.
 Линии до 50 В (свой источник, ΔUдоп 5 %) — без надбавки. ΔUдоп без надбавки — из книги (BF: 3 % свет / 4 %).
+
+ВРУ здания (несколько зданий в объекте): щит-ВРУ — начало отсчёта для своих линий и всех щитов ниже: длина — от его шин,
+ΔU — от его шин. Книга это умеет («Сеть_щита» C26 «да»: ΔU до шин = 0). Если ВРУ задан только в программе —
+из ΔU книги вычитается ΔU до шин ВРУ (то, что книга прибавила от сети выше).
 """
 from __future__ import annotations
 
@@ -19,9 +23,9 @@ def extra_for(length):
 
 
 def upstream_len(prj: Project, panel, seen=None) -> float:
-    """Сумма длин фидеров от ВРУ до шин щита."""
+    """Сумма длин фидеров от ВРУ до шин щита (ВРУ здания — начало отсчёта)."""
     seen = seen or set()
-    if not panel or not panel.parent or panel.id in seen:
+    if not panel or panel.vru or not panel.parent or panel.id in seen:
         return 0.0
     seen.add(panel.id)
     par = prj.panel(panel.parent)
@@ -30,12 +34,41 @@ def upstream_len(prj: Project, panel, seen=None) -> float:
     return own + upstream_len(prj, par, seen)
 
 
-def run(prj: Project):
+def apply_vru(prj: Project, flags: dict):
+    for p in prj.panels():
+        if p.id in flags:
+            p.vru, p.vru_src = bool(flags[p.id]), "программа"
+        else:
+            p.vru, p.vru_src = p.scheme.is_vru == "да", ("книга" if p.scheme.is_vru == "да" else "")
+
+
+def vru_of(prj: Project, panel):
+    """Ближайший ВРУ здания: сам щит или выше по цепочке."""
+    seen = set()
+    while panel is not None and panel.id not in seen:
+        if panel.vru:
+            return panel
+        seen.add(panel.id)
+        panel = prj.panel(panel.parent) if panel.parent else None
+    return None
+
+
+def run(prj: Project, flags: dict | None = None):
+    apply_vru(prj, flags or {})
     for p in prj.panels():
         up = upstream_len(prj, p)
+        v = vru_of(prj, p)
+        # книга не знает этот ВРУ — вычесть ΔU до его шин, которую книга прибавила от сети выше
+        corr = (v.result.du_bus or 0.0) if v is not None and v.scheme.is_vru != "да" else 0.0
+        for ln in p.lines:
+            r = ln.result
+            r.du_from = v.id if v is not None else ""
+            r.du_sum_eff = round(r.du_sum - corr, 4) if r.du_sum is not None else None
         for ln in p.lines:
             r = ln.result
             low = ln.input.u_v is not None and 0 < ln.input.u_v <= 50
+            if low:
+                r.du_sum_eff = r.du_sum                       # до 50 В — от своего источника
             if ln.input.length is None or r.du_max is None or low:
                 r.du_path_len, r.du_extra, r.du_max_eff = None, None, r.du_max
                 continue

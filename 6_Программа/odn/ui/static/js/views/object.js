@@ -43,6 +43,7 @@ function panelsGrid(host){
     {id: "kz3", t: "Iкз max, кА", n: 1, w: 74, v: p => p.result.ikz_max_bus, agg: "max"},
     {id: "inp", t: "Вводы / АВР", w: 80, v: p => `${p.scheme.inputs ?? ""} ${p.scheme.avr || ""}`.trim()},
     {id: "cat", t: "Кат.", title: "Категория, обеспечиваемая вводами", w: 40, v: p => p.result.category},
+    {id: "vru", t: "ВРУ", title: "ВРУ здания: потери считаются от него", w: 44, v: p => p.vru ? "ВРУ" : "", cls: () => "vru"},
     {id: "man", t: "Питание вручную", title: "«Сеть_щита» C12 (если нет связи)", w: 110, hidden: 1, v: p => p.supply.manual, edit: {path: "supply.manual"}},
     {id: "nl", t: "Линий", n: 1, w: 50, d: 0, v: p => p.lines.length, agg: "sum"},
     {id: "e", t: "Ош.", n: 1, w: 40, d: 0, v: p => ec(p)[0], agg: "sum", cls: p => ec(p)[0] ? "ce" : "c0"},

@@ -98,7 +98,7 @@ def step_link(prj, ctx):
 def step_calc(prj, ctx):
     from ..calc import du, nodes
     nodes.run(prj)                                  # узлы каскада; остальной расчёт — пока из Excel
-    du.run(prj)                                     # ΔUдоп с надбавкой за длину > 100 м
+    du.run(prj, structure.vru_flags(prj.folder))   # ВРУ зданий, ΔU от ВРУ, ΔUдоп с надбавкой за длину > 100 м
 
 
 def step_drawing(prj, ctx):

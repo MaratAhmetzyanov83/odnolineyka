@@ -33,8 +33,10 @@ def row_status(prj):
             if ln.rcd_node:                       # 30 мА дал узел выше (УЗО / АВДТ) — замечание Excel снято
                 status = "; ".join(x for x in status.split("; ") if x.strip() != "розетка без 30 мА")
             r = ln.result
-            if r.du_extra and r.du_sum is not None and r.du_max_eff is not None and r.du_sum <= r.du_max_eff + 1e-9:
-                # ΔU в допуске с надбавкой за длину (ГОСТ Р 50571.5.52, прил. G) — замечание книги «потери … > …» снято
+            du = r.du_sum_eff if r.du_sum_eff is not None else r.du_sum
+            if (r.du_extra or (du is not None and r.du_sum is not None and du < r.du_sum - 1e-9)) \
+                    and du is not None and r.du_max_eff is not None and du <= r.du_max_eff + 1e-9:
+                # ΔU в допуске (от ВРУ здания, с надбавкой за длину) — замечание книги «потери … > …» снято
                 status = "; ".join(x for x in status.split("; ") if not DU_RE.match(x.strip()))
             if ln.result.level and status:
                 lvl = ln.result.level if status == ln.result.status else (2 if _err(status) else 1)
@@ -68,3 +70,16 @@ def supply_checks(prj):
             if not ok_text(v):
                 lvl = 2 if k in ("Аппарат и кабель", "Отключение КЗ") else 1
                 yield Hit(lvl, f"питающая линия, {k.lower()}: {v}", p.id, ref=p.refs.get("checks"))
+
+
+@rule("source.du_over", "ΔU больше допустимой (от ВРУ здания)", G)
+def du_over(prj):
+    """ΔU от ВРУ здания (программа) больше допуска, а книга этого не видит (ВРУ задан только в программе)."""
+    for p in prj.panels():
+        for ln in p.lines:
+            r = ln.result
+            if r.du_sum_eff is None or r.du_max_eff is None or "потери" in (r.status or ""):
+                continue
+            if r.du_sum_eff > r.du_max_eff + 1e-9:
+                yield Hit(1, f"потери {r.du_sum_eff:.2f} % > {r.du_max_eff:.2f} % (от ВРУ здания)".replace(".", ","),
+                          p.id, ln.number, ln.refs.get("input"))

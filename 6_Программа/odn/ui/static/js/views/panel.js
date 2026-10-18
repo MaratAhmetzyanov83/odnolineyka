@@ -8,6 +8,7 @@ import * as issues from "./issues.js";
 import * as structure from "./structure.js";
 import * as linkdlg from "./linkdlg.js";
 import * as feederdlg from "./feederdlg.js";
+import * as vrudlg from "./vrudlg.js";
 
 const kv = (k, v, cls = "", tip = "") => v === "" || v == null ? "" :
   `<div ${tip ? `title="${esc(tip)}"` : ""}><span class="k">${k}</span><b class="${cls}">${v}</b></div>`;
@@ -35,6 +36,8 @@ export const KV = [
                    : [p.supply.breaker, p.supply.cable].filter(Boolean).join(", ");
     return kv("Фидер", esc(txt) + (ln ? ` <button class="mini" data-feederdlg title="Параметры фидера (строка ${esc(ln.number)} щита ${esc(par.name)})">✎</button>` : "")); },
   p => kv("L", p.supply.length != null ? num(p.supply.length, 0) + " м" : ""),
+  p => kv("ВРУ здания", (p.vru ? `<b class="vru">ВРУ</b> <span class="tag">${esc(p.vru_src)}</span>` : "нет")
+      + ` <button class="mini" data-vrudlg title="Ввод в здание: потери считаются от шин этого щита">ВРУ…</button>`),
   p => kv("Руст", num(p.result.p_inst, 2) + " кВт"),
   p => kv("Рр", num(p.result.p_calc, 2) + " кВт"),
   p => kv("Iр", num(p.result.i_calc, 1) + " А"),
@@ -92,6 +95,7 @@ export function bind(root, rerender, { id, params }){
   if (!p) return;
   root.querySelectorAll("[data-linkdlg]").forEach(b => b.onclick = () => linkdlg.open(p));
   root.querySelectorAll("[data-feederdlg]").forEach(b => b.onclick = () => feederdlg.open(p));
+  root.querySelectorAll("[data-vrudlg]").forEach(b => b.onclick = () => vrudlg.open(p));
   const tab = TABS.find(t => t.id === params.tab) || TABS[0];
   tab.mount(root.querySelector("#ghost"), p, params);
 }

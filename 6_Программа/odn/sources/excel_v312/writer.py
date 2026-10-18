@@ -37,6 +37,10 @@ def cells_for(prj, changes):
                 raise EditError(f"линия {ch.line}: нет строки на листе «{sheet}»")
             row = "".join(c for c in ref.cell if c.isdigit())
             out.append((sheet, f"{col}{row}", ch.new))
+        elif ch.path == "scheme.is_vru":              # столбец щита: C / D / E по порядку щитов книги
+            p = prj.panel(ch.panel)
+            k = next(i for i, q in enumerate(next(d for d in prj.documents if d.file == p.doc).panels) if q.id == p.id)
+            out.append((X.NET, f"{X.NET_PANEL_COLS[min(k, 2)]}{X.NET_VRU_ROW}", ch.new))
         else:
             if ch.path not in X.NET_EDIT:
                 raise EditError(f"{ch.path}: нет адреса в книге")

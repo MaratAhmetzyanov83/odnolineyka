@@ -14,7 +14,7 @@ export function render(selId){
   const walk = (p, lvl) => {
     const [pe, pw] = counts(S.issuesBy[p.id]);
     h += `<div class="node ${selId === p.id ? "sel" : ""}" data-go="${esc(toPanel(p.id))}" title="${esc(p.doc)}">
-      <span class="nm" style="padding-left:${lvl * 14}px"><span class="dot d${worst(p.id)}"></span>${esc(p.name)}</span>
+      <span class="nm" style="padding-left:${lvl * 14}px"><span class="dot d${worst(p.id)}"></span>${esc(p.name)}${p.vru ? ' <b class="vru" title="ВРУ здания: потери считаются от него">ВРУ</b>' : ""}</span>
       <span>${num(p.result.p_calc, 1)}</span>${cnt(pe, "ce")}${cnt(pw, "cw")}</div>`;
     for (const k of (S.kids[p.id] || []).sort(byName)) walk(k, lvl + 1);
   };

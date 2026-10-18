@@ -56,6 +56,11 @@ def apply(prj: Project, data: dict | None = None):
             ln.node = where.get(ln.number, "")
 
 
+def vru_flags(folder) -> dict:
+    """ВРУ здания, заданные в программе: {id щита: True / False}."""
+    return {pid: st["vru"] for pid, st in load(folder)["panels"].items() if "vru" in st}
+
+
 def links(folder) -> dict:
     """Связи щитов, заданные в программе: {id щита: {parent, line, input}}."""
     return {pid: st["link"] for pid, st in load(folder)["panels"].items() if st.get("link")}
@@ -182,6 +187,14 @@ def operate(prj: Project, op: dict) -> dict:
             raise EditError(f"в щите {par.name} нет линии {line}")
         st["link"] = {"parent": par.id, "line": line, "input": int(op.get("input") or 1)}
         what = f"связь: {panel.name} <- {par.name} / {line or '?'}"
+    elif kind == "set_vru":
+        v = op.get("vru")
+        if v is None:
+            st.pop("vru", None)
+            what = f"ВРУ здания {panel.name}: как в книге"
+        else:
+            st["vru"] = bool(v)
+            what = f"ВРУ здания {panel.name}: {'да' if v else 'нет'} (программа)"
     elif kind == "clear_link":
         st.pop("link", None)
         what = f"связь программы убрана: {panel.name} (снова — из книги)"

@@ -31,6 +31,7 @@ FIELDS = {
                                when="group_head"),
     "scheme.bus":        dict(kind="line", type="text", title="Шина"),
     "supply.manual":     dict(kind="panel", type="text", title="Питается от (вручную)"),
+    "scheme.is_vru":     dict(kind="panel", type="text", title="ВРУ здания (да / пусто)", options=["да", ""]),
 }
 
 

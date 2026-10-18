@@ -266,6 +266,7 @@ def _panels(doc, odn: Rows, net: Rows):
             p.refs["checks"] = _ref(doc, X.NET, c, min(X.NET_CHECK_ROWS))
             p.result.p_inst = num(net.get(X.NET_LOAD_ROW + k, "C"))
             p.scheme.icu = num(net.get(X.NET_ICU_ROW, c))
+            p.scheme.is_vru = "да" if txt(net.get(X.NET_VRU_ROW, c)).lower() == "да" else ""
             p.scheme.inputs = inum(net.get(X.NET_INPUTS_ROW, c))
             p.scheme.avr = txt(net.get(X.NET_AVR_ROW, c))
             if k == 0:

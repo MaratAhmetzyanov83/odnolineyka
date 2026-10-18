@@ -169,3 +169,44 @@ class TestDuLength(unittest.TestCase):
         r1.input.u_v = 24.0                                         # до 50 В — без надбавки
         recheck(prj)
         self.assertIsNone(r1.result.du_extra)
+
+
+class TestVru(unittest.TestCase):
+    """ВРУ здания: потери и длина — от его шин."""
+
+    def setUp(self):
+        from odn.calc import du
+        self.du = du
+        self.prj = demo()                                            # ГРЩ: Щ.1 L = 30 м -> ЩР-1
+        self.shr = self.prj.panel("ЩР-1.xlsx / ЩР-1")
+        self.shr.result.du_bus = 1.2                                 # книга: ΔU до шин ЩР-1 от ГРЩ
+        self.r1 = self.shr.lines[0]
+        self.r1.input.length, self.r1.result.du_max, self.r1.result.du_sum = 90.0, 4.0, 4.6
+        self.r1.result.status, self.r1.result.level = "потери 4,6 % > 4 %", 1
+
+    def test_program_vru(self):
+        self.du.run(self.prj, {self.shr.id: True})
+        r = self.r1.result
+        self.assertEqual((self.shr.vru, self.shr.vru_src, r.du_from), (True, "программа", self.shr.id))
+        self.assertEqual((r.du_sum_eff, r.du_path_len, r.du_extra), (3.4, 90.0, 0.0))   # 4,6 − 1,2; длина без фидера
+        from odn import checks
+        st = [i.text for i in checks.run(self.prj) if i.line == "R.1" and i.rule.startswith("source.")]
+        self.assertFalse(any("потери" in t for t in st), st)                           # 3,4 ≤ 4 — снято
+
+    def test_book_vru(self):
+        self.shr.scheme.is_vru = "да"                                 # книга уже считает от его шин
+        self.du.run(self.prj, {})
+        self.assertEqual((self.shr.vru_src, self.r1.result.du_sum_eff), ("книга", 4.6))  # вычитать нечего
+
+    def test_no_vru(self):
+        self.du.run(self.prj, {})
+        r = self.r1.result
+        self.assertEqual((self.shr.vru, r.du_sum_eff, r.du_path_len, r.du_extra), (False, 4.6, 120.0, 0.1))
+
+    def test_over_from_vru(self):
+        """ВРУ только в программе, а потери от него всё равно больше допуска — своё замечание."""
+        self.r1.result.du_sum, self.r1.result.status, self.r1.result.level = 5.5, "", 0
+        self.du.run(self.prj, {self.shr.id: True})
+        from odn import checks
+        hits = [i.text for i in checks.run(self.prj) if i.rule == "source.du_over"]
+        self.assertEqual(hits, ["потери 4,30 % > 4,00 % (от ВРУ здания)"])

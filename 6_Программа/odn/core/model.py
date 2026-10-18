@@ -85,6 +85,8 @@ class LineResult:
     du_path_len: Optional[float] = None # длина проводки от ВРУ: линия + фидеры выше, м (calc.du)
     du_extra: Optional[float] = None    # надбавка к ΔUдоп за длину > 100 м, % (ГОСТ Р 50571.5.52, прил. G)
     du_max_eff: Optional[float] = None  # допустимая ΔU с надбавкой, %
+    du_from: str = ""                   # от какого ВРУ здания считаются потери (id щита)
+    du_sum_eff: Optional[float] = None  # ΔU от ВРУ здания, % (книга минус ΔU до шин ВРУ, если книга его не знает)
     status: str = ""                    # статус строки (как в источнике)
     level: int = 0                      # 0 ок, 1 внимание, 2 ошибка
 
@@ -133,6 +135,7 @@ class PanelScheme:
     inputs: Optional[int] = None        # число вводов
     avr: str = ""
     icu: Optional[float] = None         # отключающая способность аппаратов, кА
+    is_vru: str = ""                    # «да» — ВРУ здания (книга: «Сеть_щита» C26:E26): ΔU линий от его шин
 
 
 @dataclass
@@ -213,6 +216,8 @@ class Panel:
     parent_line: str = ""
     link_error: str = ""
     link_src: str = ""                  # откуда связь: «книга» / «программа»
+    vru: bool = False                   # ВРУ здания (итог: программа, иначе книга) — calc.du
+    vru_src: str = ""                   # «книга» / «программа»
     book_parent: str = ""               # связь, как записана в книге (для сверки со связью программы)
     book_line: str = ""
     # заполняет core.revision
