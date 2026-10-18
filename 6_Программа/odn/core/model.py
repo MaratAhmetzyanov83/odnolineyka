@@ -82,6 +82,9 @@ class LineResult:
     category: str = ""
     fire: str = ""
     category_check: str = ""
+    du_path_len: Optional[float] = None # длина проводки от ВРУ: линия + фидеры выше, м (calc.du)
+    du_extra: Optional[float] = None    # надбавка к ΔUдоп за длину > 100 м, % (ГОСТ Р 50571.5.52, прил. G)
+    du_max_eff: Optional[float] = None  # допустимая ΔU с надбавкой, %
     status: str = ""                    # статус строки (как в источнике)
     level: int = 0                      # 0 ок, 1 внимание, 2 ошибка
 

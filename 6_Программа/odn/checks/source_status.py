@@ -3,11 +3,14 @@
 
 Когда расчёт переедет в Python, эти правила заменятся своими (calc + checks), а эти останутся для сверки.
 """
+import re
+
 from ..core.model import Ref
 from .registry import Hit, rule
 from .util import ok_text
 
 G = "Из книг"
+DU_RE = re.compile(r"^потери [\d,.]+ % > [\d,.]+ %$")
 ERR_WORDS = ("дубль", "ПЕРЕГРУЗ", "ЗАЩИЩ", "КАНАЛ", "без 30")      # как «Однолинейка» BU: ошибка, иначе внимание
 
 
@@ -29,6 +32,10 @@ def row_status(prj):
             status = ln.result.status
             if ln.rcd_node:                       # 30 мА дал узел выше (УЗО / АВДТ) — замечание Excel снято
                 status = "; ".join(x for x in status.split("; ") if x.strip() != "розетка без 30 мА")
+            r = ln.result
+            if r.du_extra and r.du_sum is not None and r.du_max_eff is not None and r.du_sum <= r.du_max_eff + 1e-9:
+                # ΔU в допуске с надбавкой за длину (ГОСТ Р 50571.5.52, прил. G) — замечание книги «потери … > …» снято
+                status = "; ".join(x for x in status.split("; ") if not DU_RE.match(x.strip()))
             if ln.result.level and status:
                 lvl = ln.result.level if status == ln.result.status else (2 if _err(status) else 1)
                 yield Hit(lvl, status, p.id, ln.number, ln.refs.get("status"))

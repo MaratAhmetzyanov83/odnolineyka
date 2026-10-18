@@ -5,7 +5,8 @@ import { toPanel } from "./nav.js";
 
 const cableShort = c => (c || "").replace(/\s*L=.*$/, "");
 const load = l => { const i = l.result.i_calc, n = lineIn(l); return i != null && n ? i / n * 100 : null; };
-const duReserve = l => l.result.du_max != null && l.result.du_sum != null ? l.result.du_max - l.result.du_sum : null;
+const duMax = l => l.result.du_max_eff ?? l.result.du_max;
+const duReserve = l => duMax(l) != null && l.result.du_sum != null ? duMax(l) - l.result.du_sum : null;
 const lvl = (x, warn, err) => x == null ? 0 : x >= err ? 2 : x >= warn ? 1 : 0;
 
 export function lineColumns({ withPanel = false } = {}){
@@ -42,10 +43,14 @@ export function lineColumns({ withPanel = false } = {}){
     {id: "lp", t: "Lпл, м", title: "Длина по плану (правится)", n: 1, w: 66, d: 1, v: l => l.input.length_plan, agg: "sum", edit: {path: "input.length_plan"}},
     {id: "len", t: "L, м", title: "Длина итог (с опусками, лотком)", n: 1, w: 60, d: 0, v: l => l.input.length, agg: "sum"},
     {id: "du", t: "ΔU, %", n: 1, w: 54, v: l => l.result.du, agg: "max"},
-    {id: "dus", t: "ΔUΣ, %", title: "ΔU от ВРУ (полоса — доля от допустимой)", n: 1, w: 66, v: l => l.result.du_sum, agg: "max",
-      cls: l => l.result.du_sum != null && l.result.du_max != null && l.result.du_sum > l.result.du_max ? "bad" : "",
-      bar: l => l.result.du_sum == null || !l.result.du_max ? null : {f: l.result.du_sum / l.result.du_max, lvl: lvl(l.result.du_sum / l.result.du_max, 0.8, 1.0001)},
-      tip: l => l.result.du_max != null ? `допустимо ${num(l.result.du_max, 1)} %` : ""},
+    {id: "dus", t: "ΔUΣ, %", title: "ΔU от ВРУ (полоса — доля от допустимой с надбавкой за длину > 100 м)", n: 1, w: 66,
+      v: l => l.result.du_sum, agg: "max",
+      cls: l => l.result.du_sum != null && duMax(l) != null && l.result.du_sum > duMax(l) + 1e-9 ? "bad" : "",
+      bar: l => l.result.du_sum == null || !duMax(l) ? null : {f: l.result.du_sum / duMax(l), lvl: lvl(l.result.du_sum / duMax(l), 0.8, 1.0001)},
+      tip: l => duMax(l) == null ? "" : `допустимо ${num(duMax(l), 2)} %` + (l.result.du_extra
+        ? ` = ${num(l.result.du_max, 1)} % + ${num(l.result.du_extra, 3)} % за длину ${num(l.result.du_path_len, 0)} м от ВРУ (> 100 м: 0,005 %/м, не больше 0,5 %)`
+        : (l.result.du_path_len != null ? ` (длина от ВРУ ${num(l.result.du_path_len, 0)} м)` : ""))},
+    {id: "dul", t: "L от ВРУ", title: "Длина проводки от ВРУ: линия + фидеры выше, м", n: 1, w: 62, d: 0, hidden: 1, v: l => l.result.du_path_len},
     {id: "dur", t: "Запас ΔU", title: "Допустимая ΔU − ΔUΣ, %", n: 1, w: 62, hidden: 1, v: duReserve, agg: "min",
       cls: l => (duReserve(l) ?? 1) < 0 ? "bad" : ""},
     {id: "kz", t: "Iкз, А", title: "Iкз min в конце линии", n: 1, w: 56, d: 0, v: l => l.result.ikz_min, agg: "min"},

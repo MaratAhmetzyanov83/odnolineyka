@@ -144,3 +144,28 @@ class TestCore(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestDuLength(unittest.TestCase):
+    """ΔUдоп + 0,005 %/м сверх 100 м от ВРУ, не больше 0,5 % (ГОСТ Р 50571.5.52, прил. G)."""
+
+    def test_extra(self):
+        from odn.calc.du import extra_for
+        self.assertEqual([extra_for(x) for x in (None, 50, 100, 130, 200, 300, 500)], [0, 0, 0, 0.15, 0.5, 0.5, 0.5])
+
+    def test_chain_and_status(self):
+        prj = demo()                                   # ГРЩ: Щ.1 L = 30 м -> ЩР-1: R.1, R.2 L = 20 м
+        shr = prj.panel("ЩР-1.xlsx / ЩР-1")
+        r1, r2 = shr.lines
+        r1.input.length, r1.result.du_max, r1.result.du_sum = 100.0, 4.0, 4.3   # 30 + 100 = 130 м -> +0,15 %
+        r1.result.status, r1.result.level = "потери 4,3 % > 4 %", 1
+        r2.input.length, r2.result.du_max, r2.result.du_sum = 100.0, 4.0, 4.1
+        r2.result.status, r2.result.level = "потери 4,1 % > 4 %; нет мощности", 1
+        recheck(prj)
+        self.assertEqual((r1.result.du_path_len, r1.result.du_extra, r1.result.du_max_eff), (130.0, 0.15, 4.15))
+        st = {i.line: i.text for i in prj.issues if i.rule == "source.row_status"}
+        self.assertEqual(st.get("R.1"), "потери 4,3 % > 4 %")      # 4,3 > 4,15 — остаётся
+        self.assertEqual(st.get("R.2"), "нет мощности")             # 4,1 ≤ 4,15 — потери сняты
+        r1.input.u_v = 24.0                                         # до 50 В — без надбавки
+        recheck(prj)
+        self.assertIsNone(r1.result.du_extra)
