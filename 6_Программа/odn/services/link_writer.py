@@ -18,7 +18,7 @@ import uuid
 from ..core.changes import EditError
 from ..core.model import Project
 from ..sources.excel_v312 import layout as X
-from ..sources.excel_v312.writer import is_locked
+from ..sources.excel_v312.writer import lock_reason
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ADDIN = os.environ.get("SX_ADDIN") or os.path.normpath(os.path.join(HERE, "..", "..", "..", "3_Макросы_Excel",
@@ -43,8 +43,9 @@ def write_link(prj: Project, child_id: str, parent_id: str, feeder: str, inp: in
         doc = next(x for x in prj.documents if x.file == d)
         if abs(os.path.getmtime(path) - doc.mtime) > 1e-6:
             raise EditError(f"{d} изменилась после чтения — нажмите «Обновить» и повторите")
-        if is_locked(path):
-            raise EditError(f"{d} открыта в Excel — закройте книгу и повторите")
+        why = lock_reason(path)
+        if why:
+            raise EditError(why)
     stamp = time.strftime("%Y-%m-%d_%H%M%S")
     backups = {}
     for d, path in ((child.doc, cpath), (par.doc, ppath)):
@@ -79,8 +80,9 @@ def undo_last(prj: Project) -> dict:
     for d, mt in last["mtimes"].items():
         if abs(os.path.getmtime(os.path.join(prj.folder, d)) - mt) > 1e-6:
             return {"ok": False, "errors": [f"{d} менялась после записи связи — верните её из копии вручную: {last['backups'][d]}"]}
-        if is_locked(os.path.join(prj.folder, d)):
-            return {"ok": False, "errors": [f"{d} открыта в Excel — закройте книгу"]}
+        why = lock_reason(os.path.join(prj.folder, d))
+        if why:
+            return {"ok": False, "errors": [why]}
     for d, bak in last["backups"].items():
         shutil.copy2(os.path.join(prj.folder, bak), os.path.join(prj.folder, d))
     with open(_journal(prj), "a", encoding="utf-8") as f:

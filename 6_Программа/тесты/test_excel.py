@@ -188,16 +188,27 @@ class TestEdit(unittest.TestCase):
         self.assertIn("изменилась после чтения", r["errors"][0])
 
     def test_locked(self):
+        from unittest import mock
         from odn.services import edit
+        from odn.sources.excel_v312 import writer
         prj = self.load()
         pid = next(p.id for p in prj.panels() if p.name == "ГРЩ")
+        book = os.path.join(self.folder, "ГРЩ.xlsx")
         lock = os.path.join(self.folder, "~$ГРЩ.xlsx")
-        open(lock, "w").close()
+        name = "Иванов"
+        with open(lock, "wb") as f:                     # метка Excel: длина + ANSI, с байта 55 — длина + UTF-16
+            f.write(bytes([len(name)]) + name.encode("cp1251").ljust(54, b" ") + bytes([len(name), 0]) + name.encode("utf-16-le"))
         try:
-            r = edit.apply_changes(prj, [{"panel": pid, "line": "Щ.1", "path": "input.p_kw", "new": 9}])
+            self.assertEqual(writer.lock_owner(lock), name)
+            self.assertEqual(writer.lock_reason(book), "")       # старая метка после сбоя Excel — не мешает
+            with mock.patch.object(writer, "_writable", return_value=False):
+                r = edit.apply_changes(prj, [{"panel": pid, "line": "Щ.1", "path": "input.p_kw", "new": 9}])
+                self.assertIn("открыта в Excel у пользователя «Иванов»", r["errors"][0])
+                os.remove(lock)
+                self.assertIn("Excel без окна", writer.lock_reason(book))
         finally:
-            os.remove(lock)
-        self.assertIn("открыта в Excel", r["errors"][0])
+            if os.path.exists(lock):
+                os.remove(lock)
 
     def test_export(self):
         from odn.services import export

@@ -83,7 +83,7 @@ def _fresh(prj, docname):
 def apply_changes(prj: Project, raw: list, kind="правка", undo_of="") -> dict:
     """raw: [{panel, line, path, new}]. Пишет по книгам одной сессией Excel и пересчитывает связанные книги
     (вышестоящую и нижестоящие), чтобы правка была видна с обеих сторон связи."""
-    from ..sources.excel_v312.writer import is_locked
+    from ..sources.excel_v312.writer import lock_reason
     chs = []
     for r in raw:
         ch = C.Change(r["panel"], r["path"], r.get("new"), r.get("line", ""))
@@ -100,15 +100,17 @@ def apply_changes(prj: Project, raw: list, kind="правка", undo_of="") -> d
         try:
             if not _fresh(prj, docname):
                 raise C.EditError(f"{docname} изменилась после чтения — нажмите «Обновить» и повторите")
-            if is_locked(os.path.join(prj.folder, docname)):
-                raise C.EditError(f"{docname} открыта в Excel — закройте книгу и повторите")
+            why = lock_reason(os.path.join(prj.folder, docname))
+            if why:
+                raise C.EditError(why)
             cells_by_doc[docname] = (items, src.cells_for(prj, items))
         except (C.EditError, NotImplementedError) as e:
             errors.append(str(e))
     related = []
     for d in related_docs(prj, cells_by_doc):
-        if is_locked(os.path.join(prj.folder, d)):
-            warnings.append(f"{d} открыта в Excel — не пересчитана, связь обновится, когда её откроете")
+        why = lock_reason(os.path.join(prj.folder, d))
+        if why:
+            warnings.append(f"не пересчитана: {why}")
         elif not _fresh(prj, d):
             warnings.append(f"{d} изменилась после чтения — не пересчитана («Обновить», затем «Синхронизировать книги»)")
         else:
@@ -146,15 +148,16 @@ def apply_changes(prj: Project, raw: list, kind="правка", undo_of="") -> d
 
 def sync_books(prj: Project) -> dict:
     """«Синхронизировать книги»: все книги со связями — в одну копию Excel, пересчёт, сохранение (копии — до)."""
-    from ..sources.excel_v312.writer import is_locked, write_batch
+    from ..sources.excel_v312.writer import lock_reason, write_batch
     docs = set()
     for p in prj.panels():
         if p.book_parent and prj.panel(p.book_parent) and prj.panel(p.book_parent).doc != p.doc:
             docs |= {p.doc, prj.panel(p.book_parent).doc}
     ok, skipped = [], []
     for d in sorted(docs):
-        if is_locked(os.path.join(prj.folder, d)):
-            skipped.append(f"{d}: открыта в Excel")
+        why = lock_reason(os.path.join(prj.folder, d))
+        if why:
+            skipped.append(why)
         elif not _fresh(prj, d):
             skipped.append(f"{d}: изменилась после чтения — «Обновить»")
         else:

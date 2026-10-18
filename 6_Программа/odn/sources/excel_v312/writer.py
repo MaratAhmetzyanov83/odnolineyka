@@ -52,21 +52,55 @@ def cells_for(prj, changes):
     return out
 
 
-def is_locked(path: str) -> bool:
-    """Книга открыта у кого-то: есть «~$имя» рядом или файл не открывается на запись."""
-    d, n = os.path.split(path)
-    if os.path.exists(os.path.join(d, "~$" + n[2:])) or os.path.exists(os.path.join(d, "~$" + n)):
-        return True
+def _writable(path: str) -> bool:
+    """Файл можно открыть на запись. Excel держит открытую книгу с запретом записи — тогда нельзя."""
     try:
         with open(path, "r+b"):
-            return False
+            return True
     except OSError:
-        return True
+        return False
+
+
+def lock_owner(lock: str) -> str:
+    """Кто открыл книгу — из файла-метки Excel «~$книга»: длина + имя (ANSI), с байта 55 — длина + имя (UTF-16)."""
+    try:
+        with open(lock, "rb") as f:
+            b = f.read(200)
+    except OSError:
+        return ""
+    try:
+        m = b[55] if len(b) > 56 else 0
+        if m and len(b) >= 57 + 2 * m:
+            return b[57:57 + 2 * m].decode("utf-16-le").strip("\x00 ")
+        return b[1:1 + b[0]].decode("cp1251").strip("\x00 ") if b else ""
+    except (UnicodeDecodeError, IndexError):
+        return ""
+
+
+def lock_reason(path: str) -> str:
+    """Почему книгу нельзя писать; пусто — можно. Старая метка «~$» без занятого файла (после сбоя Excel) не мешает."""
+    if _writable(path):
+        return ""
+    name = os.path.basename(path)
+    if not os.access(path, os.W_OK):
+        return f"{name}: у файла атрибут «только чтение» (Свойства файла) или нет прав на запись в папку"
+    d = os.path.dirname(path)
+    lock = next((os.path.join(d, x) for x in ("~$" + name, "~$" + name[2:]) if os.path.exists(os.path.join(d, x))), None)
+    if lock:
+        who = lock_owner(lock)
+        return f"{name} открыта в Excel" + (f" у пользователя «{who}»" if who else "") + " — закройте книгу и повторите"
+    return (f"{name} занята другим процессом: чаще всего — Excel без окна (Диспетчер задач → «Microsoft Excel» "
+            f"в фоновых процессах → «Снять задачу»), иначе синхронизация (OneDrive) или антивирус. Повторите через минуту")
+
+
+def is_locked(path: str) -> bool:
+    return bool(lock_reason(path))
 
 
 def write_cells(path: str, cells) -> None:
-    if is_locked(path):
-        raise EditError(f"{os.path.basename(path)} открыта в Excel — закройте книгу и повторите")
+    why = lock_reason(path)
+    if why:
+        raise EditError(why)
     if os.environ.get("ODN_TEST_WRITER") == "1":
         return _write_openpyxl(path, cells)
     return _write_com(path, cells)
