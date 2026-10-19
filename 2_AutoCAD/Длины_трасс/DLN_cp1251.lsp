@@ -1,5 +1,5 @@
 ;;; ================================================================
-;;;  DLN v23 — длины кабельных линий из планов в таблицу однолинейки
+;;;  DLN v24 — длины кабельных линий из планов в таблицу однолинейки
 ;;;  Книги: 1.06 / 1.05 / v3.12 (лист «Исходные данные»); v4, v5 (лист «Линии») — архив.
 ;;;  Команды:  DLN      — заполнить таблицу (первый раз)
 ;;;            DLN_UPD  — обновить после правок планов: длины, кол-во, текст выноски;
@@ -14,6 +14,8 @@
 ;;;                       (как DLN_UPD; путь DLN / DLN_UPD не меняется)
 ;;;  ДСУП: точка РЕ с КУП в CK («Однолинейка») — длина от КУП до точки, трасса проверяется
 ;;;  до конца трассы своей КУП; сама КУП — от щита до КУП (обычная линия).
+;;;  В таблице точки РЕ стоят сразу под своей КУП (КУП — по CK или по трассе: РЕ начинается
+;;;  у конца трассы КУП).
 ;;;  Колонка «DWG: листы» — на каких листах видна линия. Стояк (блок на слое *Стояк*) —
 ;;;  как щит: трасса этажа, дошедшая до стояка, считается дошедшей.
 ;;;
@@ -861,7 +863,7 @@
     (setq i (1+ i)))
   (if *dl-v4*
     (if (> newn 0) (dl:v4-resize sh last))
-    (progn (dl:sort sh cD) (dl:paint-all sh cD *dl-marked*)))
+    (progn (setq *dl-kparent* (dl:kup-parents)) (dl:sort sh cD) (dl:paint-all sh cD *dl-marked*)))
   (dl:restore-xl)
   (list upd newn mode))
 (defun dl:restore-xl ()
@@ -871,7 +873,7 @@
 
 ;;; ---------- сортировка строк по номеру линии ----------
 (setq *dl-order* '("Ввод" "KV" "На ИБП" "От ИБП" "R" "RС" "В" "ТП" "ЭK" "EK" "TE-ТП" "TE-O" "TE" "SH"
-                   "L" "DALI" "LD" "LED" "АПС" "РЕЛЕ" "К" "K" "ПУ" "ПВ" "КМН" "УВ" "ПН" "WD" "КУП" "PE"))
+                   "L" "DALI" "LD" "LED" "АПС" "РЕЛЕ" "К" "K" "ПУ" "ПВ" "КМН" "УВ" "ПН" "WD" "КУП" "ШДУП" "PE" "РЕ"))
 (defun dl:pad (n w) (substr (strcat "00000" n) (1+ (- (+ 5 (strlen n)) w))))
 ;; "R.1.05.10" -> "05|R|0001.0005.0010"; пустая строка -> в конец
 ;; "R.0.001г.1" -> "05|R|00000.00001г.00001"; числа в частях номера сравниваются как числа,
@@ -884,12 +886,47 @@
   (while (and (< i (strlen seg)) (wcmatch (substr seg (1+ i) 1) "#"))
     (setq d (strcat d (substr seg (1+ i) 1)) i (1+ i)))
   (strcat (dl:pad (if (= d "") "0" d) 5) (substr seg (1+ i))))
-(defun dl:sortkey (name / segs pre idx)
+(defun dl:sortkey0 (name / segs pre idx)
   (if (= name "")
     "99|~"
     (progn
       (setq segs (dl:splitc name ".") pre (car segs) idx (vl-position pre *dl-order*))
       (strcat (dl:pad (itoa (if idx idx 98)) 2) "|" pre "|" (dl:join (mapcar 'dl:segkey (cdr segs)) ".")))))
+;; точка РЕ от КУП — сразу под своей КУП: ключ КУП + пробел (меньше «.») + свой ключ
+(defun dl:sortkey (name / par)
+  (if (setq par (dl:kparent name))
+    (strcat (dl:sortkey0 par) " " (dl:sortkey0 name))
+    (dl:sortkey0 name)))
+
+;; ---------- ДСУП: какая КУП у линии ----------
+;; *dl-kparent*: ((линия . КУП) ...) — из таблицы (CK) и с плана: трасса линии
+;; начинается у конца трассы КУП / ШДУП (допуск *dl-ptol*)
+(setq *dl-kparent* nil)
+(defun dl:kparent (g)
+  (cdr (vl-some '(lambda (x) (if (= (dl:norm (car x)) (dl:norm g)) x)) *dl-kparent*)))
+(defun dl:kupname-p (g) (member (strcase (dl:prefix g)) '("КУП" "ШДУП")))
+(defun dl:gends (g / r)
+  (foreach p *dl-polys* (if (equal (dl:getg (car p)) (list g)) (setq r (cons (nth 5 p) (cons (nth 6 p) r)))))
+  r)
+(defun dl:kup-parents (/ groups kups r k bd best d)
+  (foreach a *dl-asg*
+    (if (and (= (length (cdr a)) 1) (not (member (cadr a) groups))) (setq groups (cons (cadr a) groups))))
+  (setq kups (vl-remove-if-not 'dl:kupname-p groups))
+  (foreach g groups
+    (if (not (dl:kupname-p g))
+      (if (setq k (dl:kup-of g))
+        (setq r (cons (cons g k) r))
+        (progn
+          (setq best nil bd *dl-ptol*)
+          (foreach pt (dl:gends g)
+            (foreach p *dl-polys*
+              (if (and (= (length (dl:getg (car p))) 1) (member (car (dl:getg (car p))) kups)
+                       (<= (setq d (dl:enddist pt p)) bd))
+                (setq bd d best (car (dl:getg (car p)))))))
+          (if best (setq r (cons (cons g best) r)))))))
+  ;; линии из CK, которых нет на этом плане
+  (foreach x *dl-kup* (if (not (assoc (car x) r)) (setq r (cons x r))))
+  r)
 
 ;; раскладка: с *dl-row0* по *dl-block* линий, затем *dl-gap* пустых строк и т.д.
 ;; строки с номером линии получают место по порядку номеров, пустые строки
@@ -1136,7 +1173,7 @@
   (setq *dl-nmark* 0)
   (dl:chk-clear)
   (dl:chk-layer)
-  (setq *dl-pan* (dl:panels nil))
+  (setq *dl-pan* (dl:panels nil) *dl-kparent* (dl:kup-parents))
   (princ "\nDLN: проверка выносок и трасс:")
   ;; 1. выноска мимо трассы / на трассе другой системы
   (foreach is issues (dl:mark (caddr is) (strcat (car is) ": " (cadr is))))
@@ -1169,7 +1206,7 @@
   (foreach s sum
     (if (nth 3 s)
       (progn
-        (setq ok nil k (dl:kup-of (car s)))
+        (setq ok nil k (cond ((dl:kup-of (car s))) ((dl:kparent (car s)))))
         (foreach p *dl-polys*
           (if (and (equal (dl:getg (car p)) (list (car s)))
                    (if k
