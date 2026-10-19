@@ -220,6 +220,8 @@ def _quit(app, pid):
 def _open(app, path, links=0):
     """links: 0 — значения связей как сохранены в книге; 3 — обновить связи из сохранённых файлов других книг."""
     wb = app.Workbooks.Open(os.path.abspath(path), links, False)
+    if wb is None:                                 # Excel не держит две книги с одним именем (двойник из другой папки)
+        raise EditError(f"{os.path.basename(path)}: Excel не открыл книгу (в этой сессии уже открыта книга с тем же именем?)")
     if wb.ReadOnly:
         raise EditError(f"{os.path.basename(path)} открыта у другого пользователя — запись не сделана")
     return wb

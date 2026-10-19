@@ -202,9 +202,8 @@ def apply_changes(prj: Project, raw: list, kind="правка", undo_of="") -> d
     try:
         write_batch({os.path.join(prj.folder, d): c for d, (_, c) in cells_by_doc.items()}, [])   # связанные — потом, в фоне
     except (C.EditError, Exception) as e:  # noqa: BLE001 — Excel: книги вернуть из копий
-        for d, bak in backups.items():
-            shutil.copy2(os.path.join(prj.folder, bak), os.path.join(prj.folder, d))
-        return {"ok": False, "written": 0, "docs": [], "related": [], "errors": errors + [str(e)], "warnings": warnings,
+        errors += [str(e)] + [f"не вернулась из копии: {d} — копия {b}" for d, b in restore(prj, backups)]
+        return {"ok": False, "written": 0, "docs": [], "related": [], "errors": errors, "warnings": warnings,
                 "skipped": len(raw) - len(chs)}
     timing = {"копии": round(t1 - t0, 1), "Excel": round(time.time() - t1, 1)}
     for ch in chs:
@@ -222,6 +221,34 @@ def apply_changes(prj: Project, raw: list, kind="правка", undo_of="") -> d
         done.append(entry)
     return {"ok": not errors, "timing": timing, "written": sum(len(e["changes"]) for e in done), "docs": [e["doc"] for e in done],
             "related": related, "backups": backups, "errors": errors, "warnings": warnings, "skipped": len(raw) - len(chs)}
+
+
+def name_rounds(docs) -> list:
+    """Разбить книги на заходы без повторов имени файла: Excel не открывает две книги с одним именем."""
+    rounds = []
+    for d in docs:
+        name = os.path.basename(d).lower()
+        r = next((r for r in rounds if name not in {os.path.basename(x).lower() for x in r}), None)
+        if r is None:
+            rounds.append(r := [])
+        r.append(d)
+    return rounds
+
+
+def restore(prj: Project, backups: dict, tries=5) -> list:
+    """Книги — из копий. Excel после сбоя отпускает файл не сразу — повтор через 2 с. -> [(книга, копия)] не вернувшиеся."""
+    bad = []
+    for d, bak in backups.items():
+        for k in range(tries):
+            try:
+                shutil.copy2(os.path.join(prj.folder, bak), os.path.join(prj.folder, d))
+                break
+            except OSError:
+                if k == tries - 1:
+                    bad.append((d, bak))
+                else:
+                    time.sleep(2)
+    return bad
 
 
 def sync_books(prj: Project) -> dict:
@@ -249,11 +276,11 @@ def sync_books(prj: Project) -> dict:
         shutil.copy2(os.path.join(prj.folder, d), bak)
         backups[d] = os.path.relpath(bak, prj.folder)
     try:
-        write_batch({}, [os.path.join(prj.folder, d) for d in ok], full=True)
+        for part in name_rounds(ok):                 # книги-двойники (одно имя, разные папки) — в разных сессиях Excel
+            write_batch({}, [os.path.join(prj.folder, d) for d in part], full=True)
     except Exception as e:  # noqa: BLE001
-        for d, bak in backups.items():
-            shutil.copy2(os.path.join(prj.folder, bak), os.path.join(prj.folder, d))
-        return {"ok": False, "errors": [str(e)]}
+        bad = restore(prj, backups)
+        return {"ok": False, "errors": [str(e)] + [f"не вернулась из копии: {d} — копия {b}" for d, b in bad]}
     entry = {"batch": f"{stamp}|синхронизация|{uuid.uuid4().hex[:8]}", "at": time.strftime("%d.%m.%Y %H:%M:%S"),
              "user": _user(), "kind": "синхронизация", "changes": [], "related": backups,
              "what": f"синхронизация связей: пересчитаны и сохранены {len(ok)} книг"}
