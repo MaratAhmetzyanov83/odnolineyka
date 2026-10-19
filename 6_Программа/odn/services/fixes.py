@@ -212,11 +212,11 @@ def balance(p, prj, goal=5.0, moves=40):
 
 def fix_phases(prj):
     """Перекос фаз > 15 %: перенести однофазные линии («Нагрузка_щитов» E — фаза вручную)."""
-    from ..calc.phases import PH, phases_of, skew
+    from ..calc.phases import phases_of, single, skew
     from ..checks.phases import I_MIN, SKEW_MAX
     for p in prj.panels():
         feeder = prj.line(p.parent, p.parent_line) if p.parent and p.parent_line else None
-        if feeder is not None and len(phases_of(feeder)) == 1:
+        if feeder is not None and single(feeder):
             continue
         v = p.phase_i or {}
         if max(v.values() or [0]) < I_MIN or p.phase_skew <= SKEW_MAX:

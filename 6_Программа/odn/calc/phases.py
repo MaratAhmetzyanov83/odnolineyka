@@ -28,6 +28,11 @@ def phases_of(ln):
     return ph
 
 
+def single(ln):
+    """Однофазная линия явно: «Исходные данные» H = 1, одна фаза на схеме и автомат не 3P / 4P."""
+    return ln.input.phases == 1 and len(phases_of(ln)) == 1 and not re.search(r"[34]P", ln.scheme.breaker or "")
+
+
 def skew(acc: dict):
     v = [acc.get(k, 0.0) for k in PH]
     return (max(v) - min(v)) / max(v) * 100 if max(v) > 0 else 0.0
@@ -57,7 +62,7 @@ def run(prj: Project):
                 sec = (ln.feeds_input or 1) if child.inputs_more else None
                 sub = load(child.id, sec)
                 one = phases_of(ln)
-                if len(one) == 1:                    # однофазный фидер: весь ток щита — на фазу фидера
+                if single(ln):                       # однофазный фидер: весь ток щита — на фазу фидера
                     tot = sum(sub.values())
                     sub = {k: (tot if k == one[0] else 0.0) for k in PH}
                 ln.phase_i = {k: round(v, 3) for k, v in sub.items()}
