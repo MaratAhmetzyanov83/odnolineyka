@@ -18,6 +18,8 @@ export const specOk = doc => call("POST", "/api/spec/ok", {doc});
 export const getFixes = () => call("GET", "/api/fixes");
 export const bookPatch = (doc, name) => call("POST", "/api/book/patch", {doc, name});
 export const kj = items => call("POST", "/api/kj", {items});
+export const kjCables = doc => call("GET", `/api/kj/cables?doc=${encodeURIComponent(doc)}`);
+export const kjSkip = (doc, skip) => call("POST", "/api/kj/skip", {doc, skip});
 export const dismiss = (items, note, restore = false) => call("POST", "/api/dismiss", {items, note, restore});
 export const structure = body => call("POST", "/api/structure", body);
 export const exclude = file => call("POST", "/api/exclude", {file});

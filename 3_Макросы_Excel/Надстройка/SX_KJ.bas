@@ -121,18 +121,44 @@ fail:
     kjNote = kjNote & vbLf & "Отметка для программы «Объект» не записана: " & Err.Description
 End Sub
 
+' Кабели, убранные из КЖ (окно «Объект» → «кабели КЖ…»): <книга>.kj.skip.txt рядом с книгой, UTF-8,
+' маркировка в строке, «;» — комментарий. Ключ — маркировка без лишних пробелов.
+Private Function LoadSkip(wb As Workbook) As Object
+    Dim d As Object, st As Object, fn As String, s As Variant
+    Set d = CreateObject("Scripting.Dictionary")
+    Set LoadSkip = d
+    If wb.Path = "" Then Exit Function
+    fn = Fso.BuildPath(wb.Path, Fso.GetBaseName(wb.Name) & ".kj.skip.txt")
+    If Not Fso.FileExists(fn) Then Exit Function
+    On Error GoTo fail
+    Set st = CreateObject("ADODB.Stream")
+    st.Type = 2: st.Charset = "utf-8": st.Open
+    st.LoadFromFile fn
+    For Each s In Split(Replace(st.ReadText, vbCr, ""), vbLf)
+        s = Application.WorksheetFunction.Trim(Replace(CStr(s), vbTab, " "))
+        If s <> "" And Left(s, 1) <> ";" Then d(s) = True
+    Next s
+    st.Close
+    Exit Function
+fail:
+    kjNote = kjNote & vbLf & "Список убранных из КЖ не прочитан: " & Err.Description
+End Function
+
 ' Строки P:AB с 5-й: маркировка не пустая. Значение — как видно в ячейке.
 Private Function ReadRows(ws As Worksheet) As Collection
     Dim res As New Collection, last As Long, v As Variant, r As Long, c As Long, a() As String
-    Dim seen As Object, mk As String
+    Dim seen As Object, mk As String, skip As Object, nSkip As Long
     Set seen = CreateObject("Scripting.Dictionary")
+    Set skip = LoadSkip(ws.Parent)
     last = ws.Cells(ws.Rows.Count, "P").End(xlUp).Row
     If last < 5 Then Set ReadRows = res: Exit Function
     v = ws.Range("P5:AB" & last).Value
     For r = 1 To UBound(v, 1)
         If Not IsError(v(r, 1)) Then
             mk = Trim(CStr(v(r, 1)))
-            If mk <> "" And Not (IsNumeric(v(r, 1)) And mk = "0") Then
+            If skip.Exists(Application.WorksheetFunction.Trim(mk)) Then
+                nSkip = nSkip + 1
+            ElseIf mk <> "" And Not (IsNumeric(v(r, 1)) And mk = "0") Then
                 ReDim a(0 To NC - 1)
                 For c = 1 To NC
                     a(c - 1) = CellText(v(r, c), ws.Cells(r + 4, 15 + c))
@@ -147,6 +173,7 @@ Private Function ReadRows(ws As Worksheet) As Collection
             End If
         End If
     Next r
+    If nSkip > 0 Then kjNote = kjNote & vbLf & "Убрано из КЖ (список «кабели КЖ»): " & nSkip & "."
     Set ReadRows = res
 End Function
 

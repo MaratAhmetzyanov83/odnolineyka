@@ -59,7 +59,7 @@ export function lineColumns({ withPanel = false } = {}){
     {id: "dus", t: "ΔUΣ, %", title: "ΔU от ВРУ (полоса — доля от допустимой с надбавкой за длину > 100 м)", n: 1, w: 66,
       v: duSum, agg: "max",
       cls: l => duSum(l) != null && duMax(l) != null && duSum(l) > duMax(l) + 1e-9 ? "bad" : "",
-      bar: l => duSum(l) == null || !duMax(l) ? null : {f: duSum(l) / duMax(l), lvl: lvl(duSum(l) / duMax(l), 0.8, 1.0001)},
+      bar: l => duSum(l) == null || !duMax(l) ? null : {f: duSum(l) / duMax(l), lvl: lvl(duSum(l) / duMax(l), 1.0001, 1.0001)},   // доля допустимой; цвет — только при превышении
       tip: l => duMax(l) == null ? "" : (l.result.du_from ? `от ВРУ ${S.panels[l.result.du_from]?.name || ""}` + (duSum(l) !== l.result.du_sum ? ` (в книге ${num(l.result.du_sum, 2)} %)` : "") + "; " : "")
         + `допустимо ${num(duMax(l), 2)} %` + (l.result.du_extra
         ? ` = ${num(l.result.du_max, 1)} % + ${num(l.result.du_extra, 3)} % за длину ${num(l.result.du_path_len, 0)} м от ВРУ (> 100 м: 0,005 %/м, не больше 0,5 %)`

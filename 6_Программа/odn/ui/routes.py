@@ -100,6 +100,27 @@ def post_book_patch(app: App, body):
         return res
 
 
+@route("GET", "/api/kj/cables")
+def get_kj_cables(app: App, body):
+    """Кабели листа «Кабельный_журнал» книги и убранные из КЖ."""
+    try:
+        return kj_writer.cables(app.prj, body.get("doc", ""))
+    except EditError as e:
+        return {"ok": False, "errors": [str(e)]}
+
+
+@route("POST", "/api/kj/skip")
+def post_kj_skip(app: App, body):
+    """Убрать кабели из КЖ / вернуть: <книга>.kj.skip.txt (книга не меняется)."""
+    with app.write_lock:
+        try:
+            res = kj_writer.set_skip(app.prj, body.get("doc", ""), body.get("skip") or [])
+        except EditError as e:
+            return {"ok": False, "errors": [str(e)]}
+        app.refresh()                     # «КЖ: актуален / устарел» — без убранных кабелей
+        return res
+
+
 @route("POST", "/api/kj")
 def post_kj(app: App, body):
     """КЖ в DWG: выпуск / обновление (функция надстройки SX_KJTo). items: [{doc, dwg}], dwg "" — из отметки."""

@@ -200,3 +200,4 @@ svg.scheme .elab.warn text{fill:var(--warn)}
 .hint{display:inline-block;width:13px;height:13px;line-height:13px;text-align:center;border-radius:50%;background:var(--sel);color:var(--accent);font-size:10px;font-weight:700;cursor:help}
 a.dis{color:var(--muted);font-weight:700;cursor:pointer;text-decoration:none;padding:0 2px}
 a.dis:hover{color:var(--err,#c0392b)}
+table.kjt{border-collapse:collapse;font-size:12px}table.kjt th,table.kjt td{border-bottom:1px solid var(--line);padding:2px 6px;text-align:left;white-space:nowrap}table.kjt th{position:sticky;top:0;background:var(--head)}

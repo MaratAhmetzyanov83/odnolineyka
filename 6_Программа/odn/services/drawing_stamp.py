@@ -169,6 +169,29 @@ def kj_path(prj: Project, doc) -> str:
     return base + KJ_EXT
 
 
+KJ_SKIP_EXT = ".kj.skip.txt"     # кабели, убранные из КЖ: маркировка в строке (пишет окно, читает и надстройка)
+
+
+def kj_skip_path(prj: Project, doc) -> str:
+    base, _ = os.path.splitext(os.path.join(prj.folder, doc.file))
+    return base + KJ_SKIP_EXT
+
+
+def read_kj_skip(prj: Project, doc) -> list:
+    try:
+        with open(kj_skip_path(prj, doc), encoding="utf-8-sig", errors="replace") as f:
+            rows = f.read().splitlines()
+    except OSError:
+        return []
+    return [_norm(x) for x in rows if _norm(x) and not x.lstrip().startswith(";")]
+
+
+def kj_rows(prj: Project, doc) -> list:
+    """Строки КЖ книги без убранных из КЖ кабелей."""
+    skip = set(read_kj_skip(prj, doc))
+    return [r for r in doc.cable_journal if _norm(r[0]) not in skip] if skip else doc.cable_journal
+
+
 def read_kj(path):
     """Отметка КЖ: UTF-8, строки «ключ<Tab>значения»: DWG, AT, BOOK, SAVED, ROW графа1…графа8 (как видно в Excel)."""
     try:
@@ -236,7 +259,8 @@ def kj_state(prj: Project, doc) -> dict:
     st = read_kj(kj_path(prj, doc))
     if st is None:
         return {}
-    d = kj_diff(st["rows"], doc.cable_journal)
+    rows = kj_rows(prj, doc)
+    d = kj_diff(st["rows"], rows)
     why = []
     if d["changed"]:
         cab = sorted({c[0] for c in d["changed"]})
@@ -248,7 +272,7 @@ def kj_state(prj: Project, doc) -> dict:
     if d["removed"]:
         why.append(f"убраны {len(d['removed'])}: " + ", ".join(d["removed"][:5]) + (" …" if len(d["removed"]) > 5 else ""))
     return {"dwg": st["dwg"], "at": st["at"], "state": "stale" if why else "ok", "why": "; ".join(why),
-            "cables": len(doc.cable_journal), "saved": st["saved"]}
+            "cables": len(rows), "saved": st["saved"]}
 
 
 def apply(prj: Project, record: bool):

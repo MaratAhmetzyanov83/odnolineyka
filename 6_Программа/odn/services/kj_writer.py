@@ -17,7 +17,7 @@ import uuid
 
 from ..core.changes import EditError
 from ..core.model import Project
-from .drawing_stamp import kj_path
+from .drawing_stamp import _norm, kj_path, kj_rows, kj_skip_path, read_kj_skip
 from .link_writer import ADDIN
 
 OK_PREFIX = "Кабельный журнал обновлён"
@@ -46,6 +46,37 @@ def _target(prj: Project, doc, dwg: str) -> str:
     return os.path.abspath(dwg)
 
 
+def _doc(prj: Project, docname: str):
+    doc = next((d for d in prj.documents if d.file == docname), None)
+    if doc is None:
+        raise EditError("нет книги")
+    return doc
+
+
+def cables(prj: Project, docname: str) -> dict:
+    """Кабели листа «Кабельный_журнал» (графы 1–8) и маркировки, убранные из КЖ."""
+    doc = _doc(prj, docname)
+    skip = set(read_kj_skip(prj, doc))
+    return {"ok": True, "rows": [[_norm(r[0])] + ["" if v is None else v for v in r[1:8]] for r in doc.cable_journal],
+            "skip": [_norm(r[0]) for r in doc.cable_journal if _norm(r[0]) in skip],
+            "file": os.path.relpath(kj_skip_path(prj, doc), prj.folder)}
+
+
+def set_skip(prj: Project, docname: str, skip: list) -> dict:
+    """<книга>.kj.skip.txt: убранные из КЖ кабели (пусто — файл удаляется). Книга не меняется."""
+    doc = _doc(prj, docname)
+    skip = sorted({_norm(x) for x in skip or [] if _norm(x)})
+    path = kj_skip_path(prj, doc)
+    if not skip:
+        if os.path.exists(path):
+            os.remove(path)
+        return {"ok": True, "n": 0}
+    with open(path, "w", encoding="utf-8") as f:
+        f.write(";; odn kj skip v1 - кабели, убранные из КЖ (окно «Объект»; надстройка «КЖ в DWG» их тоже пропускает)\n")
+        f.write("\n".join(skip) + "\n")
+    return {"ok": True, "n": len(skip)}
+
+
 def issue(prj: Project, items: list) -> dict:
     """items: [{"doc": книга, "dwg": путь или ""}]. Один Excel на все книги. Ошибка одной книги не мешает другим."""
     from .edit import _journal, _user
@@ -55,8 +86,8 @@ def issue(prj: Project, items: list) -> dict:
         if doc is None:
             errors.append(f"{it.get('doc')}: нет книги")
             continue
-        if not doc.cable_journal:
-            errors.append(f"{doc.file}: на листе «Кабельный_журнал» нет кабелей")
+        if not kj_rows(prj, doc):
+            errors.append(f"{doc.file}: на листе «Кабельный_журнал» нет кабелей (или все убраны из КЖ)")
             continue
         dwg = _target(prj, doc, it.get("dwg", ""))
         if not os.path.isdir(os.path.dirname(dwg)):
@@ -108,6 +139,7 @@ def _run_com(prj, jobs):
             try:
                 wb = app.Workbooks.Open(os.path.abspath(os.path.join(prj.folder, doc.file)), 0, True)
                 wb.Activate()
+                _hide_skipped(wb, set(read_kj_skip(prj, doc)))
                 try:
                     msg = str(app.Run(pre + "SX_KJTo", dwg) or "")
                 except pywintypes.com_error as e:
@@ -137,6 +169,21 @@ def _run_com(prj, jobs):
             pass
 
 
+def _hide_skipped(wb, skip):
+    """Убранные из КЖ кабели: маркировка (столбец P) — пусто в этой копии книги (не сохраняется), надстройка их
+    пропустит. Так работает и надстройка без чтения .kj.skip.txt."""
+    if not skip:
+        return
+    ws = wb.Worksheets("Кабельный_журнал")
+    last = ws.Cells(ws.Rows.Count, 16).End(-4162).Row          # xlUp
+    if last < 5:
+        return
+    vals = ws.Range(f"P5:P{last}").Value
+    for k, row in enumerate(vals):
+        if _norm(row[0] if row[0] is not None else "") in skip:
+            ws.Cells(5 + k, 16).Value = ""
+
+
 def _clean(s):
     return re.sub(r"[\t\r\n]", " ", "" if s is None else str(s))
 
@@ -148,7 +195,7 @@ def _run_test(prj, jobs):
         with open(kj_path(prj, doc), "w", encoding="utf-8") as f:
             f.write(";; odn kj v1 - test\n")
             f.write(f"DWG\t{dwg}\nAT\t{time.strftime('%Y-%m-%d %H:%M:%S')}\nBOOK\t\nSAVED\t1\n")
-            for r in doc.cable_journal:
+            for r in kj_rows(prj, doc):
                 f.write("ROW\t" + "\t".join(_clean(v) for v in list(r)[:8]) + "\n")
-        res.append((True, f"{OK_PREFIX}.\n{dwg}\nКабелей: {len(doc.cable_journal)} (тест)."))
+        res.append((True, f"{OK_PREFIX}.\n{dwg}\nКабелей: {len(kj_rows(prj, doc))} (тест)."))
     return res

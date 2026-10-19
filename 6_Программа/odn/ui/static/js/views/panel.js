@@ -10,6 +10,7 @@ import * as structure from "./structure.js";
 import * as linkdlg from "./linkdlg.js";
 import * as feederdlg from "./feederdlg.js";
 import * as vrudlg from "./vrudlg.js";
+import * as kjdlg from "./kjdlg.js";
 
 const kv = (k, v, cls = "", tip = "") => v === "" || v == null ? "" :
   `<div ${tip ? `title="${esc(tip)}"` : ""}><span class="k">${k}</span><b class="${cls}">${v}</b></div>`;
@@ -74,10 +75,10 @@ const kjBase = f => { let s = f.split(/[\\/]/).pop().replace(/\.[^.]*$/, "");
   return "КЖ_" + (s.replace(/^[ _-]+/, "") || "щит") + ".dwg"; };
 function kjLinks(doc){
   const dwg = doc.kj?.dwg;
-  return dwg
+  return `<a data-kjdlg="${esc(doc.file)}" title="Какие кабели идут в КЖ: убрать / вернуть (книга не меняется)">кабели КЖ…</a> ` + (dwg
     ? `<a data-kj="${esc(doc.file)}" title="Перестроить КЖ в ${esc(dwg)}: надстройка «КЖ в DWG» в своём Excel, AutoCAD в фоне. Ручные графы 9–13 сохранятся, прежний DWG — *.bak">обновить КЖ</a>
        <a data-kj="${esc(doc.file)}" data-kjask="1" title="Выпустить КЖ в другой DWG (новый — по КЖ_шаблон.dwg)">КЖ в другой DWG…</a>`
-    : `<a data-kj="${esc(doc.file)}" data-kjask="1" title="Выпустить кабельный журнал в DWG по КЖ_шаблон.dwg: надстройка «КЖ в DWG» в своём Excel, AutoCAD в фоне">выпустить КЖ…</a>`;
+    : `<a data-kj="${esc(doc.file)}" data-kjask="1" title="Выпустить кабельный журнал в DWG по КЖ_шаблон.dwg: надстройка «КЖ в DWG» в своём Excel, AutoCAD в фоне">выпустить КЖ…</a>`);
 }
 
 export async function runKJ(items, el){
@@ -121,6 +122,7 @@ export function bind(root, rerender, { id, params }){
           window.dispatchEvent(new CustomEvent("odn:reload")); }
     catch (e){ toast("Не сделано: " + e.message, 10000); }
   });
+  root.querySelectorAll("[data-kjdlg]").forEach(a => a.onclick = ev => { ev.preventDefault(); kjdlg.open(a.dataset.kjdlg, runKJ); });
   root.querySelectorAll("[data-kj]").forEach(a => a.onclick = ev => {
     ev.preventDefault();
     const d = a.dataset.kj, doc = S.P.documents.find(x => x.file === d);

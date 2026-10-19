@@ -439,6 +439,23 @@ class TestKJStamp(unittest.TestCase):
             self.assertEqual((doc.kj["state"], doc.kj["cables"]), ("ok", 3))
             self.assertEqual(kj_writer._target(prj, doc, ""), doc.kj["dwg"])          # «обновить» — DWG из отметки
             self.assertEqual(kj_writer.default_dwg(doc), "КЖ_ГРЩ.dwg")
+            # убрать кабель из КЖ (<книга>.kj.skip.txt): КЖ устарел («убраны»), после выпуска — актуален без него
+            self.assertEqual(kj_writer.set_skip(prj, "ГРЩ.xlsx", [" W3 ", ""])["n"], 1)
+            self.assertEqual(kj_writer.cables(prj, "ГРЩ.xlsx")["skip"], ["W3"])
+            prj = load_project(obj, progress=lambda s: None, use_cache=False)
+            doc = next(x for x in prj.documents if x.file == "ГРЩ.xlsx")
+            self.assertEqual(doc.kj["state"], "stale")
+            self.assertIn("убраны 1: W3", doc.kj["why"])
+            os.environ["ODN_TEST_WRITER"] = "1"
+            try:
+                kj_writer.issue(prj, [{"doc": "ГРЩ.xlsx", "dwg": ""}])
+            finally:
+                os.environ.pop("ODN_TEST_WRITER", None)
+            prj = load_project(obj, progress=lambda s: None, use_cache=False)
+            doc = next(x for x in prj.documents if x.file == "ГРЩ.xlsx")
+            self.assertEqual((doc.kj["state"], doc.kj["cables"]), ("ok", 2))
+            kj_writer.set_skip(prj, "ГРЩ.xlsx", [])
+            self.assertFalse(os.path.exists(os.path.join(obj, "ГРЩ.kj.skip.txt")))
             self.assertEqual(kj_writer._target(prj, doc, "сх\\КЖ"), os.path.abspath(os.path.join(obj, "сх", "КЖ.dwg")))
         finally:
             shutil.rmtree(d, ignore_errors=True)
