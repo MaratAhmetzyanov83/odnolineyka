@@ -15,10 +15,9 @@ from __future__ import annotations
 
 import re
 
-from ..checks.links import SEL_K, _feeders, _is_input, sel_base
+from ..checks.links import SEL_K, SERIES, STEP, _feeders, _is_input, sel_need
 from ..checks.util import f
 
-SERIES = [6, 10, 16, 20, 25, 32, 40, 50, 63, 80, 100, 125, 160, 200, 250, 315, 400, 500, 630, 800, 1000, 1250, 1600]
 
 
 def pick_in(need):
@@ -26,11 +25,9 @@ def pick_in(need):
 
 
 def feeder_need(child):
-    """In фидера: ≥ 1,6 × In автомата ввода щита (QS не в счёт), иначе × наибольшего отходящего; и ≥ Iр щита (как окно «Фидер»)."""
-    base = sel_base(child)[0]
-    if child.selectivity.get("how"):                  # селективность по времени / по таблице — только Iр щита
-        base = None
-    return max(SEL_K * base if base else 0, child.result.i_calc or 0), base
+    """In фидера: селективность (1,6 × базы или «на ступень»; по времени / по таблице — нет) и ≥ Iр щита (как окно «Фидер»)."""
+    need, base = sel_need(child)[:2]
+    return max(need or 0, child.result.i_calc or 0), (base if need else None)
 
 
 def fix_feeders(prj):
@@ -43,8 +40,10 @@ def fix_feeders(prj):
         why = []
         if have is not None and child.result.i_calc and have < child.result.i_calc:
             why.append(f"In {f(have)} А < Iр щита {f(child.result.i_calc)} А")
-        if base and (have is None or have < SEL_K * base):
-            why.append(f"неселективно: нужно ≥ 1,6 × {f(base)} А")
+        sel = sel_need(child)[0]
+        if base and sel and (have is None or have < sel - 1e-9):
+            why.append(f"неселективно: нужно ≥ {f(sel)} А (на ступень выше {f(base)} А)" if child.selectivity.get("how") == STEP
+                       else f"неселективно: нужно ≥ 1,6 × {f(base)} А")
         yield {"rule": "links.feeder", "kind": "edit", "panel": par.id, "line": ln.number, "path": "input.in_manual",
                "text": f"фидер {child.name}: {'; '.join(why) or 'In мал'} — In ручной {now} А",
                "was": f"{f(have)} А" if have is not None else "—", "now": str(now), "checked": True}

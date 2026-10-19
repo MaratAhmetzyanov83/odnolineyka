@@ -67,6 +67,8 @@ def kz_unchecked(prj):
 def supply_checks(prj):
     for p in prj.panels():
         for k, v in p.result.checks.items():
+            if k == "Селективность" and p.selectivity.get("how"):
+                continue                             # отметка у щита (окно «Фидер ✎»): правило 1,6 × книги не нужно
             if not ok_text(v):
                 lvl = 2 if k in ("Аппарат и кабель", "Отключение КЗ") else 1
                 yield Hit(lvl, f"питающая линия, {k.lower()}: {v}", p.id, ref=p.refs.get("checks"))

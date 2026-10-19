@@ -224,7 +224,10 @@ def _write(app: App, fn):
         app.write_lock.release()
         return {"ok": False, "errors": [str(e)]}
     except BaseException:
-        app.write_lock.release()
+        try:
+            app.reload_quiet()            # правки уже наложены на модель — вернуть как в файлах (иначе повтор «пропущен»)
+        finally:
+            app.write_lock.release()
         raise
     try:
         res = _after_write(app, res)

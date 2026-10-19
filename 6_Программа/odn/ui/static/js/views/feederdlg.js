@@ -6,7 +6,7 @@ import * as pending from "../pending.js";
 import * as api from "../api.js";
 
 const SEL_HOW = [["", "по правилу 1,6 × In"], ["по времени", "по времени (выдержка tsd вышестоящего)"],
-                 ["по таблице", "по таблице производителя"]];
+                 ["по таблице", "по таблице производителя"], ["на ступень", "на ступень выше (вышестоящий — следующий номинал)"]];
 
 const SERIES = [6, 10, 16, 20, 25, 32, 40, 50, 63, 80, 100, 125, 160, 200, 250, 315, 400, 500, 630, 800, 1000, 1250, 1600];
 const isInput = l => /^ввод/i.test(l.number);
@@ -19,11 +19,13 @@ const trips = l => { const t = (l.scheme.breaker || "").trim().toLowerCase();
 export function selectivity(p){
   const inp = p.lines.find(l => isInput(l) && inOf(l) && trips(l));
   const outs = p.lines.filter(l => !isInput(l) && inOf(l)).map(inOf);
-  const other = (p.selectivity || {}).how;                    // по времени / по таблице: правило 1,6 × In не нужно
+  const how = (p.selectivity || {}).how, step = how === "на ступень";
+  const other = step ? "" : how;                              // по времени / по таблице: правило 1,6 × In не нужно
   const base = other ? null : inp ? inOf(inp) : (outs.length ? Math.max(...outs) : null);
-  const need = Math.max(base ? 1.6 * base : 0, p.result.i_calc || 0);
+  const sel = base ? (step ? (SERIES.find(x => x > base + 1e-9) || SERIES[SERIES.length - 1]) : 1.6 * base) : 0;
+  const need = Math.max(sel, p.result.i_calc || 0);
   const pick = SERIES.find(x => x >= need - 1e-9) || SERIES[SERIES.length - 1];
-  return {inp, base, need, pick, other, by: inp ? `ввода ${inp.number}` : "наибольшего отходящего"};
+  return {inp, base, sel, need, pick, other, step, by: inp ? `ввода ${inp.number}` : "наибольшего отходящего"};
 }
 
 const FIELDS = [
@@ -54,11 +56,11 @@ export function open(p){
       const o = (OPTIONS[path] || {}).options || [];
       return `<div class="row"><label>${t}</label><input data-p="${path}" value="${esc(cur(path, get(ln)))}" list="fd-${path.replace(/\W/g, "_")}">
         <datalist id="fd-${path.replace(/\W/g, "_")}">${o.map(x => `<option value="${esc(x)}">`).join("")}</datalist></div>`; }).join("")}
-    ${(() => { const q = selectivity(p), have = ln.scheme.in_a ?? ln.result.in_by_current, bad = q.base && have < 1.6 * q.base;
+    ${(() => { const q = selectivity(p), have = ln.scheme.in_a ?? ln.result.in_by_current, bad = q.base && have < q.sel - 1e-9;
       const sel = p.selectivity || {};
       return `<div class="row ${bad ? "bad" : ""}" style="display:block">${q.other
           ? `Селективность — ${esc(q.other)}: правило 1,6 × In не проверяется. In фидера ≥ Iр щита ${num(p.result.i_calc, 1)} А; сейчас ${num(have, 0)} А`
-          : `Селективность: In фидера ≥ 1,6 × ${num(q.base, 0) || "—"} А (${q.by})
+          : `Селективность: In фидера ≥ ${q.step ? `${num(q.sel, 0)} А (на ступень выше ${num(q.base, 0) || "—"} А` : `1,6 × ${num(q.base, 0) || "—"} А (`}${q.by})
         и ≥ Iр щита ${num(p.result.i_calc, 1)} А → нужно ≥ ${num(q.need, 1)} А; сейчас ${num(have, 0)} А ${bad ? "— НЕСЕЛЕКТИВНО" : "— ок"}`}
         <button class="mini" data-a="pick" title="In ручной = ${q.pick} А">Подобрать In: ${q.pick} А</button></div>
       <div class="row"><label title="Селективность обеспечена иначе: вышестоящий с выдержкой времени (расцепитель LSI, tsd) или пара из таблицы селективности производителя. Хранит программа (_окно\\структура.json)">Селективность</label>

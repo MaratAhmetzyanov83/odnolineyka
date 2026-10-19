@@ -78,6 +78,24 @@ class TestLinks(unittest.TestCase):
         inp.scheme.breaker = "QS 3P 32А"
         self.assertNotIn(("links.selectivity", "ГРЩ", "Щ.1"), rules_hit(recheck(prj)))
 
+    def test_selectivity_step(self):
+        """Отметка «на ступень»: ввод ЩР-1 25 А -> фидер 25 А мал, 32 А (следующий номинал) — ок, без 1,6 × 25 = 40."""
+        from unittest import mock
+        from odn.services import structure
+        prj = demo()
+        shr, grsh = prj.panel("ЩР-1.xlsx / ЩР-1"), prj.panel("ГРЩ.xlsx / ГРЩ")
+        shr.result.i_calc = 20
+        inp = line(shr.id, "Ввод.1", 25)
+        inp.scheme.breaker = "3P C25А"
+        shr.lines.insert(0, inp)
+        data = structure.load(prj.folder)
+        data["panels"][shr.id] = {"selectivity": {"how": "на ступень"}}
+        with mock.patch.object(structure, "load", return_value=data):
+            grsh.lines[0].scheme.in_a = 25
+            self.assertIn(("links.selectivity", "ГРЩ", "Щ.1"), rules_hit(recheck(prj)))
+            grsh.lines[0].scheme.in_a = 32
+            self.assertNotIn(("links.selectivity", "ГРЩ", "Щ.1"), rules_hit(recheck(prj)))
+
     def test_phase_balance(self):
         """ЩР-1: 4 однофазные по 10 А, все на L1 -> перекос 100 %; «Выровнять фазы» разносит по L2 / L3."""
         from odn.services import fixes

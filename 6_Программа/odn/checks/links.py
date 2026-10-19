@@ -7,6 +7,12 @@ from .util import differ, f
 
 G = "Связи щитов"
 SEL_K = 1.6          # селективность: In фидера ≥ 1,6 · In отходящего (ориентир, как в книге)
+SERIES = [6, 10, 16, 20, 25, 32, 40, 50, 63, 80, 100, 125, 160, 200, 250, 315, 400, 500, 630, 800, 1000, 1250, 1600]
+STEP = "на ступень"  # отметка у нижестоящего: In фидера — следующий номинал выше базы (решение проектировщика)
+
+
+def next_step(x):
+    return next((s for s in SERIES if s > x + 1e-9), SERIES[-1])
 
 
 def _is_input(ln):
@@ -29,6 +35,16 @@ def sel_base(child):
         big = max(outs, key=lambda x: x.in_a)
         return big.in_a, f"отходящий {big.number} в {child.name}", None
     return None, "", None
+
+
+def sel_need(child):
+    """In фидера по селективности -> (нужно, база, «как», строка ввода с автоматом). По времени / по таблице — нужно None.
+    Правило 1,6 × базы; отметка «на ступень» — следующий номинал выше базы."""
+    how = child.selectivity.get("how") or ""
+    base, by, inp = sel_base(child)
+    if not base or (how and how != STEP):
+        return None, base, by, inp
+    return (next_step(base) if how == STEP else SEL_K * base), base, by, inp
 
 
 def _feeders(prj):
@@ -101,19 +117,19 @@ def feeder_small(prj):
 
 @rule("links.selectivity", "Селективность фидера", G)
 def selectivity(prj):
-    """In фидера ≥ 1,6 × наибольший отходящий автомат нижестоящего (ориентир; подтверждать по картам).
-    Не проверяется, если у щита отмечено «селективность: по времени / по таблице» (окно «Фидер ✎»)."""
+    """In фидера ≥ 1,6 × In автомата ввода (иначе наибольшего отходящего) нижестоящего; отметка «на ступень» —
+    следующий номинал выше. Не проверяется при отметке «по времени / по таблице» (окно «Фидер ✎»)."""
     for child, par, ln in _feeders(prj):
-        if child.selectivity.get("how"):
-            continue
-        base, by, inp = sel_base(child)
-        if ln.in_a and base and ln.in_a < SEL_K * base:
+        need, base, by, inp = sel_need(child)
+        if ln.in_a and need and ln.in_a < need - 1e-9:
+            step = child.selectivity.get("how") == STEP
             tip = f"у щита {child.name} «Фидер ✎» → «Подобрать In»"
-            if inp:                                  # дешевле: QS на вводе вместо автомата — база станет отходящий
+            if inp and not step:                     # дешевле: QS на вводе вместо автомата — база станет отходящий
                 tip = f"на вводе {child.name} QS вместо автомата или {tip}"
             if ln.in_a >= 100:                       # литой корпус: выдержка tsd у фидера — без увеличения In
                 tip += " или расцепитель с выдержкой (отметка «по времени»)"
-            yield Hit(1, f"селективность: In фидера {f(ln.in_a)} А < 1,6 × {f(base)} А ({by}) — {tip}",
+            rule_t = f"нужно {f(need)} А (на ступень выше {f(base)} А)" if step else f"< 1,6 × {f(base)} А"
+            yield Hit(1, f"селективность: In фидера {f(ln.in_a)} А {rule_t} ({by}) — {tip}",
                       par.id, ln.number, ln.refs.get("scheme") or ln.refs.get("input"))
 
 
