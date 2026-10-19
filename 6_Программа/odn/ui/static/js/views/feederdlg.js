@@ -3,6 +3,10 @@
 import { esc, num, toast } from "../fmt.js";
 import { S, OPTIONS } from "../store.js";
 import * as pending from "../pending.js";
+import * as api from "../api.js";
+
+const SEL_HOW = [["", "по правилу 1,6 × In"], ["по времени", "по времени (выдержка tsd вышестоящего)"],
+                 ["по таблице", "по таблице производителя"]];
 
 const SERIES = [6, 10, 16, 20, 25, 32, 40, 50, 63, 80, 100, 125, 160, 200, 250, 315, 400, 500, 630, 800, 1000, 1250, 1600];
 const isInput = l => /^ввод/i.test(l.number);
@@ -12,10 +16,11 @@ const inOf = l => l.scheme.in_a ?? l.result.in_by_current;
 export function selectivity(p){
   const inp = p.lines.find(l => isInput(l) && inOf(l));
   const outs = p.lines.filter(l => !isInput(l) && inOf(l)).map(inOf);
-  const base = inp ? inOf(inp) : (outs.length ? Math.max(...outs) : null);
+  const other = (p.selectivity || {}).how;                    // по времени / по таблице: правило 1,6 × In не нужно
+  const base = other ? null : inp ? inOf(inp) : (outs.length ? Math.max(...outs) : null);
   const need = Math.max(base ? 1.6 * base : 0, p.result.i_calc || 0);
   const pick = SERIES.find(x => x >= need - 1e-9) || SERIES[SERIES.length - 1];
-  return {inp, base, need, pick, by: inp ? `ввода ${inp.number}` : "наибольшего отходящего"};
+  return {inp, base, need, pick, other, by: inp ? `ввода ${inp.number}` : "наибольшего отходящего"};
 }
 
 const FIELDS = [
@@ -47,15 +52,29 @@ export function open(p){
       return `<div class="row"><label>${t}</label><input data-p="${path}" value="${esc(cur(path, get(ln)))}" list="fd-${path.replace(/\W/g, "_")}">
         <datalist id="fd-${path.replace(/\W/g, "_")}">${o.map(x => `<option value="${esc(x)}">`).join("")}</datalist></div>`; }).join("")}
     ${(() => { const q = selectivity(p), have = ln.scheme.in_a ?? ln.result.in_by_current, bad = q.base && have < 1.6 * q.base;
-      return `<div class="row ${bad ? "bad" : ""}" style="display:block">Селективность: In фидера ≥ 1,6 × ${num(q.base, 0) || "—"} А (${q.by})
-        и ≥ Iр щита ${num(p.result.i_calc, 1)} А → нужно ≥ ${num(q.need, 1)} А; сейчас ${num(have, 0)} А ${bad ? "— НЕСЕЛЕКТИВНО" : "— ок"}
-        <button class="mini" data-a="pick" title="In ручной = ${q.pick} А">Подобрать In: ${q.pick} А</button></div>`; })()}
+      const sel = p.selectivity || {};
+      return `<div class="row ${bad ? "bad" : ""}" style="display:block">${q.other
+          ? `Селективность — ${esc(q.other)}: правило 1,6 × In не проверяется. In фидера ≥ Iр щита ${num(p.result.i_calc, 1)} А; сейчас ${num(have, 0)} А`
+          : `Селективность: In фидера ≥ 1,6 × ${num(q.base, 0) || "—"} А (${q.by})
+        и ≥ Iр щита ${num(p.result.i_calc, 1)} А → нужно ≥ ${num(q.need, 1)} А; сейчас ${num(have, 0)} А ${bad ? "— НЕСЕЛЕКТИВНО" : "— ок"}`}
+        <button class="mini" data-a="pick" title="In ручной = ${q.pick} А">Подобрать In: ${q.pick} А</button></div>
+      <div class="row"><label title="Селективность обеспечена иначе: вышестоящий с выдержкой времени (расцепитель LSI, tsd) или пара из таблицы селективности производителя. Хранит программа (_окно\\структура.json)">Селективность</label>
+        <select data-sel>${SEL_HOW.map(([v, t]) => `<option value="${esc(v)}" ${v === (sel.how || "") ? "selected" : ""}>${esc(t)}</option>`).join("")}</select></div>
+      <div class="row"><label>Основание</label><input data-seln value="${esc(sel.note || "")}" placeholder="напр. tsd 0,2 с; таблица Chint NM8N / NB1-63"></div>`; })()}
     <div class="sub">Пусто — по расчёту. Правки — в книгу ${esc(par.name)}; книга ${esc(p.name)} пересчитается вместе (Ctrl+S).</div>
     <div class="row end"><button data-a="x">Отмена</button><button data-a="ok" class="on">В правки</button></div>`;
   document.body.appendChild(d);
   d.querySelector('[data-a="x"]').onclick = () => d.remove();
   d.querySelector('[data-a="pick"]').onclick = () => { d.querySelector('[data-p="input.in_manual"]').value = selectivity(p).pick; };
-  d.querySelector('[data-a="ok"]').onclick = () => {
+  d.querySelector('[data-a="ok"]').onclick = async () => {
+    const sel = p.selectivity || {}, how = d.querySelector("[data-sel]").value, note = d.querySelector("[data-seln]").value.trim();
+    if (how !== (sel.how || "") || (how && note !== (sel.note || ""))){       // отметка — сразу, в данные программы
+      try { const r = await api.structure({op: "set_selectivity", panel: p.id, how, note});
+            if (r.ok === false) throw new Error((r.errors || []).join("; "));
+            window.dispatchEvent(new CustomEvent("odn:reload"));
+            toast(how ? `Селективность ${p.name}: ${how}` : `Селективность ${p.name}: по правилу 1,6 × In`, 5000); }
+      catch (e){ toast("Селективность не отмечена: " + e.message, 8000); }
+    }
     const items = [];
     d.querySelectorAll("[data-p]").forEach(i => {
       const f = FIELDS.find(x => x[0] === i.dataset.p);

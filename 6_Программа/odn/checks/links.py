@@ -81,8 +81,11 @@ def feeder_small(prj):
 
 @rule("links.selectivity", "Селективность фидера", G)
 def selectivity(prj):
-    """In фидера ≥ 1,6 × наибольший отходящий автомат нижестоящего (ориентир; подтверждать по картам)."""
+    """In фидера ≥ 1,6 × наибольший отходящий автомат нижестоящего (ориентир; подтверждать по картам).
+    Не проверяется, если у щита отмечено «селективность: по времени / по таблице» (окно «Фидер ✎»)."""
     for child, par, ln in _feeders(prj):
+        if child.selectivity.get("how"):
+            continue
         inp = next((x for x in child.lines if _is_input(x) and x.in_a), None)
         outs = [x.in_a for x in child.lines if x.in_a and not _is_input(x)]
         base, by = (inp.in_a, f"ввод {inp.number} в {child.name}") if inp else \

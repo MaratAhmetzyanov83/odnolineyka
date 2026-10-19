@@ -30,6 +30,8 @@ def feeder_need(child):
     inp = next((x for x in child.lines if _is_input(x) and x.in_a), None)
     outs = [x.in_a for x in child.lines if x.in_a and not _is_input(x)]
     base = inp.in_a if inp else (max(outs) if outs else None)
+    if child.selectivity.get("how"):                  # селективность по времени / по таблице — только Iр щита
+        base = None
     return max(SEL_K * base if base else 0, child.result.i_calc or 0), base
 
 

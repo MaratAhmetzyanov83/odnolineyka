@@ -20,6 +20,7 @@ from ..core.model import Node, Project
 
 FORMAT = 1
 KINDS = ("УЗО", "АВДТ", "Автомат", "Рубильник")
+SEL_HOW = ("по времени", "по таблице")   # селективность фидера обеспечена иначе, чем 1,6 × In (отметка у нижестоящего)
 NODE_INPUT = ("id", "kind", "parent", "bus", "device", "rcd_ma", "note")
 SERVICE_DIR = "_окно"
 
@@ -51,6 +52,7 @@ def apply(prj: Project, data: dict | None = None):
     for p in prj.panels():
         st = data["panels"].get(p.id, {})
         p.nodes = [Node(**{k: v for k, v in n.items() if k in NODE_INPUT}) for n in st.get("nodes", [])]
+        p.selectivity = dict(st.get("selectivity") or {})
         where = st.get("lines", {})
         for ln in p.lines:
             ln.node = where.get(ln.number, "")
@@ -195,6 +197,16 @@ def operate(prj: Project, op: dict) -> dict:
         else:
             st["vru"] = bool(v)
             what = f"ВРУ здания {panel.name}: {'да' if v else 'нет'} (программа)"
+    elif kind == "set_selectivity":
+        how = str(op.get("how") or "").strip()
+        if how and how not in SEL_HOW:
+            raise EditError(f"селективность: {how}? (можно: {', '.join(SEL_HOW)})")
+        if how:
+            st["selectivity"] = {"how": how, "note": str(op.get("note") or "").strip()}
+            what = f"селективность фидера {panel.name}: {how}" + (f" ({st['selectivity']['note']})" if st["selectivity"]["note"] else "")
+        else:
+            st.pop("selectivity", None)
+            what = f"селективность фидера {panel.name}: по правилу 1,6 × In"
     elif kind == "clear_link":
         st.pop("link", None)
         what = f"связь программы убрана: {panel.name} (снова — из книги)"

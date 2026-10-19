@@ -223,6 +223,7 @@ class Panel:
     feeders_seen: list = field(default_factory=list)     # list[FeederSeen]
     notes: list = field(default_factory=list)            # list[Note]
     nodes: list = field(default_factory=list)            # list[Node] — структура щита (каскад)
+    selectivity: dict = field(default_factory=dict)      # селективность с фидером обеспечена иначе (программа): {how, note}
     inputs_more: list = field(default_factory=list)      # list[Supply] — вводы 2 и 3 («Сеть_щита» строки 6–11)
     refs: dict = field(default_factory=dict)             # именованные места: {"supply": Ref, ...}
     # заполняет services.linking
