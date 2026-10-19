@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import re
 
-from ..checks.links import SEL_K, _feeders, _is_input
+from ..checks.links import SEL_K, _feeders, sel_base
 from ..checks.util import f
 
 SERIES = [6, 10, 16, 20, 25, 32, 40, 50, 63, 80, 100, 125, 160, 200, 250, 315, 400, 500, 630, 800, 1000, 1250, 1600]
@@ -26,10 +26,8 @@ def pick_in(need):
 
 
 def feeder_need(child):
-    """In фидера: ≥ 1,6 × In ввода щита (если есть), иначе × наибольшего отходящего; и ≥ Iр щита (как окно «Фидер»)."""
-    inp = next((x for x in child.lines if _is_input(x) and x.in_a), None)
-    outs = [x.in_a for x in child.lines if x.in_a and not _is_input(x)]
-    base = inp.in_a if inp else (max(outs) if outs else None)
+    """In фидера: ≥ 1,6 × In автомата ввода щита (QS не в счёт), иначе × наибольшего отходящего; и ≥ Iр щита (как окно «Фидер»)."""
+    base = sel_base(child)[0]
     if child.selectivity.get("how"):                  # селективность по времени / по таблице — только Iр щита
         base = None
     return max(SEL_K * base if base else 0, child.result.i_calc or 0), base

@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 """Связи щитов: то, чего не видит одна книга. Работают по p.parent / p.parent_line (services.linking)."""
+import re
+
 from .registry import Hit, rule
 from .util import differ, f
 
@@ -9,6 +11,24 @@ SEL_K = 1.6          # селективность: In фидера ≥ 1,6 · In
 
 def _is_input(ln):
     return ln.number.strip().lower().startswith("ввод")
+
+
+def _trips(ln):
+    """Аппарат ввода отключает КЗ: автомат. QS (выключатель нагрузки, рубильник) и пустой ввод — нет."""
+    t = (ln.scheme.breaker or "").strip().lower()
+    return bool(t) and not re.match(r"(qs|вн|рубильник|выключатель нагрузки)", t)
+
+
+def sel_base(child):
+    """База селективности фидера: In автомата ввода щита, иначе наибольший отходящий (ввод с QS не в счёт)."""
+    inp = next((x for x in child.lines if _is_input(x) and x.in_a and _trips(x)), None)
+    if inp:
+        return inp.in_a, f"ввод {inp.number} в {child.name}", inp
+    outs = [x for x in child.lines if x.in_a and not _is_input(x)]
+    if outs:
+        big = max(outs, key=lambda x: x.in_a)
+        return big.in_a, f"отходящий {big.number} в {child.name}", None
+    return None, "", None
 
 
 def _feeders(prj):
@@ -86,14 +106,15 @@ def selectivity(prj):
     for child, par, ln in _feeders(prj):
         if child.selectivity.get("how"):
             continue
-        inp = next((x for x in child.lines if _is_input(x) and x.in_a), None)
-        outs = [x.in_a for x in child.lines if x.in_a and not _is_input(x)]
-        base, by = (inp.in_a, f"ввод {inp.number} в {child.name}") if inp else \
-                   ((max(outs), f"наибольший отходящий в {child.name}") if outs else (None, ""))
+        base, by, inp = sel_base(child)
         if ln.in_a and base and ln.in_a < SEL_K * base:
-            yield Hit(1, f"селективность: In фидера {f(ln.in_a)} А < 1,6 × {f(base)} А ({by}) — "
-                         f"у щита {child.name} «Фидер ✎» → «Подобрать In»", par.id, ln.number,
-                      ln.refs.get("scheme") or ln.refs.get("input"))
+            tip = f"у щита {child.name} «Фидер ✎» → «Подобрать In»"
+            if inp:                                  # дешевле: QS на вводе вместо автомата — база станет отходящий
+                tip = f"на вводе {child.name} QS вместо автомата или {tip}"
+            if ln.in_a >= 100:                       # литой корпус: выдержка tsd у фидера — без увеличения In
+                tip += " или расцепитель с выдержкой (отметка «по времени»)"
+            yield Hit(1, f"селективность: In фидера {f(ln.in_a)} А < 1,6 × {f(base)} А ({by}) — {tip}",
+                      par.id, ln.number, ln.refs.get("scheme") or ln.refs.get("input"))
 
 
 @rule("links.feeder_twice", "Линия-фидер у нескольких щитов", G)

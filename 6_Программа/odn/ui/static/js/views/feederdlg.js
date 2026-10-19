@@ -11,10 +11,13 @@ const SEL_HOW = [["", "по правилу 1,6 × In"], ["по времени", 
 const SERIES = [6, 10, 16, 20, 25, 32, 40, 50, 63, 80, 100, 125, 160, 200, 250, 315, 400, 500, 630, 800, 1000, 1250, 1600];
 const isInput = l => /^ввод/i.test(l.number);
 const inOf = l => l.scheme.in_a ?? l.result.in_by_current;
+// аппарат ввода отключает КЗ: автомат; QS (выключатель нагрузки, рубильник) и пустой ввод — нет (как checks/links._trips)
+const trips = l => { const t = (l.scheme.breaker || "").trim().toLowerCase();
+                     return !!t && !/^(qs|вн|рубильник|выключатель нагрузки)/.test(t); };
 
 // селективность: In фидера ≥ 1,6 × In ввода щита (если ввод с аппаратом), иначе × наибольшего отходящего; и ≥ Iр щита
 export function selectivity(p){
-  const inp = p.lines.find(l => isInput(l) && inOf(l));
+  const inp = p.lines.find(l => isInput(l) && inOf(l) && trips(l));
   const outs = p.lines.filter(l => !isInput(l) && inOf(l)).map(inOf);
   const other = (p.selectivity || {}).how;                    // по времени / по таблице: правило 1,6 × In не нужно
   const base = other ? null : inp ? inOf(inp) : (outs.length ? Math.max(...outs) : null);

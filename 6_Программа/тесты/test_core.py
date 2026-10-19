@@ -66,6 +66,18 @@ class TestLinks(unittest.TestCase):
         grsh.lines[0].scheme.in_a = 32
         self.assertEqual(rules_hit(recheck(prj)), [])
 
+    def test_selectivity_input_qs(self):
+        """Автомат на вводе ЩР-1 32 А — база 32 (фидер 32 < 51,2). QS на вводе — база отходящий 16 (32 ≥ 25,6)."""
+        prj = demo()
+        shr, grsh = prj.panel("ЩР-1.xlsx / ЩР-1"), prj.panel("ГРЩ.xlsx / ГРЩ")
+        shr.result.i_calc, grsh.lines[0].scheme.in_a = 20, 32
+        inp = line(shr.id, "Ввод.1", 32)
+        inp.scheme.breaker = "3P C32А"
+        shr.lines.insert(0, inp)
+        self.assertIn(("links.selectivity", "ГРЩ", "Щ.1"), rules_hit(recheck(prj)))
+        inp.scheme.breaker = "QS 3P 32А"
+        self.assertNotIn(("links.selectivity", "ГРЩ", "Щ.1"), rules_hit(recheck(prj)))
+
     def test_missing_parent(self):
         prj = demo()
         prj.panel("ЩР-1.xlsx / ЩР-1").supply.from_doc = "..\\Нет.xlsx"
