@@ -34,6 +34,8 @@ FIELDS = {
     "scheme.breaker_set": dict(kind="line", type="text", title="Автомат («авто» или текст)", options=["авто"],
                                when="group_head"),
     "scheme.bus":        dict(kind="line", type="text", title="Шина"),
+    "scheme.phase_set":  dict(kind="line", type="text", title="Фаза вручную (1 / 2 / 3 / 1,2,3; пусто — авто)",
+                              options=["1", "2", "3", "1,2,3"], choices=["", "1", "2", "3", "1,2,3"]),
     "input.low_current_set": dict(kind="line", type="text", title="Слаботочная (по коду / да / нет)",
                                   options=["по коду", "да", "нет"], choices=["", "по коду", "да", "нет"],
                                   feature="low_current"),

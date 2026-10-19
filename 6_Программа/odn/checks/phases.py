@@ -2,6 +2,7 @@
 """Перекос фаз щита — с учётом нижестоящих щитов (calc.phases)."""
 from .registry import Hit, rule
 from .util import f
+from ..calc.phases import phases_of
 
 G = "Фазы"
 SKEW_MAX = 15.0          # %, как подсветка в окне
@@ -11,6 +12,9 @@ I_MIN = 5.0              # А: малые токи не проверять (пе
 @rule("phases.skew", "Перекос фаз (с нижестоящими)", G)
 def skew(prj):
     for p in prj.panels():
+        feeder = prj.line(p.parent, p.parent_line) if p.parent and p.parent_line else None
+        if feeder is not None and len(phases_of(feeder)) == 1:
+            continue                                 # щит на однофазном фидере: перекос — в вышестоящем
         v = p.phase_i or {}
         if max(v.values() or [0]) >= I_MIN and p.phase_skew > SKEW_MAX:
             fed = any(ln.phase_i for ln in p.lines)

@@ -34,6 +34,9 @@ def cells_for(prj, changes):
             elif ch.path in X.ODN_EDIT:
                 ref = ln.refs.get("scheme")
                 col, sheet = X.ODN_EDIT[ch.path], X.ODN
+            elif ch.path in X.LOAD_EDIT:
+                ref = ln.refs.get("load")
+                col, sheet = X.LOAD_EDIT[ch.path], X.LOAD
             else:
                 raise EditError(f"{ch.path}: нет адреса в книге")
             if ref is None:
@@ -44,6 +47,8 @@ def cells_for(prj, changes):
                 v = X.LOW_VALUE.get(v, X.LOW_FORMULA.format(r=row))
                 doc = next((d for d in prj.documents if d.file == prj.panel(ch.panel).doc), None)
                 col = (doc.low_col if doc else "") or col
+            if ch.path == "scheme.phase_set" and v in ("1", "2", "3"):
+                v = int(v)                              # формула G: «L»&E и E=0 — число, как вводят вручную
             out.append((sheet, f"{col}{row}", v))
         elif ch.path == "scheme.is_vru":              # столбец щита: C / D / E по порядку щитов книги
             p = prj.panel(ch.panel)

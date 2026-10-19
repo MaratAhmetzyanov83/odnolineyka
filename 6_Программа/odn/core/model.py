@@ -16,7 +16,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Optional
 
-SCHEMA = 8            # версия формата JSON (и кэша): менять, когда модель или чтение книг меняются несовместимо
+SCHEMA = 9            # версия формата JSON (и кэша): менять, когда модель или чтение книг меняются несовместимо
 
 
 # ---------------------------------------------------------------- место в источнике (куда идти править)
@@ -67,6 +67,7 @@ class LineScheme:
     devices: list = field(default_factory=list)
     terminal: str = ""
     phase: str = ""                     # L1 / L1,L2,L3
+    phase_set: str = ""                 # «Нагрузка_щитов» E: фаза вручную 1 / 2 / 3 / 1,2,3; пусто — автоматическая
     cable: str = ""                     # кабель текстом: марка (жилы×сечение) L-ΔU
 
 

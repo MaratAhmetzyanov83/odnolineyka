@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import re
 
-from ..checks.links import SEL_K, _feeders, sel_base
+from ..checks.links import SEL_K, _feeders, _is_input, sel_base
 from ..checks.util import f
 
 SERIES = [6, 10, 16, 20, 25, 32, 40, 50, 63, 80, 100, 125, 160, 200, 250, 315, 400, 500, 630, 800, 1000, 1250, 1600]
@@ -180,7 +180,58 @@ def fix_book_status(prj):
                        "text": "пуск двигателя: характеристика D", "was": ln.scheme.breaker, "now": now, "checked": False}
 
 
-FIXERS = [fix_feeders, fix_sync, fix_nodes, fix_extra_rcd, fix_cable, fix_book_status, fix_manual]
+def balance(p, prj, goal=5.0, moves=40):
+    """Однофазные линии щита по фазам: по одной переносить линию, пока разброс (max − min) уменьшается.
+    Фидеры нижестоящих и трёхфазные — на месте (их ток в сумме). -> {номер линии: новая фаза «1» / «2» / «3»}."""
+    from ..calc.phases import PH, phases_of, skew
+    tot = {k: float((p.phase_i or {}).get(k, 0.0)) for k in PH}
+    lines = {ln.number: (ln, phases_of(ln)[0]) for ln in p.lines
+             if not _is_input(ln) and not (ln.feeds and prj.panel(ln.feeds)) and not ln.node and ln.refs.get("load")
+             and (ln.input.phases or 1) < 3 and len(phases_of(ln)) == 1 and (ln.result.i_calc or 0) > 0}
+    now = {n: ph for n, (_, ph) in lines.items()}
+    spread = lambda t: max(t.values()) - min(t.values())  # noqa: E731
+    for _ in range(moves):
+        if skew(tot) <= goal:
+            break
+        best = None
+        for n, (ln, _) in lines.items():
+            i, c = ln.result.i_calc, now[n]
+            for t in PH:
+                if t != c:
+                    trial = dict(tot)
+                    trial[c] -= i
+                    trial[t] += i
+                    if best is None or spread(trial) < best[0]:
+                        best = (spread(trial), n, t, trial)
+        if best is None or best[0] >= spread(tot) - 0.05:
+            break
+        _, n, t, tot = best
+        now[n] = t
+    return {n: ph[1] for n, ph in now.items() if ph != lines[n][1]}, tot
+
+
+def fix_phases(prj):
+    """Перекос фаз > 15 %: перенести однофазные линии («Нагрузка_щитов» E — фаза вручную)."""
+    from ..calc.phases import PH, phases_of, skew
+    from ..checks.phases import I_MIN, SKEW_MAX
+    for p in prj.panels():
+        feeder = prj.line(p.parent, p.parent_line) if p.parent and p.parent_line else None
+        if feeder is not None and len(phases_of(feeder)) == 1:
+            continue
+        v = p.phase_i or {}
+        if max(v.values() or [0]) < I_MIN or p.phase_skew <= SKEW_MAX:
+            continue
+        moved, tot = balance(p, prj)
+        after = skew(tot)
+        for n, ph in moved.items():
+            ln = prj.line(p.id, n)
+            yield {"rule": "phases.skew", "kind": "edit", "panel": p.id, "line": n, "path": "scheme.phase_set",
+                   "text": f"перекос {f(p.phase_skew, 0)} % → {f(after, 0)} %: линию {n} ({f(ln.result.i_calc)} А) "
+                           f"на L{ph} — затем SXUPDATE чертежа",
+                   "was": " ".join(phases_of(ln)), "now": ph, "checked": True}
+
+
+FIXERS = [fix_feeders, fix_sync, fix_nodes, fix_extra_rcd, fix_cable, fix_book_status, fix_phases, fix_manual]
 
 
 def propose(prj) -> list:

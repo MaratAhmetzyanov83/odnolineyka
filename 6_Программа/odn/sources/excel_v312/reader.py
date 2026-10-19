@@ -157,6 +157,7 @@ class ExcelV312(Source):
             sh = lambda n, m=X.LAST_ROW: Rows(wb[n] if n in wb.sheetnames else None, m)  # noqa: E731
             src = sh(X.SRC)
             _fill(doc, src, sh(X.ODN), sh(X.SPLIT), sh(X.NET, X.NET_ROWS))
+            _load(doc, sh(X.LOAD))
             _low_current(doc, src)
             if X.KJ in wb.sheetnames:
                 doc.cable_journal = _kj_rows(wb[X.KJ])
@@ -304,6 +305,22 @@ def _fill(doc: M.Document, src: Rows, odn: Rows, split: Rows, net: Rows):
                 owner.feeders_seen.append(fs)
 
     doc.panels = list(panels.values())
+
+
+def _load(doc: M.Document, load: Rows):
+    """«Нагрузка_щитов»: строка линии (C щит + D линия) -> refs["load"], ручная фаза E -> scheme.phase_set."""
+    rows = {}
+    for i in load.data():
+        key = (txt(load.get(i, X.LOAD_PANEL)), txt(load.get(i, X.LOAD_LINE)))
+        if key[1]:
+            rows.setdefault(key, i)
+    for p in doc.panels:
+        for ln in p.lines:
+            r = rows.get((p.name, ln.number))
+            if r:
+                ln.refs["load"] = _ref(doc, X.LOAD, X.LOAD_LINE, r)
+                v = load.get(r, X.LOAD_PHASE_SET)
+                ln.scheme.phase_set = "" if v is None else (f"{v:g}" if isinstance(v, float) else txt(v))
 
 
 def _panels(doc, odn: Rows, net: Rows):

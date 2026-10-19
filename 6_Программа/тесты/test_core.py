@@ -78,6 +78,20 @@ class TestLinks(unittest.TestCase):
         inp.scheme.breaker = "QS 3P 32А"
         self.assertNotIn(("links.selectivity", "ГРЩ", "Щ.1"), rules_hit(recheck(prj)))
 
+    def test_phase_balance(self):
+        """ЩР-1: 4 однофазные по 10 А, все на L1 -> перекос 100 %; «Выровнять фазы» разносит по L2 / L3."""
+        from odn.services import fixes
+        prj = demo()
+        shr = prj.panel("ЩР-1.xlsx / ЩР-1")
+        shr.lines = [line(shr.id, f"R.{k}") for k in range(1, 5)]
+        for ln in shr.lines:
+            ln.scheme.phase, ln.result.i_calc = "L1", 10.0
+            ln.refs["load"] = Ref("x.xlsx", "Нагрузка_щитов", "D3")
+        recheck(prj)
+        self.assertIn(("phases.skew", "ЩР-1", ""), rules_hit(prj))
+        got = [x for x in fixes.fix_phases(prj) if x["panel"] == shr.id]
+        self.assertEqual(sorted(x["now"] for x in got), ["2", "3"])
+
     def test_missing_parent(self):
         prj = demo()
         prj.panel("ЩР-1.xlsx / ЩР-1").supply.from_doc = "..\\Нет.xlsx"
