@@ -1,5 +1,5 @@
 ;;; ================================================================
-;;;  DLN v21 — длины кабельных линий из планов в таблицу однолинейки
+;;;  DLN v22 — длины кабельных линий из планов в таблицу однолинейки
 ;;;  Книги: 1.06 / 1.05 / v3.12 (лист «Исходные данные»); v4, v5 (лист «Линии») — архив.
 ;;;  Команды:  DLN      — заполнить таблицу (первый раз)
 ;;;            DLN_UPD  — обновить после правок планов: длины, кол-во, текст выноски;
@@ -9,9 +9,8 @@
 ;;;            DLN_SVR  — сверка плана и таблицы по ВСЕМ листам (линии щита на разных
 ;;;                       этажах, трасса до стояка): лист «Сверка» + пометки, таблицу не меняет
 ;;;            DLN_CHK  — только проверка чертежа;  DLN_XLS — сбросить путь к таблице
-;;;  Перед записью DLN спрашивает таблицу: Enter — та же, «Другая» — выбрать книгу.
-;;;  Из модели: рамка двумя точками — берутся только трассы и выноски в рамке
-;;;  (Enter — видовые экраны всех листов). На листе — рамки видовых экранов.
+;;;            DLN_RAMKA — рамка (в модели / ВЭ) + книга: линии из рамки — в эту книгу
+;;;                       (как DLN_UPD; путь DLN / DLN_UPD не меняется)
 ;;;  ДСУП: точка РЕ с КУП в CK («Однолинейка») — длина от КУП до точки, трасса проверяется
 ;;;  до конца трассы своей КУП; сама КУП — от щита до КУП (обычная линия).
 ;;;  Колонка «DWG: листы» — на каких листах видна линия. Стояк (блок на слое *Стояк*) —
@@ -187,7 +186,7 @@
 ;;  - курсор внутри ВЭ на листе -> этот ВЭ
 ;;  - на листе в пространстве листа -> выбрать рамки ВЭ (Enter = все крупные ВЭ листа)
 ;;  - в модели -> все крупные ВЭ всех листов
-(defun dl:pick-wins (/ ss i w res p0 p1)
+(defun dl:pick-wins (/ ss i w res)
   (cond
     ((and (= (getvar "TILEMODE") 0) (> (getvar "CVPORT") 1))
      (setq ss (ssget "_X" (list '(0 . "VIEWPORT") (cons 410 (getvar "CTAB")) (cons 69 (getvar "CVPORT")))))
@@ -197,18 +196,9 @@
      (if (null (setq ss (ssget '((0 . "VIEWPORT")))))
        (setq ss (ssget "_X" (list '(0 . "VIEWPORT") (cons 410 (getvar "CTAB")))))))
     (T
-     (if (setq p0 (getpoint "\nDLN: первый угол рамки плана <Enter — видовые экраны всех листов>: "))
-       (setq p1 (getcorner p0 "\nDLN: второй угол рамки: ")))))
-  (if (and p0 p1)
-    ;; рамка в модели: окно (x0 y0 x1 y1 нет-замороженных (cx cy cx cy 1 "Model"))
-    (list (list (min (car p0) (car p1)) (min (cadr p0) (cadr p1))
-                (max (car p0) (car p1)) (max (cadr p0) (cadr p1)) nil
-                (list 0.0 0.0 0.0 0.0 1.0 "Model")))
-    (progn
-      (if (and (null ss) (= (getvar "TILEMODE") 1))
-        (progn (princ "\nDLN: беру крупные видовые экраны всех листов.")
-               (setq ss (ssget "_X" '((0 . "VIEWPORT"))))))
-      (dl:ss-wins ss))))
+     (princ "\nDLN: запущено из модели — беру крупные видовые экраны всех листов.")
+     (setq ss (ssget "_X" '((0 . "VIEWPORT"))))))
+  (dl:ss-wins ss))
 (defun dl:ss-wins (ss / i w res)
   (if ss
     (repeat (setq i (sslength ss))
@@ -1124,11 +1114,6 @@
 (defun dl:xls-path (ask / p)
   (setq p (vlax-ldata-get "DLN" "xls"))
   (if (or (null p) (not (findfile p))) (setq p (getenv "DLN_XLS")))
-  (if (and ask p (/= p "") (findfile p))
-    (progn
-      (initget "Другая _Other")
-      (if (= (getkword (strcat "\nDLN: таблица «" (vl-filename-base p) "». [Другая] <Enter — эта>: ")) "Other")
-        (setq p (getfiled "Таблица однолинейки (xlsx / xlsm)" p "xlsx;xlsm" 0)))))
   (if (and ask (or (null p) (= p "") (not (findfile p))))
     (setq p (getfiled "Таблица однолинейки (xlsx / xlsm)" (getvar "DWGPREFIX") "xlsx;xlsm" 0)))
   (if (and p (/= p "") (findfile p))
@@ -1273,19 +1258,39 @@
 (defun c:DLN_PREV () (dl:nav -1))
 
 ;;; ---------- команды ----------
-(defun c:DLN () (dl:run 'fill))
-(defun c:DLN_UPD () (dl:run 'upd))
+(defun c:DLN () (setq *dl-ram* nil) (dl:run 'fill))
+(defun c:DLN_UPD () (setq *dl-ram* nil) (dl:run 'upd))
+;; DLN_RAMKA — линии в рамке (модель или активный ВЭ) -> книга, выбранная сейчас.
+;; Путь DLN / DLN_UPD не меняется. Режим — обновить (новые линии добавляются).
+(setq *dl-ram* nil)
+(defun c:DLN_RAMKA (/ p0 p1 path)
+  (if (and (= (getvar "TILEMODE") 0) (= (getvar "CVPORT") 1))
+    (progn (princ "\nDLN: войдите в модель или в видовой экран (двойной щелчок) и повторите.") (exit)))
+  (if (and (setq p0 (getpoint "\nDLN: первый угол рамки: "))
+           (setq p1 (getcorner p0 "\nDLN: второй угол рамки: "))
+           (setq path (getfiled "Книга, куда писать линии из рамки (xlsx / xlsm)"
+                                (cond ((dl:xls-path nil)) ((getvar "DWGPREFIX"))) "xlsx;xlsm" 0)))
+    (progn
+      (setq p0 (trans p0 1 0) p1 (trans p1 1 0)
+            *dl-ram* (list path
+                           (list (list (min (car p0) (car p1)) (min (cadr p0) (cadr p1))
+                                       (max (car p0) (car p1)) (max (cadr p0) (cadr p1)) nil
+                                       (list 0.0 0.0 0.0 0.0 1.0 "Model")))))
+      (dl:run 'upd)
+      (setq *dl-ram* nil))
+    (princ "\nDLN: рамка или книга не выбраны."))
+  (princ))
 (defun dl:run (mode / *error* path wins labels issues sum res bad ss)
   (defun *error* (m)
     (dl:restore-xl)
     (if (not (wcmatch (strcase m) "*CANCEL*,*QUIT*,*EXIT*")) (princ (strcat "\nDLN: " m)))
     (princ))
   (setq *dl-app* nil)
-  (setq path (dl:xls-path T))
+  (setq path (if *dl-ram* (car *dl-ram*) (dl:xls-path T)))
   (if (null path)
     (princ "\nDLN: таблица не выбрана.")
     (progn
-      (setq wins (dl:pick-wins) *dl-vps* wins)
+      (setq wins (if *dl-ram* (cadr *dl-ram*) (dl:pick-wins)) *dl-vps* wins)
       (if (null wins) (progn (princ "\nDLN: не найден ни один видовой экран плана.") (exit)))
       (setq *dl-filter* (getstring "\nDLN: какие линии брать, напр. R* или L*,LD*,LED* <все>: "))
       (if (= *dl-filter* "") (setq *dl-filter* nil))
