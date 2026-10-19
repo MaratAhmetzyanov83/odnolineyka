@@ -1,5 +1,5 @@
 ;;; ================================================================
-;;;  DLN v19 — длины кабельных линий из планов в таблицу однолинейки
+;;;  DLN v20 — длины кабельных линий из планов в таблицу однолинейки
 ;;;  Книги: 1.06 / 1.05 / v3.12 (лист «Исходные данные»); v4, v5 (лист «Линии») — архив.
 ;;;  Команды:  DLN      — заполнить таблицу (первый раз)
 ;;;            DLN_UPD  — обновить после правок планов: длины, кол-во, текст выноски;
@@ -11,7 +11,8 @@
 ;;;            DLN_CHK  — только проверка чертежа;  DLN_XLS — сбросить путь к таблице
 ;;;            DLN_KNIGI — книги щитов чертежа (на плане линии нескольких щитов): линия
 ;;;                       пишется в книгу, где её номер уже есть; новая — в книгу щита, чей
-;;;                       блок у конца трассы (имя блока = щит); иначе не пишется, пометка.
+;;;                       блок у конца трассы (имя блока = щит), иначе по соседним трассам,
+;;;                       иначе по номеру помещения; не понятно — не пишется, пометка.
 ;;;                       DLN_SVR — по одной книге (DLN_XLS).
 ;;;  ДСУП: точка РЕ с КУП в CK («Однолинейка») — длина от КУП до точки, трасса проверяется
 ;;;  до конца трассы своей КУП; сама КУП — от щита до КУП (обычная линия).
@@ -1134,9 +1135,12 @@
 ;;; ---------- несколько щитов на плане: какая линия в какую книгу ----------
 ;; Книги щитов — DLN_KNIGI (ldata «xlsl»). Линия идёт в книгу, где её номер уже есть в таблице.
 ;; Новой линии нет ни в одной таблице — книга по блоку щита у конца трассы: имя блока
-;; (или атрибут) = щит книги («Разбивка_по_щитам» F, «Однолинейка» A, имя файла без «Однолинейка»).
+;; (или атрибут) = щит книги («Разбивка_по_щитам» F, «Однолинейка» A, имя файла без «Однолинейка»);
+;; нет блока — по соседним трассам (у конца трассы — концы трасс линий известной книги),
+;; потом по номеру помещения («КУП.0.007А.1» -> книга с линиями «*.0.007*»).
 ;; Не понятно — линия никуда не пишется, на плане пометка (*dl-xmarks*), список *dl-skip*.
-(setq *dl-xmarks* nil *dl-skip* nil)
+(setq *dl-xmarks* nil *dl-skip* nil *dl-guess* nil
+      *dl-ntol* 1000.0)        ; мм, конец трассы у конца трассы другой линии — тот же щит / КУП
 (defun dl:pn (s) (dl:norm (dl:subst-all " " "" (dl:str s))))
 (defun dl:sheet (book nm / sh)
   (setq sh (vl-catch-all-apply 'vlax-get-property (list (vlax-get-property book 'Worksheets) 'Item nm)))
@@ -1195,9 +1199,42 @@
   (foreach p *dl-polys* (if (equal (dl:getg (car p)) (list g)) (setq r (cons (nth 5 p) (cons (nth 6 p) r)))))
   r)
 (defun dl:in-names (in) (dl:bname-path (car in)))
-;; sum -> ((путь s ...) ...) по книгам; *dl-skip*, *dl-xmarks*
-(defun dl:assign (sum infos labels / res g ng hits pn c own oth)
-  (setq *dl-xmarks* nil *dl-skip* nil *dl-panb* (dl:panel-blocks infos)
+;; уровень.помещение из номера: "КУП.0.007А.1" -> "0.007", "R.1.012.1A.1" -> "1.012"; нет -> nil
+(defun dl:room-key (n / s d i)
+  (setq s (dl:splitc n "."))
+  (if (>= (length s) 3)
+    (progn
+      (setq d "" i 1)
+      (while (and (<= i (strlen (caddr s))) (wcmatch (substr (caddr s) i 1) "#"))
+        (setq d (strcat d (substr (caddr s) i 1)) i (1+ i)))
+      (if (/= d "") (strcat (cadr s) "." d)))))
+;; ((ключ . голоса) ...) -> ключ с наибольшим числом голосов, если он один такой
+(defun dl:best (al)
+  (setq al (vl-sort al '(lambda (a b) (> (cdr a) (cdr b)))))
+  (if (and al (or (null (cdr al)) (> (cdar al) (cdadr al)))) (caar al)))
+;; голоса книг по соседним трассам: конец трассы g у конца трассы линии, чья книга уже известна
+;; (у щита сходятся трассы его линий; точка РЕ начинается у трассы своей КУП)
+(defun dl:near-vote (g gb / al b)
+  (foreach pt (dl:gends g)
+    (foreach p *dl-polys*
+      (if (and (= (length (dl:getg (car p))) 1) (/= (car (dl:getg (car p))) g)
+               (setq b (cdr (assoc (car (dl:getg (car p))) gb)))
+               (<= (dl:enddist pt p) *dl-ntol*))
+        (setq al (dl:inc b al)))))
+  (dl:best al))
+;; голоса книг по номеру помещения: в книге есть линии того же «уровень.помещение»
+(defun dl:room-vote (g infos / k al n)
+  (if (setq k (dl:room-key (dl:norm g)))
+    (foreach in infos
+      (setq n 0)
+      (foreach x (cadr in) (if (= (dl:room-key x) k) (setq n (1+ n))))
+      (if (> n 0) (setq al (cons (cons (car in) n) al)))))
+  (dl:best al))
+;; sum -> ((путь s ...) ...) по книгам; *dl-skip*, *dl-xmarks*, *dl-guess* ((линия путь как) ...)
+;; 1) номер есть в одной книге; 2) блок щита с именем у конца трассы; 3) соседние трассы
+;; (повторять: точки РЕ — после своей КУП); 4) номер помещения; иначе не пишется
+(defun dl:assign (sum infos labels / res g ng hits pn c own oth gb pend left b how chg)
+  (setq *dl-xmarks* nil *dl-skip* nil *dl-guess* nil *dl-panb* (dl:panel-blocks infos)
         res (mapcar '(lambda (in) (list (car in))) infos))
   (foreach s sum
     (setq g (car s) ng (dl:norm g) pn nil own nil
@@ -1213,17 +1250,47 @@
                                        (strcat g ": трасса у щита книги «" (dl:in-names (car oth))
                                                "», а линия в таблице «" (dl:in-names own) "» — записано туда"))
                                  *dl-xmarks*))))
-      ((= (length c) 1) (setq own (car c)))
-      (T
-       (setq *dl-skip* (cons g *dl-skip*)
-             *dl-xmarks* (cons (list (dl:first-arrow g labels)
-                                     (strcat g (if hits
-                                                 (strcat ": номер есть в книгах " (dl:join (mapcar 'dl:in-names hits) ", ")
-                                                         " — не записано, щит не определён")
-                                                 ": нет ни в одной книге, у трассы нет блока щита с именем — не записано")))
-                               *dl-xmarks*))))
-    (if own (setq res (subst (append (assoc (car own) res) (list s)) (assoc (car own) res) res))))
+      ((= (length c) 1) (setq own (car c))))
+    (if own
+      (setq gb (cons (cons g (car own)) gb))
+      (setq pend (cons (list s (mapcar 'car hits)) pend))))
+  (setq pend (reverse pend) chg T)
+  (while (and pend chg)
+    (setq chg nil left nil)
+    (foreach q pend
+      (setq b (dl:near-vote (car (car q)) gb))
+      (if (and b (or (null (cadr q)) (member b (cadr q))))
+        (setq gb (cons (cons (car (car q)) b) gb) chg T
+              *dl-guess* (cons (list (car (car q)) b "по соседним трассам") *dl-guess*))
+        (setq left (cons q left))))
+    (setq pend (reverse left)))
+  (foreach q pend
+    (setq g (car (car q))
+          b (dl:room-vote g (if (cadr q) (vl-remove-if-not '(lambda (in) (member (car in) (cadr q))) infos) infos)))
+    (if b
+      (setq gb (cons (cons g b) gb)
+            *dl-guess* (cons (list g b "по номеру помещения") *dl-guess*))
+      (setq *dl-skip* (cons g *dl-skip*)
+            *dl-xmarks* (cons (list (dl:first-arrow g labels)
+                                    (strcat g (if (cadr q)
+                                                (strcat ": номер есть в книгах "
+                                                        (dl:join (mapcar 'dl:bname-path (cadr q)) ", ")
+                                                        " — не записано, щит не определён")
+                                                ": нет ни в одной книге, щит не определён (нет блока щита с именем,"
+                                                " соседних трасс и линий того же помещения) — не записано")))
+                              *dl-xmarks*))))
+  (foreach s sum
+    (if (setq b (cdr (assoc (car s) gb)))
+      (setq res (subst (append (assoc b res) (list s)) (assoc b res) res))))
   res)
+;; новые линии, чья книга найдена без таблицы, — по книгам
+(defun dl:print-guess (/ bks)
+  (foreach x *dl-guess* (if (not (member (cadr x) bks)) (setq bks (cons (cadr x) bks))))
+  (foreach bk (reverse bks)
+    (princ (strcat "\n  новые линии -> " (dl:bname-path bk) ": "
+                   (dl:join (mapcar '(lambda (x) (strcat (car x) " (" (caddr x) ")"))
+                                    (vl-remove-if-not '(lambda (x) (= (cadr x) bk)) (reverse *dl-guess*)))
+                            ", ")))))
 ;; книги щитов из DLN_KNIGI (живые файлы)
 (defun dl:xls-list (/ l)
   (setq l (vlax-ldata-get "DLN" "xlsl"))
@@ -1431,6 +1498,7 @@
                                ", обновлено строк: " (itoa (car res)) ", добавлено: " (itoa (cadr res)))))
               (princ (strcat "\n  " (dl:bname-path (car pt)) ": линий этого щита на плане нет — книга не тронута"))))
           (setq *dl-tnames* tn *dl-missing* ms *dl-marked* mk *dl-renamed* rn *dl-added* ad *dl-kup* kp)
+          (dl:print-guess)
           (if *dl-skip* (princ (strcat "\n  не записаны — щит не определён (" (itoa (length *dl-skip*)) "): "
                                        (dl:join (reverse *dl-skip*) ", ")))))
         (progn
@@ -1474,7 +1542,7 @@
   (setq sum (dl:summary labels)
         *dl-missing* (if *dl-tnames* (dl:missing *dl-tnames* sum))
         *dl-chk-only* T)
-  (if infos (dl:assign sum infos labels))
+  (if infos (progn (dl:assign sum infos labels) (dl:print-guess)))
   (dl:check labels issues sum)
   (setq *dl-chk-only* nil)
   (princ))
