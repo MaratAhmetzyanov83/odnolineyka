@@ -749,6 +749,28 @@
            (/= (strcase f) (strcase (findfile path))))
     f))
 
+;;; v3.27: библиотека по умолчанию — SX_База_блоков.dwg (чего в ней нет — из 02_Однолинейка.dwg рядом,
+;;; sx:lib-fallback). Берётся, если путь не задан или файла нет (переехал, путь с другого ПК).
+;;; Папка: ..\Блоки рядом с SX_Schema.lsp или папка проекта на рабочем столе.
+;;; Без библиотеки нет «Розетка1» и др., и все УГО — кабельные выводы
+(defun sx:lib-fix ( / f dirs)
+  (if (not (and sx:lib (/= sx:lib "") (findfile sx:lib)))
+    (progn
+      (if (setq f (findfile "SX_Schema.lsp"))
+        (setq dirs (list (strcat (vl-filename-directory f) "\\..\\" (sx:ru '(1041 1083 1086 1082 1080))))))
+      (if (getenv "USERPROFILE")   ; \Desktop\02_Справочники_CAD_Revit\odnolineyka\2_AutoCAD\Блоки
+        (setq dirs (append dirs (list (strcat (getenv "USERPROFILE")
+          (sx:ru '(92 68 101 115 107 116 111 112 92 48 50 95 1057 1087 1088 1072 1074 1086 1095 1085 1080 1082 1080 95 67 65 68 95 82 101 118 105 116 92 111 100 110 111 108 105 110 101 121 107 97 92 50 95 65 117 116 111 67 65 68 92 1041 1083 1086 1082 1080)))))))
+      (setq f nil)
+      (foreach n (list (sx:ru '(83 88 95 1041 1072 1079 1072 95 1073 1083 1086 1082 1086 1074 46 100 119 103))        ; SX_База_блоков.dwg
+                       (sx:ru '(48 50 95 1054 1076 1085 1086 1083 1080 1085 1077 1081 1082 1072 46 100 119 103)))  ; 02_Однолинейка.dwg
+        (foreach dr dirs
+          (if (and (null f) (findfile (strcat dr "\\" n))) (setq f (findfile (strcat dr "\\" n))))))
+      (if f
+        (progn (sx:log (strcat "lib: " (sx:str sx:lib) " not found, using " f))
+               (setq sx:lib f)))))
+  sx:lib)
+
 ;;; какие из names есть в библиотеке или в запасной
 (defun sx:lib-found (path names / res rest fb)
   (setq res (sx:lib-found1 path names)
@@ -2414,6 +2436,7 @@
     (progn
       ;; (а) блоки: нет ни в чертеже, ни в библиотеке -> заглушки SX_*
       (setq miss0 (vl-remove-if '(lambda (n) (tblsearch "BLOCK" n)) (sx:need-blocks draw)))
+      (sx:lib-fix)
       (if miss0
         (progn
           (setq found (if (and sx:lib (/= sx:lib "")) (sx:lib-found sx:lib miss0)))
@@ -2539,6 +2562,7 @@
   (setvar "CMDECHO" 0)
   (setq sx:inspt (vlax-ldata-get "SX_Schema" "pt"))
   (if (null sx:lib) (setq sx:lib (getenv "SX_LibDwg")))
+  (sx:lib-fix)   ; нет файла -> SX_База_блоков.dwg (видно в окне)
   ;; SXUPDSEL: сначала выбор, Excel открывается только если есть что обновлять
   (if sx:part
     (progn
@@ -2658,6 +2682,7 @@
   (sx:stg "layers") (sx:layers)
   (sx:stg "roles") (sx:roles)
   (sx:stg "make-blocks") (sx:make-blocks T)
+  (sx:lib-fix)
   (if (and sx:lib (/= sx:lib "")) (setenv "SX_LibDwg" sx:lib))
   (sx:stg "import-blocks")
   (setq sx:custom nil)
