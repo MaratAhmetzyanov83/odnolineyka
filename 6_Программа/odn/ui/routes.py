@@ -145,6 +145,16 @@ def _start_bg(app: App, res: dict):
     threading.Thread(target=work, daemon=True).start()
 
 
+@route("POST", "/api/spec/ok")
+def post_spec_ok(app: App, body):
+    """«Спецификация верна»: запомнить аппараты и лист книги (services.spec_stamp)."""
+    from ..services import spec_stamp
+    res = spec_stamp.accept(app.prj, body.get("doc", ""))
+    if res.get("ok"):
+        app.refresh()
+    return res
+
+
 @route("GET", "/api/bg")
 def get_bg(app: App, body):
     return {"ok": True, **app.bg}

@@ -16,7 +16,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Optional
 
-SCHEMA = 6            # версия формата JSON (и кэша): менять, когда модель или чтение книг меняются несовместимо
+SCHEMA = 7            # версия формата JSON (и кэша): менять, когда модель или чтение книг меняются несовместимо
 
 
 # ---------------------------------------------------------------- место в источнике (куда идти править)
@@ -257,6 +257,8 @@ class Document:
     features: list = field(default_factory=list)         # что умеет книга: «low_current» — столбец слаботочных (CB)
     cable_journal: list = field(default_factory=list)    # графы 1–8 КЖ (строки) — для сверки; в окно не уходит
     kj: dict = field(default_factory=dict)               # КЖ в DWG (services.drawing_stamp): {dwg, at, state, why}
+    spec_sheet: str = ""                # отпечаток значений листа «Спецификация» B4:J160 (пусто — листа нет)
+    spec: dict = field(default_factory=dict)             # актуальность спецификации (services.spec_stamp): {state, why, at, how}
     panels: list = field(default_factory=list)           # list[Panel]
 
 

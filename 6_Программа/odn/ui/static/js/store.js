@@ -24,6 +24,17 @@ export function drawState(p){
   return {txt: DW[w.state][0] + (ds.length > 1 ? ` (${ds.length} DWG)` : ""), cls: DW[w.state][1],
           tip: ds.map(d => `${name(d)}: ${DW[d.state][0]}, построена ${d.at}${d.why ? " — " + d.why : ""}`).join("\n")};
 }
+// спецификация книги (services/spec_stamp.py): аппараты менялись после её проверки?
+const SP = {stale: ["устарела", "ce"], check: ["проверить", "cw"], ok: ["актуальна", "ok"]};
+export function specState(p){
+  const s = S.P.documents.find(d => d.file === p.doc)?.spec || {};
+  if (!s.state) return {txt: "", cls: "c0", tip: "В книге нет листа «Спецификация»"};
+  const how = s.how === "user" ? `проверена ${s.at}` : `принята как есть ${s.at} (первое чтение книги)`;
+  return {txt: SP[s.state][0], cls: SP[s.state][1], state: s.state,
+          tip: `Спецификация ${how}` + (s.why ? `\nИзменилось: ${s.why}` : "\nАппараты с тех пор не менялись")};
+}
+// Кс щита = Рр / Руст
+export const kc = p => p.result.p_inst ? p.result.p_calc / p.result.p_inst : null;
 // КЖ в DWG (отметка надстройки «КЖ в DWG») — по книге щита
 export function kjState(p){
   const k = S.P.documents.find(d => d.file === p.doc)?.kj || {};

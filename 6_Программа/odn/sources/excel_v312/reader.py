@@ -125,6 +125,14 @@ def _kj_rows(ws) -> list:
     return out
 
 
+def _spec_sheet(ws) -> str:
+    """Отпечаток листа «Спецификация» (значения B4:J160): меняли ли спецификацию (services.spec_stamp)."""
+    import hashlib
+    rows = ws.iter_rows(min_row=X.SPEC_ROWS[0], max_row=X.SPEC_ROWS[1], min_col=2, max_col=10, values_only=True)
+    s = "\n".join("\t".join(txt(v) for v in r) for r in rows).rstrip()
+    return hashlib.md5(s.encode("utf-8")).hexdigest()[:16]
+
+
 # ---------------------------------------------------------------- адаптер
 class ExcelV312(Source):
     kind = "excel_v312"
@@ -152,6 +160,8 @@ class ExcelV312(Source):
             _low_current(doc, src)
             if X.KJ in wb.sheetnames:
                 doc.cable_journal = _kj_rows(wb[X.KJ])
+            if X.SPEC in wb.sheetnames:
+                doc.spec_sheet = _spec_sheet(wb[X.SPEC])
         finally:
             wb.close()
         return doc

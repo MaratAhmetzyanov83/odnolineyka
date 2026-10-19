@@ -1,6 +1,6 @@
 // Экран «Весь объект». Вкладки — TABS: новая вкладка = новый элемент {id, title, bar, render, mount}.
 import { esc, num } from "../fmt.js";
-import { S, counts, roots, drawState, kjState } from "../store.js";
+import { S, counts, roots, drawState, kjState, specState, kc } from "../store.js";
 import { toObject, toPanel } from "../nav.js";
 import { mount } from "../grid.js";
 import { lineColumns, lineRef, lineAttrs } from "../columns.js";
@@ -37,6 +37,7 @@ function panelsGrid(host){
     {id: "len", t: "L, м", n: 1, w: 50, d: 0, v: p => p.supply.length, agg: "sum"},
     {id: "pi", t: "Руст", title: "Руст, кВт", n: 1, w: 60, d: 1, v: p => p.result.p_inst},
     {id: "pc", t: "Рр", title: "Рр, кВт", n: 1, w: 60, d: 1, v: p => p.result.p_calc},
+    {id: "kc", t: "Кс", title: "Коэффициент спроса щита: Рр / Руст", n: 1, w: 44, d: 2, v: p => kc(p)},
     {id: "ic", t: "Iр, А", n: 1, w: 56, d: 1, v: p => p.result.i_calc, agg: "max"},
     ...["L1", "L2", "L3"].map(k => ({id: k, t: k + ", А", title: `ΣIр фазы ${k} с нижестоящими щитами, без Кс`, n: 1, w: 50, d: 1, hidden: 1,
       v: p => (p.phase_i || {})[k]})),
@@ -58,6 +59,8 @@ function panelsGrid(host){
      v: p => drawState(p).txt, cls: p => drawState(p).cls, tip: p => drawState(p).tip},
     {id: "kj", t: "КЖ", title: "Кабельный журнал в DWG: актуален / устарел (отметка «КЖ в DWG»). Подсказка — что изменилось", w: 80,
      v: p => kjState(p).txt, cls: p => kjState(p).cls, tip: p => kjState(p).tip},
+    {id: "spec", t: "Спец.", title: "Спецификация книги: актуальна / устарела / проверить (аппараты менялись после её проверки). Подсказка — что изменилось", w: 80,
+     v: p => specState(p).txt, cls: p => specState(p).cls, tip: p => specState(p).tip},
     {id: "rev", t: "Отпечаток", w: 100, hidden: 1, v: p => p.revision},
     {id: "doc", t: "Файл", w: 200, v: p => p.doc, cls: () => "mut"},
   ];

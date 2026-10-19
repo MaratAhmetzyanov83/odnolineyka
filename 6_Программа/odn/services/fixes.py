@@ -103,6 +103,10 @@ def fix_manual(prj):
         if d.kj.get("state") == "stale" and d.panels:
             yield {"rule": "drawings.kj_stale", "kind": "manual", "panel": d.panels[0].id, "line": "",
                    "text": f"КЖ устарел — в книге {d.file} «КЖ в DWG»", "was": "устарел", "now": "КЖ в DWG", "checked": False}
+        if d.spec.get("state") in ("stale", "check") and d.panels:
+            yield {"rule": f"spec.{d.spec['state']}", "kind": "manual", "panel": d.panels[0].id, "line": "",
+                   "text": f"спецификация {d.file}: поправить в книге, затем у щита «Спецификация верна»",
+                   "was": "устарела" if d.spec["state"] == "stale" else "проверить", "now": "поправить", "checked": False}
 
 
 # кабель фидера разный в книгах -> строка ввода нижестоящего = фидер вышестоящего (фидер правят у вышестоящего)

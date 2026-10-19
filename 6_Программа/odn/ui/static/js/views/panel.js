@@ -1,6 +1,6 @@
 // Экран щита: строка показателей (KV — список функций), вкладки (TABS).
 import { esc, num, refLink, toast } from "../fmt.js";
-import { S, counts, drawState, kjState } from "../store.js";
+import { S, counts, drawState, kjState, specState, kc } from "../store.js";
 import { toPanel } from "../nav.js";
 import * as api from "../api.js";
 import { mount } from "../grid.js";
@@ -30,6 +30,7 @@ export const KV = [
       + ` <button class="mini" data-vrudlg title="Ввод в здание: потери считаются от шин этого щита">ВРУ…</button>`),
   p => kv("Руст", num(p.result.p_inst, 2) + " кВт"),
   p => kv("Рр", num(p.result.p_calc, 2) + " кВт"),
+  p => kv("Кс", kc(p) != null ? num(kc(p), 2) : "", "", "Коэффициент спроса щита: Рр / Руст"),
   p => kv("Iр", num(p.result.i_calc, 1) + " А"),
   p => kv("cos φ", num(p.result.cos, 2)),
   p => kv("ΔU до шин", p.result.du_bus != null ? num(p.result.du_bus, 2) + " %" : ""),
@@ -45,6 +46,8 @@ export const KV = [
   p => { const [e, w] = counts(S.issuesBy[p.id]); return kv("Ошибок / вн.", `<span class="${e ? "e" : ""}">${e}</span> / <span class="${w ? "w" : ""}">${w}</span>`); },
   p => { const d = drawState(p); return kv("Однолинейка", `<span class="${d.cls}">${esc(d.txt)}</span>`, "", d.tip); },
   p => { const d = kjState(p); return kv("КЖ", `<span class="${d.cls}">${esc(d.txt)}</span>`, "", d.tip); },
+  p => { const d = specState(p); return d.txt ? kv("Спецификация", `<span class="${d.cls}">${esc(d.txt)}</span>`
+      + (d.state !== "ok" ? ` <button class="mini" data-specok title="Спецификацию в книге поправили — запомнить аппараты как есть">Спецификация верна</button>` : ""), "", d.tip) : ""; },
   p => kv("Отпечаток", esc(p.revision), "", "Отпечаток данных схемы: по нему сверяется отметка построения DWG"),
 ];
 
@@ -103,6 +106,12 @@ export function bind(root, rerender, { id, params }){
   root.querySelectorAll("[data-linkdlg]").forEach(b => b.onclick = () => linkdlg.open(p));
   root.querySelectorAll("[data-feederdlg]").forEach(b => b.onclick = () => feederdlg.open(p));
   root.querySelectorAll("[data-vrudlg]").forEach(b => b.onclick = () => vrudlg.open(p));
+  root.querySelectorAll("[data-specok]").forEach(b => b.onclick = async () => {
+    if (!confirm(`Спецификация книги «${p.doc}» верна?\nПрограмма запомнит аппараты как есть; следующее их изменение снова покажет «устарела».\nСначала сохраните книгу в Excel и нажмите «Обновить».`)) return;
+    try { const r = await api.specOk(p.doc); if (r.ok === false) throw new Error((r.errors || []).join("; "));
+          window.dispatchEvent(new CustomEvent("odn:reload")); toast("Спецификация отмечена как верная"); }
+    catch (e){ toast("Не сделано: " + e.message, 8000); }
+  });
   const tab = TABS.find(t => t.id === params.tab) || TABS[0];
   tab.mount(root.querySelector("#ghost"), p, params);
 }

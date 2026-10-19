@@ -162,6 +162,8 @@ def step_revision(prj, ctx):
         p.revision = panel_revision(p)
     from . import drawing_stamp
     drawing_stamp.apply(prj, record="cache" in ctx)   # отметки SXDRAW: схема актуальна / устарела; история — только при чтении книг
+    from . import spec_stamp
+    spec_stamp.apply(prj, record="cache" in ctx)      # спецификация: аппараты менялись после её проверки?
 
 
 def step_checks(prj, ctx):
