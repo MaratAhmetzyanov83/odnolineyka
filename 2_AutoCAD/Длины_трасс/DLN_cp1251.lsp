@@ -1,5 +1,5 @@
 ;;; ================================================================
-;;;  DLN v17 — длины кабельных линий из планов в таблицу однолинейки
+;;;  DLN v18 — длины кабельных линий из планов в таблицу однолинейки
 ;;;  Книги: 1.06 / 1.05 / v3.12 (лист «Исходные данные»); v4, v5 (лист «Линии») — архив.
 ;;;  Команды:  DLN      — заполнить таблицу (первый раз)
 ;;;            DLN_UPD  — обновить после правок планов: длины, кол-во, текст выноски;
@@ -9,6 +9,8 @@
 ;;;            DLN_SVR  — сверка плана и таблицы по ВСЕМ листам (линии щита на разных
 ;;;                       этажах, трасса до стояка): лист «Сверка» + пометки, таблицу не меняет
 ;;;            DLN_CHK  — только проверка чертежа;  DLN_XLS — сбросить путь к таблице
+;;;  ДСУП: точка РЕ с КУП в CK («Однолинейка») — длина от КУП до точки, трасса проверяется
+;;;  до конца трассы своей КУП; сама КУП — от щита до КУП (обычная линия).
 ;;;  Колонка «DWG: листы» — на каких листах видна линия. Стояк (блок на слое *Стояк*) —
 ;;;  как щит: трасса этажа, дошедшая до стояка, считается дошедшей.
 ;;;
@@ -736,6 +738,7 @@
   (setq book (dl:book path)
         *dl-app* (vlax-get-property book 'Application)
         *dl-v4* (dl:v4-setup book)
+        *dl-kup* (dl:read-kup book)
         *dl-fmode* nil
         sh (dl:try (strcat "лист " *dl-sheet*) 'vlax-get-property
                    (list (dl:try "листы книги" 'vlax-get-property (list book 'Worksheets)) 'Item *dl-sheet*)))
@@ -1039,6 +1042,38 @@
         (foreach row (vlax-safearray->list (dl:vv v))
           (if (/= (setq x (dl:str (dl:vv (car row)))) "") (setq r (cons x r)))))))
   r)
+;; ДСУП: точки РЕ от КУП — «Однолинейка», R (линия) и колонка «ДСУП: от КУП» (CK).
+;; *dl-kup*: ((линия . КУП) ...) — трасса такой линии идёт от КУП, а не от щита.
+(defun dl:read-kup (book / sh hdr i c v1 v2 k)
+  (setq *dl-kup* nil
+        sh (vl-catch-all-apply 'vlax-get-property (list (vlax-get-property book 'Worksheets) 'Item "Однолинейка")))
+  (if (not (vl-catch-all-error-p sh))
+    (progn
+      (setq hdr (vl-catch-all-apply 'vlax-get-property (list (vlax-get-property sh 'Range "A2:DZ2") 'Value2)) i 1)
+      (if (not (vl-catch-all-error-p hdr))
+        (foreach h (car (vlax-safearray->list (dl:vv hdr)))
+          (if (and (null c) (= (vl-string-search "ДСУП: ОТ КУП" (strcase (dl:str (dl:vv h)))) 0)) (setq c i))
+          (setq i (1+ i))))
+      (if c
+        (progn
+          (setq v1 (vl-catch-all-apply 'vlax-get-property (list (vlax-get-property sh 'Range "R3:R1000") 'Value2))
+                v2 (vl-catch-all-apply 'vlax-get-property
+                     (list (vlax-get-property sh 'Range (strcat (dl:colname c) "3:" (dl:colname c) "1000")) 'Value2)))
+          (if (not (or (vl-catch-all-error-p v1) (vl-catch-all-error-p v2)))
+            (mapcar '(lambda (a b)
+                       (setq k (dl:str (dl:vv (car b))))
+                       (if (and (/= k "") (/= (dl:str (dl:vv (car a))) ""))
+                         (setq *dl-kup* (cons (cons (dl:str (dl:vv (car a))) k) *dl-kup*))))
+                    (vlax-safearray->list (dl:vv v1)) (vlax-safearray->list (dl:vv v2))))))))
+  *dl-kup*)
+(defun dl:kup-of (g) (cdr (vl-some '(lambda (x) (if (= (dl:norm (car x)) (dl:norm g)) x)) *dl-kup*)))
+;; точка pt у конца трассы КУП k
+(defun dl:at-kup (pt k)
+  (vl-some '(lambda (p) (and (= (length (dl:getg (car p))) 1)
+                             (= (dl:norm (car (dl:getg (car p)))) (dl:norm k))
+                             (<= (dl:enddist pt p) *dl-ptol*)))
+           *dl-polys*))
+
 (defun dl:insum (n sum)
   (or (assoc n sum) (vl-some '(lambda (s) (= (dl:norm (car s)) (dl:norm n))) sum)))
 (defun dl:missing (names sum / scopes r)
@@ -1055,6 +1090,7 @@
     (progn
       (setq *dl-v4* (dl:v4-setup book)
             *dl-codes* (dl:read-codes book)
+            *dl-kup* (dl:read-kup book)
             sh (vl-catch-all-apply 'vlax-get-property
                  (list (vlax-get-property book 'Worksheets) 'Item *dl-sheet*)))
       (if (not (vl-catch-all-error-p sh))
@@ -1091,7 +1127,7 @@
 (defun dl:at-panel (pt)
   (or (dl:hub pt) (vl-some '(lambda (bb) (<= (dl:rect-d pt bb) *dl-ptol*)) *dl-pan*)))
 
-(defun dl:check (labels issues sum / systems gl hubs g own done gp ok best bd d e iss n)
+(defun dl:check (labels issues sum / systems gl hubs g own done gp ok best bd d e iss n k)
   (setq *dl-nmark* 0)
   (dl:chk-clear)
   (dl:chk-layer)
@@ -1124,16 +1160,22 @@
              (not (vl-some '(lambda (a) (and (> (length (cdr a)) 1) (member (car s) (cdr a)))) *dl-asg*))
              (dl:first-arrow (car s) labels))
       (dl:mark (dl:first-arrow (car s) labels) (strcat (car s) ": длина не найдена"))))
-  ;; 6. трасса группы не доходит до щита
+  ;; 6. трасса группы не доходит до щита; точка РЕ от КУП (CK) — до конца трассы своей КУП
   (foreach s sum
     (if (nth 3 s)
       (progn
-        (setq ok nil)
+        (setq ok nil k (dl:kup-of (car s)))
         (foreach p *dl-polys*
           (if (and (equal (dl:getg (car p)) (list (car s)))
-                   (or (dl:at-panel (nth 5 p)) (dl:at-panel (nth 6 p))))
+                   (if k
+                     (or (dl:at-kup (nth 5 p) k) (dl:at-kup (nth 6 p) k))
+                     (or (dl:at-panel (nth 5 p)) (dl:at-panel (nth 6 p)))))
             (setq ok T)))
-        (if (not ok) (dl:mark (dl:first-arrow (car s) labels) (strcat (car s) ": трасса не доходит до щита или стояка"))))))
+        (if (not ok)
+          (dl:mark (dl:first-arrow (car s) labels)
+                   (strcat (car s) (if k (strcat ": трасса не доходит до трассы КУП " k
+                                                 (if (dl:insum k sum) "" " (у КУП нет трассы на плане)"))
+                                         ": трасса не доходит до щита или стояка")))))))
   ;; 7. буквы в номере
   (setq done nil)
   (foreach lb labels
@@ -1263,7 +1305,7 @@
 (defun c:DLN_CLR () (dl:chk-clear) (princ "\nDLN: пометки проверки удалены.") (princ))
 ;; только проверка, без записи в Excel
 (defun c:DLN_CHK (/ wins labels issues path sum)
-  (setq wins (dl:pick-wins) *dl-vps* wins *dl-tnames* nil *dl-codes* nil *dl-renamed* nil)
+  (setq wins (dl:pick-wins) *dl-vps* wins *dl-tnames* nil *dl-codes* nil *dl-renamed* nil *dl-kup* nil)
   (if (null wins) (progn (princ "\nDLN: не найден ни один видовой экран плана.") (exit)))
   (setq *dl-filter* (getstring "\nDLN: какие линии проверять, напр. R* или L*,LD*,LED* <все>: "))
   (if (= *dl-filter* "") (setq *dl-filter* nil))
