@@ -76,6 +76,9 @@ NET_INPUTS_ROW, NET_AVR_ROW, NET_CAT_ROW = 65, 66, 68
 NET_SUB_ROW, NET_SUB_COUNT = 94, 30      # раздел Б: фидеры к нижестоящим
 # «Вводы 2 и 3» (patch_inputs.py): U4 = метка; щит k (1–3): строки 6 + (k-1)·2 (ввод 2) и +1 (ввод 3)
 NET_IN23_MARK = (4, "U", "ВВОДЫ 2 И 3")
+# «Для вышестоящего по вводам»: метка U44, строки 46–51: U щит, V ввод, W Руст ввода (её берёт фидер вышестоящего)
+NET_BYIN_MARK = (44, "U", "ДЛЯ ВЫШЕСТОЯЩЕГО ПО ВВОДАМ")
+NET_BYIN_ROWS = range(46, 52)
 NET_IN23 = {"input": "V", "du_bus": "W", "ikz_max": "Y", "in_a": "Z", "from_doc": "AA",
             "qf": "AL", "breaker": "AM", "cable": "AN", "length": "AO", "from_panel": "AP"}
 def NET_ROWS_IN23(k, inp):      # noqa: N802 — строка «Вводов 2 и 3»: щит k (0–2) книги, ввод 2 / 3

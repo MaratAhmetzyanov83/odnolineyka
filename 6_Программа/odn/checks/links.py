@@ -64,7 +64,8 @@ def feeder_stale(prj):
 def load_stale(prj):
     for child, par, ln in _feeders(prj):
         seen = next((e for e in par.feeders_seen if e.line == ln.number), None)
-        if seen and differ(seen.p_inst, child.result.p_inst):
+        # два ввода от одного вышестоящего: фидер несёт нагрузку своего ввода («Сеть_щита» U44:W51)
+        if seen and all(differ(seen.p_inst, v) for v in [child.result.p_inst, *child.result.p_by_input.values()]):
             yield Hit(2, f"нагрузка {child.name} в книге {par.name} устарела: Руст {f(seen.p_inst)} кВт, "
                          f"сейчас {f(child.result.p_inst)} кВт — «Обновить связи» в книге {par.name}",
                       par.id, ln.number, seen.ref)

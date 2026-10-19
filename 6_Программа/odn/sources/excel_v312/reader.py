@@ -333,6 +333,10 @@ def _panels(doc, odn: Rows, net: Rows):
                                if txt(net.get(row, c))}
             p.refs["checks"] = _ref(doc, X.NET, c, min(X.NET_CHECK_ROWS))
             p.result.p_inst = num(net.get(X.NET_LOAD_ROW + k, "C"))
+            if txt(net.get(X.NET_BYIN_MARK[0], X.NET_BYIN_MARK[1])).upper().startswith(X.NET_BYIN_MARK[2]):
+                for r in X.NET_BYIN_ROWS:
+                    if txt(net.get(r, "U")) == p.name and inum(net.get(r, "V")) and num(net.get(r, "W")) is not None:
+                        p.result.p_by_input[str(inum(net.get(r, "V")))] = num(net.get(r, "W"))
             p.scheme.icu = num(net.get(X.NET_ICU_ROW, c))
             p.scheme.is_vru = "да" if txt(net.get(X.NET_VRU_ROW, c)).lower() == "да" else ""
             p.scheme.inputs = inum(net.get(X.NET_INPUTS_ROW, c))

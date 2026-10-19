@@ -16,7 +16,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Optional
 
-SCHEMA = 7            # версия формата JSON (и кэша): менять, когда модель или чтение книг меняются несовместимо
+SCHEMA = 8            # версия формата JSON (и кэша): менять, когда модель или чтение книг меняются несовместимо
 
 
 # ---------------------------------------------------------------- место в источнике (куда идти править)
@@ -154,6 +154,7 @@ class PanelScheme:
 class PanelResult:
     by: str = ""
     p_inst: Optional[float] = None      # Руст, кВт
+    p_by_input: dict = field(default_factory=dict)  # Руст по вводам {номер ввода: кВт} — фидер вышестоящего берёт свою
     p_calc: Optional[float] = None      # Рр, кВт
     i_calc: Optional[float] = None      # Iр, А
     cos: Optional[float] = None
