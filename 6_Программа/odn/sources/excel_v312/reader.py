@@ -113,13 +113,16 @@ def _letters(n):
     return s
 
 
+_XL_ERRORS = {"#N/A", "#REF!", "#VALUE!", "#DIV/0!", "#NAME?", "#NUM!", "#NULL!"}
+
+
 def _kj_rows(ws) -> list:
     """Графы 1–8 кабельного журнала — значения ячеек (сверка с отметкой «КЖ в DWG»)."""
     out = []
     for r in ws.iter_rows(min_row=X.KJ_FIRST, max_row=X.LAST_ROW, min_col=X.KJ_COL, max_col=X.KJ_COL + X.KJ_N - 1,
                           values_only=True):
         mk = str(r[0] if r and r[0] is not None else "").strip()
-        if not mk or mk == "0":
+        if not mk or mk == "0" or mk in _XL_ERRORS:     # ошибка в маркировке (#N/A) — не кабель, как в надстройке
             continue
         out.append([v if v is None or isinstance(v, (int, float, str)) else str(v) for v in r] + [None] * (X.KJ_N - len(r)))
     return out
