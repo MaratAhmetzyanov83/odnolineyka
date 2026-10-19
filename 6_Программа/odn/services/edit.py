@@ -75,6 +75,49 @@ def related_docs(prj: Project, docs) -> list:
     return sorted(rel)
 
 
+def link_groups(prj: Project, docs) -> list:
+    """Книги docs, связанные между собой формулами, — в одну группу: их пересчитывают в одной сессии Excel."""
+    docs = sorted(set(docs))
+    root = {d: d for d in docs}
+
+    def top(d):
+        while root[d] != d:
+            d = root[d]
+        return d
+    for p in prj.panels():
+        bp = prj.panel(p.book_parent) if p.book_parent else None
+        if bp and p.doc in root and bp.doc in root:
+            root[top(p.doc)] = top(bp.doc)
+    groups = {}
+    for d in docs:
+        groups.setdefault(top(d), []).append(d)
+    return list(groups.values())
+
+
+def refresh_related(prj: Project, edited, related, backups, done=lambda n: None) -> dict:
+    """Фон после записи: связанные книги (вышестоящая, нижестоящие) — пересчёт и сохранение, по группам параллельно,
+    связи — из уже записанных книг. Затем изменённые книги, которые берут значения из вышестоящей (ΔU, питание), —
+    ещё раз со свежими связями. Ошибка в группе — её книги из копий (как до записи)."""
+    from ..sources.excel_v312.writer import refresh_books
+    full = lambda d: os.path.join(prj.folder, d)  # noqa: E731
+    t = time.time()
+    errs = refresh_books([[full(d) for d in g] for g in link_groups(prj, related)], done=done)
+    rel = set(related)
+    back = sorted({p.doc for p in prj.panels() if p.doc in set(edited) and p.book_parent
+                   and prj.panel(p.book_parent) and prj.panel(p.book_parent).doc in rel})
+    t1 = time.time()
+    if back and not errs:
+        errs.update(refresh_books([[full(d) for d in back]]))
+    errors = []
+    for d in list(related) + back:
+        if full(d) in errs:
+            if d in related and d in backups:
+                shutil.copy2(os.path.join(prj.folder, backups[d]), full(d))
+            errors.append(f"{d}: не пересчитана ({errs[full(d)]}) — «Синхронизировать книги»")
+    return {"ok": not errors, "docs": [d for d in related if full(d) not in errs], "again": back, "errors": errors,
+            "timing": {"связанные": round(t1 - t, 1), "повтор": round(time.time() - t1, 1)}}
+
+
 def renamed(prj: Project, ch) -> list:
     """Переименование линии ch.old -> ch.new: что ещё поменять в книгах (по адресам).
     «Разбивка_по_щитам» H; раздел Б «Сеть_щита» (фидер к нижестоящему); у нижестоящих — G6 / вводы 2–3 «книга / линия»."""
@@ -109,8 +152,8 @@ def _fresh(prj, docname):
 
 
 def apply_changes(prj: Project, raw: list, kind="правка", undo_of="") -> dict:
-    """raw: [{panel, line, path, new}]. Пишет по книгам одной сессией Excel и пересчитывает связанные книги
-    (вышестоящую и нижестоящие), чтобы правка была видна с обеих сторон связи."""
+    """raw: [{panel, line, path, new}]. Пишет по книгам одной сессией Excel. Связанные книги (вышестоящую и нижестоящие)
+    пересчитывает потом refresh_related — окно вызывает его в фоне; копии связанных — тоже здесь, до записи."""
     from ..sources.excel_v312.writer import lock_reason
     chs = []
     for r in raw:
@@ -157,8 +200,7 @@ def apply_changes(prj: Project, raw: list, kind="правка", undo_of="") -> d
     from ..sources.excel_v312.writer import write_batch
     t1 = time.time()
     try:
-        write_batch({os.path.join(prj.folder, d): c for d, (_, c) in cells_by_doc.items()},
-                    [os.path.join(prj.folder, d) for d in related])
+        write_batch({os.path.join(prj.folder, d): c for d, (_, c) in cells_by_doc.items()}, [])   # связанные — потом, в фоне
     except (C.EditError, Exception) as e:  # noqa: BLE001 — Excel: книги вернуть из копий
         for d, bak in backups.items():
             shutil.copy2(os.path.join(prj.folder, bak), os.path.join(prj.folder, d))
@@ -179,7 +221,7 @@ def apply_changes(prj: Project, raw: list, kind="правка", undo_of="") -> d
             f.write(json.dumps(entry, ensure_ascii=False, default=str) + "\n")
         done.append(entry)
     return {"ok": not errors, "timing": timing, "written": sum(len(e["changes"]) for e in done), "docs": [e["doc"] for e in done],
-            "related": related, "errors": errors, "warnings": warnings, "skipped": len(raw) - len(chs)}
+            "related": related, "backups": backups, "errors": errors, "warnings": warnings, "skipped": len(raw) - len(chs)}
 
 
 def sync_books(prj: Project) -> dict:

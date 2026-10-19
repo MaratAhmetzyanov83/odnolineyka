@@ -13,6 +13,7 @@ export const openRef = ref => call("POST", "/api/open", {ref});
 export const edit = changes => call("POST", "/api/edit", {changes});
 export const undo = () => call("POST", "/api/undo");
 export const sync = () => call("POST", "/api/sync");
+export const bg = () => call("GET", "/api/bg");
 export const getFixes = () => call("GET", "/api/fixes");
 export const bookPatch = (doc, name) => call("POST", "/api/book/patch", {doc, name});
 export const structure = body => call("POST", "/api/structure", body);

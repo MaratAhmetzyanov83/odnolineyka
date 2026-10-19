@@ -44,6 +44,7 @@ class App:
         self.write_lock = threading.Lock()
         self.prj = None
         self.payload = b""
+        self.bg = {}                      # фон: пересчёт связанных книг после записи (окно спрашивает /api/bg)
         self.reload()
 
     def reload(self, progress=print):
@@ -110,6 +111,72 @@ def get_journal(app: App, body):
     return {"ok": True, "rows": edit.read_journal(app.prj)[::-1]}
 
 
+BUSY = "идёт пересчёт связанных книг после прошлой записи — подождите, пока он закончится"
+
+
+def _busy(app: App):
+    return {"ok": False, "errors": [BUSY + f" ({app.bg.get('done', 0)} из {app.bg.get('total', 0)})"]}         if app.bg.get("running") else None
+
+
+def _start_bg(app: App, res: dict):
+    """Связанные книги — в фоне. Замок записи переходит фону: следующая запись ждёт его конца (окно — сообщение)."""
+    related, edited = res.get("related") or [], res.get("docs") or []
+    if not related:
+        app.write_lock.release()
+        return
+    prj, backups = app.prj, res.get("backups") or {}
+    app.bg = {"running": True, "done": 0, "total": len(related), "docs": related, "errors": [], "id": uuid.uuid4().hex[:8]}
+
+    def step(n):
+        app.bg["done"] = min(app.bg["done"] + n, app.bg["total"])
+
+    def work():
+        try:
+            r = edit.refresh_related(prj, edited, related, backups, done=step)
+            app.bg.update(errors=r["errors"], timing=r["timing"], again=r["again"])
+        except Exception as e:  # noqa: BLE001
+            app.bg["errors"] = [f"связанные книги не пересчитаны: {e} — «Синхронизировать книги»"]
+        finally:
+            try:
+                app.reload_quiet()
+            finally:
+                app.bg["running"] = False
+                app.write_lock.release()
+    threading.Thread(target=work, daemon=True).start()
+
+
+@route("GET", "/api/bg")
+def get_bg(app: App, body):
+    return {"ok": True, **app.bg}
+
+
+def _write(app: App, fn):
+    """Правка / отмена: изменённые книги — сразу, связанные — в фоне."""
+    busy = _busy(app)
+    if busy:
+        return busy
+    app.write_lock.acquire()
+    try:
+        res = fn()
+    except EditError as e:
+        app.reload_quiet()
+        app.write_lock.release()
+        return {"ok": False, "errors": [str(e)]}
+    except BaseException:
+        app.write_lock.release()
+        raise
+    try:
+        res = _after_write(app, res)
+        res.pop("backups", None)
+        res["bg"] = bool(res.get("docs") and res.get("related"))
+    finally:
+        if res.get("bg"):
+            _start_bg(app, res)
+        else:
+            app.write_lock.release()
+    return res
+
+
 def _after_write(app: App, res: dict):
     if res.get("docs"):
         t = time.time()
@@ -122,18 +189,14 @@ def _after_write(app: App, res: dict):
 
 @route("POST", "/api/edit")
 def post_edit(app: App, body):
-    with app.write_lock:
-        try:
-            res = edit.apply_changes(app.prj, body.get("changes") or [])
-        except EditError as e:
-            app.reload_quiet()
-            return {"ok": False, "errors": [str(e)]}
-        return _after_write(app, res)
+    return _write(app, lambda: edit.apply_changes(app.prj, body.get("changes") or []))
 
 
 @route("POST", "/api/sync")
 def post_sync(app: App, body):
     """«Синхронизировать книги»: все связанные книги — пересчёт вместе и сохранение."""
+    if _busy(app):
+        return _busy(app)
     with app.write_lock:
         res = edit.sync_books(app.prj)
         if res.get("ok"):
@@ -143,13 +206,7 @@ def post_sync(app: App, body):
 
 @route("POST", "/api/undo")
 def post_undo(app: App, body):
-    with app.write_lock:
-        try:
-            res = edit.undo_last(app.prj)
-        except EditError as e:
-            app.reload_quiet()
-            return {"ok": False, "errors": [str(e)]}
-        return _after_write(app, res)
+    return _write(app, lambda: edit.undo_last(app.prj))
 
 
 @route("POST", "/api/exclude")

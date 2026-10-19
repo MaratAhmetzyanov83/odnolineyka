@@ -175,14 +175,8 @@ def _write_com(path, cells):
 XL_MANUAL, XL_AUTO = -4135, -4105
 
 
-def write_batch(cells_by_path: dict, related: list, full: bool = False) -> None:
-    """Одна сессия Excel: связанные книги открыты вместе с изменяемыми — формулы связей между ними считаются вживую.
-    cells_by_path: {путь: [(лист, адрес, значение)]}; related — книги только пересчитать и сохранить.
-    Пересчёт: обычный (изменённые ячейки и зависимые — быстро); full — полный (синхронизация книг)."""
-    if os.environ.get("ODN_TEST_WRITER") == "1":
-        for path, cells in cells_by_path.items():
-            _write_openpyxl(path, cells)               # тест: без пересчёта связанных
-        return
+def _excel():
+    """Свой скрытый Excel в ручном пересчёте -> (app, pid)."""
     try:
         import win32com.client
         import win32process
@@ -200,12 +194,43 @@ def write_batch(cells_by_path: dict, related: list, full: bool = False) -> None:
         tmp = app.Workbooks.Add()                      # режим пересчёта ставится, когда открыта хоть одна книга
         app.Calculation = XL_MANUAL                    # не пересчитывать на каждой записанной ячейке и при открытии
         tmp.Close(False)
-        books = {}
-        for path in list(related) + list(cells_by_path):
-            wb = app.Workbooks.Open(os.path.abspath(path), 0, False)
-            if wb.ReadOnly:
-                raise EditError(f"{os.path.basename(path)} открыта у другого пользователя — запись не сделана")
-            books[path] = wb
+    except Exception:
+        _quit(app, pid)
+        raise
+    return app, pid
+
+
+def _quit(app, pid):
+    """Закрыть только свой Excel."""
+    try:
+        app.Quit()
+    except Exception:  # noqa: BLE001
+        pass
+    try:
+        os.kill(pid, signal.SIGTERM)
+    except Exception:  # noqa: BLE001
+        pass
+
+
+def _open(app, path, links=0):
+    """links: 0 — значения связей как сохранены в книге; 3 — обновить связи из сохранённых файлов других книг."""
+    wb = app.Workbooks.Open(os.path.abspath(path), links, False)
+    if wb.ReadOnly:
+        raise EditError(f"{os.path.basename(path)} открыта у другого пользователя — запись не сделана")
+    return wb
+
+
+def write_batch(cells_by_path: dict, related: list, full: bool = False) -> None:
+    """Одна сессия Excel: связанные книги открыты вместе с изменяемыми — формулы связей между ними считаются вживую.
+    cells_by_path: {путь: [(лист, адрес, значение)]}; related — книги только пересчитать и сохранить.
+    Пересчёт: обычный (изменённые ячейки и зависимые — быстро); full — полный (синхронизация книг)."""
+    if os.environ.get("ODN_TEST_WRITER") == "1":
+        for path, cells in cells_by_path.items():
+            _write_openpyxl(path, cells)               # тест: без пересчёта связанных
+        return
+    app, pid = _excel()
+    try:
+        books = {path: _open(app, path) for path in list(related) + list(cells_by_path)}
         for path, cells in cells_by_path.items():
             wb = books[path]
             by_sheet = {}
@@ -231,11 +256,47 @@ def write_batch(cells_by_path: dict, related: list, full: bool = False) -> None:
         for wb in books.values():
             wb.Close(False)
     finally:
+        _quit(app, pid)
+
+
+def _refresh_group(paths, done):
+    """Книги одной группы — в своём Excel: открыть с обновлением связей, пересчитать, сохранить."""
+    import pythoncom
+    pythoncom.CoInitialize()
+    try:
+        app, pid = _excel()
         try:
-            app.Quit()
-        except Exception:  # noqa: BLE001
-            pass
-        try:
-            os.kill(pid, signal.SIGTERM)
-        except Exception:  # noqa: BLE001
-            pass
+            books = [_open(app, p, 3) for p in paths]
+            for _ in range(2):
+                app.Calculate()
+            app.Calculation = XL_AUTO
+            for wb in books:
+                wb.Save()
+                done(1)
+            for wb in books:
+                wb.Close(False)
+        finally:
+            _quit(app, pid)
+    finally:
+        pythoncom.CoUninitialize()
+
+
+def refresh_books(groups: list, workers: int = 4, done=lambda n: None) -> dict:
+    """Пересчитать и сохранить книги, которые берут значения из уже записанных книг (связи «Связать с вышестоящим»).
+    groups — [[путь, …]]: книги со связями между собой — в одной группе (одна сессия Excel), группы — параллельно,
+    не больше workers Excel сразу. Связи обновляются из сохранённых файлов. -> {путь: ошибка} для несделанных."""
+    if os.environ.get("ODN_TEST_WRITER") == "1" or not groups:
+        for g in groups:
+            done(len(g))
+        return {}
+    from concurrent.futures import ThreadPoolExecutor
+    errors = {}
+    with ThreadPoolExecutor(max(1, min(workers, len(groups)))) as ex:
+        futs = {ex.submit(_refresh_group, g, done): g for g in groups}
+        for f, g in futs.items():
+            try:
+                f.result()
+            except Exception as e:  # noqa: BLE001 — Excel / COM
+                for p in g:
+                    errors[p] = str(e)
+    return errors

@@ -81,8 +81,9 @@ async function saveAll(){
   try {
     const r = await api.edit(list.map(({panel, line, path, new: v}) => ({panel, line, path, new: v})));
     if (r.written){ pending.clear(); await load(); }
+    if (r.bg) watchBg();
     toast((r.written ? `Записано: ${r.written} (${r.docs.join(", ")}). Книги пересчитаны, проверки обновлены.` : "Ничего не записано.")
-      + (r.related?.length ? `\nПересчитаны связанные: ${r.related.join(", ")}` : "")
+      + (r.bg ? `\nСвязанные книги (${r.related.length}) пересчитываются в фоне — ход виден в шапке` : "")
       + (r.timing ? "\nВремя, с: " + Object.entries(r.timing).map(([k, v]) => `${k} ${String(v).replace(".", ",")}`).join(" · ") : "")
       + (r.warnings?.length ? "\nВнимание: " + r.warnings.join("; ") : "")
       + (r.errors?.length ? "\nОшибки: " + r.errors.join("; ") : ""), r.errors?.length || r.warnings?.length ? 12000 : 6000);
@@ -94,9 +95,34 @@ async function undoWrite(){
   try {
     const r = await api.undo();
     if (r.written) await load();
+    if (r.bg) watchBg();
     toast(r.written ? `Отменено: ${r.written} знач. в ${r.docs.join(", ")}` : "Не отменено: " + (r.errors || []).join("; "), 8000);
   } catch (e){ toast("Не отменено: " + e.message); }
 }
+// фон после записи: связанные книги пересчитываются в своих Excel; конец — перечитать окно
+let bgTimer = 0;
+function watchBg(){
+  clearTimeout(bgTimer);
+  const el = $("#bg");
+  const tick = async () => {
+    let r;
+    try { r = await api.bg(); } catch (e){ bgTimer = setTimeout(tick, 3000); return; }
+    if (r.running){
+      el.textContent = `· связанные книги: ${r.done} из ${r.total}…`;
+      el.title = "Пересчёт в фоне: " + (r.docs || []).join(", ");
+      bgTimer = setTimeout(tick, 1500); return;
+    }
+    el.textContent = ""; el.title = "";
+    await load();
+    toast(r.errors?.length ? "Связанные книги: " + r.errors.join("; ")
+      : `Связанные книги пересчитаны: ${(r.docs || []).join(", ")}`
+        + (r.again?.length ? `\nЕщё раз со свежими связями: ${r.again.join(", ")}` : "")
+        + (r.timing ? "\nВремя, с: " + Object.entries(r.timing).map(([k, v]) => `${k} ${String(v).replace(".", ",")}`).join(" · ") : ""),
+      r.errors?.length ? 12000 : 6000);
+  };
+  tick();
+}
+api.bg().then(r => { if (r.running) watchBg(); }).catch(() => {});   // окно открыли заново, а фон ещё идёт
 $("#undo").onclick = undoWrite;
 $("#sync").onclick = async () => {
   if (!confirm("Пересчитать все связанные книги объекта вместе и сохранить?\nКниги должны быть закрыты в Excel. Перед этим — копии в _окно\\резерв.")) return;
