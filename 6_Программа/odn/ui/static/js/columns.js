@@ -78,9 +78,11 @@ export function lineColumns({ withPanel = false } = {}){
       cls: l => lineLevel(l) >= 2 ? "lv2" : lineLevel(l) ? "lv1" : "",
       tip: l => [l.result.status, ...new Set(lineIssues(l).filter(i => i.hint).map(i => i.hint)),
                  ...lineDismissed(l).map(i => `Снято вручную (${i.dismissed}): ${i.text}`)].filter(Boolean).join("\n\n"),
-      h: l => `${refLink(l.refs.scheme || l.refs.input, "✎")} ${esc(l.result.status)}`
+      // ✕ и «снято» — до текста: длинный статус обрезается многоточием
+      h: l => `${refLink(l.refs.scheme || l.refs.input, "✎")}`
         + (lineIssues(l).length ? ` <a class="dis" data-dispanel="${esc(l.panel)}" data-disline="${esc(l.number)}" title="Снять замечания линии вручную (проверено, согласен). Книга не меняется; вернуть — «Замечания» → «Снятые»">✕</a>` : "")
-        + (lineDismissed(l).length ? ` <span class="mut" title="Снятые вручную — см. «Замечания» → «Снятые»">снято ${lineDismissed(l).length}</span>` : "")},
+        + (lineDismissed(l).length ? ` <span class="mut" title="Снятые вручную — см. «Замечания» → «Снятые»">снято ${lineDismissed(l).length}</span>` : "")
+        + ` ${esc(l.result.status)}`},
   ];
 }
 
