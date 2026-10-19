@@ -1,5 +1,5 @@
 ;;; ================================================================
-;;;  DLN v22 — длины кабельных линий из планов в таблицу однолинейки
+;;;  DLN v23 — длины кабельных линий из планов в таблицу однолинейки
 ;;;  Книги: 1.06 / 1.05 / v3.12 (лист «Исходные данные»); v4, v5 (лист «Линии») — архив.
 ;;;  Команды:  DLN      — заполнить таблицу (первый раз)
 ;;;            DLN_UPD  — обновить после правок планов: длины, кол-во, текст выноски;
@@ -9,7 +9,8 @@
 ;;;            DLN_SVR  — сверка плана и таблицы по ВСЕМ листам (линии щита на разных
 ;;;                       этажах, трасса до стояка): лист «Сверка» + пометки, таблицу не меняет
 ;;;            DLN_CHK  — только проверка чертежа;  DLN_XLS — сбросить путь к таблице
-;;;            DLN_RAMKA — рамка (в модели / ВЭ) + книга: линии из рамки — в эту книгу
+;;;            DLN_RAMKA — в активном ВЭ (или модели) обычным выбором AutoCAD выбрать трассы
+;;;                       и выноски (только видимые слои), затем книгу: выбранные линии — в неё
 ;;;                       (как DLN_UPD; путь DLN / DLN_UPD не меняется)
 ;;;  ДСУП: точка РЕ с КУП в CK («Однолинейка») — длина от КУП до точки, трасса проверяется
 ;;;  до конца трассы своей КУП; сама КУП — от щита до КУП (обычная линия).
@@ -235,7 +236,8 @@
     (repeat (setq i (sslength ss))
       (setq e (ssname ss (setq i (1- i))) ed (entget e)
             sp (vlax-curve-getStartPoint e) ep (vlax-curve-getEndPoint e))
-      (if (or (dl:inwin sp (cdr (assoc 8 ed)) wins) (dl:inwin ep (cdr (assoc 8 ed)) wins))
+      (if (and (or (null *dl-ramss*) (ssmemb e *dl-ramss*))
+               (or (dl:inwin sp (cdr (assoc 8 ed)) wins) (dl:inwin ep (cdr (assoc 8 ed)) wins)))
         (setq res (cons (list e (dl:sys (cdr (assoc 8 ed))) (dl:major (cdr (assoc 8 ed)))
                               (dl:lt ed)
                               (vlax-curve-getDistAtParam e (vlax-curve-getEndParam e))
@@ -343,6 +345,7 @@
       (setq e (ssname ss (setq i (1- i))) o (vlax-ename->vla-object e)
             txt (vl-catch-all-apply 'vla-get-TextString (list o)))
       (if (and (= (type txt) 'STR)
+               (or (null *dl-ramss*) (ssmemb e *dl-ramss*))
                (setq g (dl:grp (dl:plain txt)))
                (or (null *dl-filter*) (wcmatch (strcase g) (strcase *dl-filter*)))
                (setq pairs (cond ((dl:ml-pairs-dxf e)) ((dl:ml-pairs o))))
@@ -1258,27 +1261,44 @@
 (defun c:DLN_PREV () (dl:nav -1))
 
 ;;; ---------- команды ----------
-(defun c:DLN () (setq *dl-ram* nil) (dl:run 'fill))
-(defun c:DLN_UPD () (setq *dl-ram* nil) (dl:run 'upd))
-;; DLN_RAMKA — линии в рамке (модель или активный ВЭ) -> книга, выбранная сейчас.
+(defun c:DLN () (setq *dl-ram* nil *dl-ramss* nil) (dl:run 'fill))
+(defun c:DLN_UPD () (setq *dl-ram* nil *dl-ramss* nil) (dl:run 'upd))
+;; DLN_RAMKA — обычный выбор AutoCAD (рамка, секущая рамка, щелчки) в активном видовом экране
+;; или в модели: берутся только выбранные трассы и выноски на видимых слоях (выключенные,
+;; замороженные и замороженные в этом ВЭ не выбираются и не считаются) -> книга, выбранная сейчас.
 ;; Путь DLN / DLN_UPD не меняется. Режим — обновить (новые линии добавляются).
-(setq *dl-ram* nil)
-(defun c:DLN_RAMKA (/ p0 p1 path)
+(setq *dl-ram* nil *dl-ramss* nil)
+(defun dl:ss-bbox (ss / i bb r)
+  (repeat (setq i (sslength ss))
+    (if (setq bb (dl:bb4 (ssname ss (setq i (1- i)))))
+      (setq r (if r (list (min (car r) (car bb)) (min (cadr r) (cadr bb))
+                          (max (caddr r) (caddr bb)) (max (cadddr r) (cadddr bb)))
+                bb))))
+  r)
+(defun c:DLN_RAMKA (/ ss vp w bb path)
+  (setq *dl-ram* nil *dl-ramss* nil)
   (if (and (= (getvar "TILEMODE") 0) (= (getvar "CVPORT") 1))
-    (progn (princ "\nDLN: войдите в модель или в видовой экран (двойной щелчок) и повторите.") (exit)))
-  (if (and (setq p0 (getpoint "\nDLN: первый угол рамки: "))
-           (setq p1 (getcorner p0 "\nDLN: второй угол рамки: "))
-           (setq path (getfiled "Книга, куда писать линии из рамки (xlsx / xlsm)"
-                                (cond ((dl:xls-path nil)) ((getvar "DWGPREFIX"))) "xlsx;xlsm" 0)))
+    (progn (princ "\nDLN: войдите в видовой экран плана (двойной щелчок) или в модель и повторите.") (exit)))
+  (princ "\nDLN: выберите трассы и выноски: ")
+  (if (null (setq ss (ssget '((0 . "LWPOLYLINE,MULTILEADER")))))
+    (progn (princ "\nDLN: ничего не выбрано.") (exit)))
+  (if (= (getvar "TILEMODE") 0)
+    ;; активный ВЭ: его окно и замороженные в нём слои
+    (setq vp (ssget "_X" (list '(0 . "VIEWPORT") (cons 410 (getvar "CTAB")) (cons 69 (getvar "CVPORT"))))
+          w (if vp (dl:vp-win (entget (ssname vp 0)))))
+    ;; модель: габарит выбранного (+ запас)
+    (if (setq bb (dl:ss-bbox ss))
+      (setq w (list (- (car bb) 10.0) (- (cadr bb) 10.0) (+ (caddr bb) 10.0) (+ (cadddr bb) 10.0) nil
+                    (list 0.0 0.0 0.0 0.0 1.0 "Model")))))
+  (if (null w) (progn (princ "\nDLN: не удалось определить видовой экран.") (exit)))
+  (sssetfirst nil ss)
+  (if (setq path (getfiled "Книга, куда писать выбранные линии (xlsx / xlsm)"
+                           (cond ((dl:xls-path nil)) ((getvar "DWGPREFIX"))) "xlsx;xlsm" 0))
     (progn
-      (setq p0 (trans p0 1 0) p1 (trans p1 1 0)
-            *dl-ram* (list path
-                           (list (list (min (car p0) (car p1)) (min (cadr p0) (cadr p1))
-                                       (max (car p0) (car p1)) (max (cadr p0) (cadr p1)) nil
-                                       (list 0.0 0.0 0.0 0.0 1.0 "Model")))))
+      (setq *dl-ram* (list path (list w)) *dl-ramss* ss)
       (dl:run 'upd)
-      (setq *dl-ram* nil))
-    (princ "\nDLN: рамка или книга не выбраны."))
+      (setq *dl-ram* nil *dl-ramss* nil))
+    (princ "\nDLN: книга не выбрана."))
   (princ))
 (defun dl:run (mode / *error* path wins labels issues sum res bad ss)
   (defun *error* (m)
@@ -1327,6 +1347,7 @@
 (defun c:DLN_CLR () (dl:chk-clear) (princ "\nDLN: пометки проверки удалены.") (princ))
 ;; только проверка, без записи в Excel
 (defun c:DLN_CHK (/ wins labels issues path sum)
+  (setq *dl-ram* nil *dl-ramss* nil)
   (setq wins (dl:pick-wins) *dl-vps* wins *dl-tnames* nil *dl-codes* nil *dl-renamed* nil *dl-kup* nil)
   (if (null wins) (progn (princ "\nDLN: не найден ни один видовой экран плана.") (exit)))
   (setq *dl-filter* (getstring "\nDLN: какие линии проверять, напр. R* или L*,LD*,LED* <все>: "))
