@@ -65,8 +65,32 @@ export const TABS = [
   { id: "structure", title: p => `Структура${p.nodes && p.nodes.length ? ` (${p.nodes.length} узл.)` : ""}`, bar: structure.bar0,
     html: p => structure.render(p), mount: (host, p) => structure.bind(host.closest("main"), p) },
   { id: "issues", title: p => `Замечания (${(S.issuesBy[p.id] || []).length})`, bar: issues.filters,
-    mount: (host, p) => issues.mountTable(host, S.issuesBy[p.id] || [], false) },
+    mount: (host, p) => issues.mountTable(host, S.issuesBy[p.id] || [], false, p.id) },
 ];
+
+// КЖ в DWG (кнопка надстройки «КЖ в DWG» из окна): обновить DWG из отметки .kj.txt или выпустить в новый
+const kjBase = f => { let s = f.split(/[\\/]/).pop().replace(/\.[^.]*$/, "");
+  if (s.toLowerCase().startsWith("однолинейка")) s = s.slice(11);
+  return "КЖ_" + (s.replace(/^[ _-]+/, "") || "щит") + ".dwg"; };
+function kjLinks(doc){
+  const dwg = doc.kj?.dwg;
+  return dwg
+    ? `<a data-kj="${esc(doc.file)}" title="Перестроить КЖ в ${esc(dwg)}: надстройка «КЖ в DWG» в своём Excel, AutoCAD в фоне. Ручные графы 9–13 сохранятся, прежний DWG — *.bak">обновить КЖ</a>
+       <a data-kj="${esc(doc.file)}" data-kjask="1" title="Выпустить КЖ в другой DWG (новый — по КЖ_шаблон.dwg)">КЖ в другой DWG…</a>`
+    : `<a data-kj="${esc(doc.file)}" data-kjask="1" title="Выпустить кабельный журнал в DWG по КЖ_шаблон.dwg: надстройка «КЖ в DWG» в своём Excel, AutoCAD в фоне">выпустить КЖ…</a>`;
+}
+
+export async function runKJ(items, el){
+  const old = el?.textContent;
+  if (el) el.textContent = "КЖ: выпускаю…";
+  try {
+    const r = await api.kj(items);
+    const ok = (r.done || []).map(d => `${d.doc} → ${d.dwg}`);
+    toast((ok.length ? "КЖ готов: " + ok.join("; ") : "") + ((r.errors || []).length ? (ok.length ? ". " : "") + "Не сделано: " + r.errors.join("; ") : ""), 15000);
+    if (ok.length) window.dispatchEvent(new CustomEvent("odn:reload"));
+  } catch (e){ toast("Не сделано: " + e.message, 15000); }
+  finally { if (el && el.isConnected) el.textContent = old; }
+}
 
 export function render({ id, params }){
   const p = S.panels[id];
@@ -77,6 +101,7 @@ export function render({ id, params }){
       ${doc?.external ? `<span class="tag" title="Книга не из папки объекта: программа нашла её по связи">↗ из другой папки, ссылка из ${esc(doc.found_from || "?")}</span>` : ""}
       ${refLink({file: p.doc, sheet: "Однолинейка", cell: "A1"}, "открыть в Excel")}
       ${doc && !(doc.features || []).includes("low_current") ? `<a data-lowpatch="${esc(p.doc)}" title="Книга без столбца слаботочных: запустить 5_Проверка/patch_lowcurrent.py (копия книги — в _окно\\резерв). Книга должна быть закрыта">включить слаботочные в книге</a>` : ""}
+      ${doc ? kjLinks(doc) : ""}
       <a data-exclude="${esc(p.doc)}" title="Резервная или лишняя книга: программа перестанет её читать (список — _окно\\исключить.txt)">не читать эту книгу</a></div>
     <div class="kv">${KV.map(f => f(p)).join("")}</div>
     <div class="bar">${TABS.map(t => `<button data-go="${esc(toPanel(p.id, "", t.id))}" class="${t === tab ? "on" : ""}">${esc(t.title(p))}</button>`).join("")}
@@ -95,6 +120,17 @@ export function bind(root, rerender, { id, params }){
           toast(r.ok === false ? "Не сделано: " + (r.errors || []).join("; ") : "Слаботочные включены: " + r.msg, 10000);
           window.dispatchEvent(new CustomEvent("odn:reload")); }
     catch (e){ toast("Не сделано: " + e.message, 10000); }
+  });
+  root.querySelectorAll("[data-kj]").forEach(a => a.onclick = ev => {
+    ev.preventDefault();
+    const d = a.dataset.kj, doc = S.P.documents.find(x => x.file === d);
+    let dwg = "";
+    if (a.dataset.kjask){
+      dwg = prompt(`Кабельный журнал книги «${d}» — путь DWG.\nОтносительный — от папки книги. Есть такой DWG — он обновится (прежний — *.bak).`,
+                   doc?.kj?.dwg || kjBase(d));
+      if (!dwg) return;
+    } else if (!confirm(`Обновить КЖ книги «${d}» в\n${doc?.kj?.dwg}?\nНужен AutoCAD. Если DWG открыт в AutoCAD — правится и сохраняется открытый.`)) return;
+    runKJ([{doc: d, dwg}], a);
   });
   const q = root.querySelector("#lq");
   if (q) q.oninput = () => { lf.q = q.value.toLowerCase(); const pos = q.selectionStart; rerender();

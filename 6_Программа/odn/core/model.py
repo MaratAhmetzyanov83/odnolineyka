@@ -274,6 +274,7 @@ class Issue:
     ref: Ref = field(default_factory=Ref)
     group: str = ""                     # группа правила — для фильтров окна
     hint: str = ""                      # пояснение: что значит и как исправить (checks.hints)
+    dismissed: str = ""                 # снято вручную (services.dismiss): «19.10.2026 12:00 user: причина»
 
 
 @dataclass
@@ -284,6 +285,7 @@ class Project:
     loaded: str = ""
     documents: list = field(default_factory=list)        # list[Document]
     issues: list = field(default_factory=list)           # list[Issue]
+    dismissed: list = field(default_factory=list)        # list[Issue] — снятые вручную (в счёт не идут)
 
     # ---- индексы (не сериализуются: строятся reindex())
     def reindex(self):

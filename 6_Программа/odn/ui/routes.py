@@ -11,7 +11,7 @@ from .. import checks
 from ..core import serialize
 from ..core.model import Ref
 from ..core.changes import EditError
-from ..services import book_patch, edit, export, fixes, link_writer, structure
+from ..services import book_patch, dismiss, edit, export, fixes, kj_writer, link_writer, structure
 from ..services.project import add_exclusion, load_project, open_at, recheck
 
 _ROUTES = {}
@@ -97,6 +97,36 @@ def post_book_patch(app: App, body):
         except EditError as e:
             return {"ok": False, "errors": [str(e)]}
         app.reload()
+        return res
+
+
+@route("POST", "/api/kj")
+def post_kj(app: App, body):
+    """КЖ в DWG: выпуск / обновление (функция надстройки SX_KJTo). items: [{doc, dwg}], dwg "" — из отметки."""
+    with app.write_lock:
+        try:
+            res = kj_writer.issue(app.prj, body.get("items") or [])
+        except EditError as e:
+            return {"ok": False, "errors": [str(e)]}
+        except Exception as e:  # noqa: BLE001 — Excel / AutoCAD / COM
+            return {"ok": False, "errors": [f"Excel: {e}"]}
+        if res.get("done"):
+            app.reload_quiet()            # отметки .kj.txt — новое состояние «КЖ»
+        return res
+
+
+@route("POST", "/api/dismiss")
+def post_dismiss(app: App, body):
+    """Снять замечания вручную / вернуть (restore). items: [{rule, panel, line, text}], note — причина."""
+    with app.write_lock:
+        try:
+            if body.get("restore"):
+                res = dismiss.restore(app.prj, body.get("items") or [])
+            else:
+                res = dismiss.dismiss(app.prj, body.get("items") or [], body.get("note", ""))
+        except EditError as e:
+            return {"ok": False, "errors": [str(e)]}
+        app.refresh()                     # проверки заново: снятые уходят в prj.dismissed
         return res
 
 

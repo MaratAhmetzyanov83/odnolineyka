@@ -1,6 +1,6 @@
 // Столбцы таблиц окна. Новый столбец — элемент массива (см. описание в grid.js).
 import { esc, num, refLink } from "./fmt.js";
-import { S, lineIn } from "./store.js";
+import { S, lineIn, lineIssues, lineDismissed, lineLevel } from "./store.js";
 import { toPanel } from "./nav.js";
 
 const cableShort = c => (c || "").replace(/\s*L=.*$/, "");
@@ -75,11 +75,14 @@ export function lineColumns({ withPanel = false } = {}){
     {id: "bus", t: "Шина", w: 60, hidden: 1, v: l => l.scheme.bus, edit: {path: "scheme.bus"}},
     {id: "term", t: "Клемма", w: 56, hidden: 1, v: l => l.scheme.terminal},
     {id: "st", t: "Статус", title: "Наведите — пояснение: что значит и как исправить", w: 220, v: l => l.result.status, nogroup: 1,
-      cls: l => l.result.level >= 2 ? "lv2" : l.result.level ? "lv1" : "",
-      tip: l => [l.result.status, ...new Set((S.issuesBy[l.panel] || []).filter(i => i.line === l.number && i.hint).map(i => i.hint))].filter(Boolean).join("\n\n"),
-      h: l => `${refLink(l.refs.scheme || l.refs.input, "✎")} ${esc(l.result.status)}`},
+      cls: l => lineLevel(l) >= 2 ? "lv2" : lineLevel(l) ? "lv1" : "",
+      tip: l => [l.result.status, ...new Set(lineIssues(l).filter(i => i.hint).map(i => i.hint)),
+                 ...lineDismissed(l).map(i => `Снято вручную (${i.dismissed}): ${i.text}`)].filter(Boolean).join("\n\n"),
+      h: l => `${refLink(l.refs.scheme || l.refs.input, "✎")} ${esc(l.result.status)}`
+        + (lineIssues(l).length ? ` <a class="dis" data-dispanel="${esc(l.panel)}" data-disline="${esc(l.number)}" title="Снять замечания линии вручную (проверено, согласен). Книга не меняется; вернуть — «Замечания» → «Снятые»">✕</a>` : "")
+        + (lineDismissed(l).length ? ` <span class="mut" title="Снятые вручную — см. «Замечания» → «Снятые»">снято ${lineDismissed(l).length}</span>` : "")},
   ];
 }
 
 export const lineRef = l => ({panel: l.panel, line: l.number, name: S.panels[l.panel]?.name});
-export const lineAttrs = l => `class="l${l.result.level}"`;
+export const lineAttrs = l => `class="l${lineLevel(l)}"`;

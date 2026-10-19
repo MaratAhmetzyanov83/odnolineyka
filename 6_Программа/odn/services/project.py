@@ -168,6 +168,8 @@ def step_revision(prj, ctx):
 
 def step_checks(prj, ctx):
     prj.issues = checks.run(prj, ctx.get("disabled", ()))
+    from . import dismiss
+    dismiss.apply(prj)                              # замечания, снятые вручную, — в prj.dismissed
 
 
 STEPS = [("read", step_read), ("structure", step_structure), ("link", step_link), ("calc", step_calc), ("drawing", step_drawing),

@@ -806,7 +806,12 @@
 
 ;;; ---------------------------------------------------------------- Excel
 (setq sx:xl nil sx:xl-created nil sx:wb nil sx:wb-opened nil
-      sx:sheets nil sx:si 0 sx:panels nil sx:pi 0 sx:path "")
+      sx:sheets nil sx:si 0 sx:panels nil sx:pi 0 sx:path "" sx:open-err nil)
+
+;;; «Не удалось открыть файл Excel.» + причина от Excel
+(defun sx:open-msg ()
+  (strcat (sx:ru '(1053 1077 32 1091 1076 1072 1083 1086 1089 1100 32 1086 1090 1082 1088 1099 1090 1100 32 1092 1072 1081 1083 32 69 120 99 101 108 46))
+          (if sx:open-err (strcat " " sx:open-err) "")))
 
 ;;; Excel ещё отвечает (после закрытия процесса ссылка даёт «Сервер RPC недоступен»)
 (defun sx:xl-alive (xl)
@@ -852,9 +857,30 @@
   (if (and sx:wb (not (member sx:wb sx:wb-opened))) (sx:rel sx:wb))
   (setq sx:sheets nil sx:wb nil))
 
+;;; имя файла без папки: Excel не держит две книги с одним именем из разных папок
+(defun sx:fname (p) (strcase (strcat (vl-filename-base p) (vl-filename-extension p))))
+
+(defun sx:wb-try-open (wbs path / wb)
+  (setq wb (vl-catch-all-apply 'vlax-invoke-method (list wbs 'Open path :vlax-false :vlax-true)))
+  (if (vl-catch-all-error-p wb)
+    (progn (setq sx:open-err (vl-catch-all-error-message wb))
+           (sx:log (strcat "Excel: Open failed: " sx:open-err))
+           nil)
+    wb))
+
 (defun sx:open-wb (path / xl wbs wb full w sh shs)
-  (setq xl (sx:xl-app) wb nil)
+  (setq xl (sx:xl-app) wb nil sx:open-err nil)
   (sx:free-book)
+  ;; v3.25: наша книга с тем же именем из другой папки мешает открыть новую — закрыть её
+  (foreach o sx:wb-opened
+    (setq full (vl-catch-all-apply 'vlax-get-property (list o 'FullName)))
+    (if (and (not (vl-catch-all-error-p full))
+             (/= (strcase full) (strcase path))
+             (= (sx:fname full) (sx:fname path)))
+      (progn (sx:log (strcat "Excel: close same-name book " full))
+             (vl-catch-all-apply 'vlax-invoke-method (list o 'Close :vlax-false))
+             (sx:rel o)
+             (setq sx:wb-opened (vl-remove o sx:wb-opened)))))
   (setq wbs (vlax-get-property xl 'Workbooks))
   (vlax-for w wbs
     (if (null wb)
@@ -864,11 +890,21 @@
       (sx:rel w)))
   (if (null wb)
     (progn
-      (setq wb (vl-catch-all-apply 'vlax-invoke-method
-                 (list wbs 'Open path :vlax-false :vlax-true)))
-      (if (vl-catch-all-error-p wb)
-        (setq wb nil)
-        (progn (setq sx:wb-opened (cons wb sx:wb-opened))
+      (setq wb (sx:wb-try-open wbs path))
+      ;; чужой Excel (книга пользователя с тем же именем, режим правки ячейки) — свой экземпляр
+      (if (and (null wb) (not sx:xl-created))
+        (progn (sx:log "Excel: retry in own instance")
+               (sx:rel wbs)
+               (setq xl (vl-catch-all-apply 'vlax-create-object (list "Excel.Application")))
+               (if (and xl (not (vl-catch-all-error-p xl)))
+                 (progn (sx:rel sx:xl)
+                        (setq sx:xl xl sx:xl-created T
+                              wbs (vlax-get-property xl 'Workbooks)
+                              wb (sx:wb-try-open wbs path)))
+                 (setq xl sx:xl wbs (vlax-get-property xl 'Workbooks)))))
+      (if (null wb)
+        nil
+        (progn (setq sx:open-err nil) (setq sx:wb-opened (cons wb sx:wb-opened))
                (vl-catch-all-apply 'vlax-invoke-method (list xl 'Calculate))))))
   (sx:rel wbs)
   (setq sx:wb wb sx:sheets nil sx:si 0 sx:panels nil sx:pi 0)
@@ -2264,7 +2300,7 @@
     (setq res (start_dialog))
     (if (and sx:path-typed (/= sx:path-typed sx:path) (/= sx:path-typed ""))
       (progn
-        (if (not (sx:open-wb sx:path-typed)) (setq sx:status (sx:ru '(1053 1077 32 1091 1076 1072 1083 1086 1089 1100 32 1086 1090 1082 1088 1099 1090 1100 32 1092 1072 1081 1083 32 69 120 99 101 108 46))))
+        (if (not (sx:open-wb sx:path-typed)) (setq sx:status (sx:open-msg)))
         (if (= res 1) (setq res 5))))
     (cond
       ((= res 3)
@@ -2272,7 +2308,7 @@
        (if path
          (if (sx:open-wb path)
            (setenv "SX_LastXls" path)
-           (setq sx:status (sx:ru '(1053 1077 32 1091 1076 1072 1083 1086 1089 1100 32 1086 1090 1082 1088 1099 1090 1100 32 1092 1072 1081 1083 32 69 120 99 101 108 46))))))
+           (setq sx:status (sx:open-msg)))))
       ((= res 4)
        (if (setq path (getfiled (sx:ru '(1063 1077 1088 1090 1105 1078 32 1089 32 1074 1072 1096 1080 1084 1080 32 1073 1083 1086 1082 1072 1084 1080 32 40 1073 1080 1073 1083 1080 1086 1090 1077 1082 1072 41)) (if sx:lib sx:lib "") "dwg" 0))
          (setq sx:lib path)))

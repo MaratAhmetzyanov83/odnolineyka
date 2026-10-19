@@ -1,5 +1,6 @@
 // Экран «Весь объект». Вкладки — TABS: новая вкладка = новый элемент {id, title, bar, render, mount}.
 import { esc, num } from "../fmt.js";
+import { runKJ } from "./panel.js";
 import { S, counts, roots, drawState, kjState, specState, kc } from "../store.js";
 import { toObject, toPanel } from "../nav.js";
 import { mount } from "../grid.js";
@@ -75,12 +76,17 @@ function allLinesGrid(host){
     rowRef: lineRef, rowAttrs: lineAttrs, rowId: l => l.panel + "#" + l.number});
 }
 
+// книги с устаревшим КЖ — обновить все разом (DWG из отметок .kj.txt)
+const kjStale = () => S.P.documents.filter(d => d.kj?.state === "stale");
+const kjBar = () => { const n = kjStale().length;
+  return n ? `<button id="kjall" title="Перестроить устаревшие КЖ в их DWG: надстройка «КЖ в DWG» в своём Excel, AutoCAD в фоне">Обновить устаревшие КЖ (${n})</button>` : ""; };
+
 export const TABS = [
   { id: "summary", title: () => "Сводка", bar: () => `<span class="sub">Тип замечания × щит. Щелчок по числу — эти замечания в щите.</span>`,
     render: summary },
   { id: "issues", title: () => `Замечания (${S.P.issues.length})`, bar: issues.filters, mount: host => issues.mountTable(host, S.P.issues, true) },
   { id: "scheme", title: () => "Схема", bar: () => "", mount: scheme.mount },
-  { id: "panels", title: () => `Щиты (${Object.keys(S.panels).length})`, bar: () => "", mount: panelsGrid },
+  { id: "panels", title: () => `Щиты (${Object.keys(S.panels).length})`, bar: kjBar, mount: panelsGrid },
   { id: "lines", title: () => `Все линии (${Object.values(S.panels).reduce((s, p) => s + p.lines.length, 0)})`, bar: () => "", mount: allLinesGrid },
 ];
 
@@ -103,6 +109,9 @@ export function bind(root, rerender, ctx){
   issues.bind(root, rerender);
   root.querySelectorAll("[data-kindgo]").forEach(td => td.addEventListener("click", () => {
     issues.filt.kind = td.dataset.kindgo; issues.filt.lvl = 0; issues.filt.group = ""; issues.filt.q = ""; }, true));
+  const ka = root.querySelector("#kjall");
+  if (ka) ka.onclick = () => { const ds = kjStale();
+    if (confirm(`Обновить КЖ в ${ds.length} книгах?\n${ds.map(d => d.kj.dwg).join("\n")}\nНужен AutoCAD.`)) runKJ(ds.map(d => ({doc: d.file, dwg: ""})), ka); };
   const tab = TABS.find(t => t.id === ctx.params.tab) || TABS[0];
   if (tab.mount) tab.mount(root.querySelector("#ghost"));
 }

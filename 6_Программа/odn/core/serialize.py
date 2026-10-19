@@ -12,6 +12,7 @@ from . import model
 LIST_ITEMS = {
     (model.Project, "documents"): model.Document,
     (model.Project, "issues"): model.Issue,
+    (model.Project, "dismissed"): model.Issue,
     (model.Document, "panels"): model.Panel,
     (model.Panel, "lines"): model.Line,
     (model.Panel, "feeders_seen"): model.FeederSeen,

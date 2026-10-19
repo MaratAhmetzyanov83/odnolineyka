@@ -298,7 +298,7 @@ class TestExternal(unittest.TestCase):
             shutil.copytree(FOLDER, obj, ignore=shutil.ignore_patterns("_окно", "*.nodes.txt", "_резерв"))
             sub = os.path.join(obj, "Корпус 2")
             prj = load_project(sub, progress=lambda s: None, use_cache=False)
-            docs = {x.file.replace("\\\\", "/"): x.external for x in prj.documents}
+            docs = {x.file.replace("\\", "/"): x.external for x in prj.documents}
             self.assertEqual(docs, {"ЩР-2.xlsx": False, "../ГРЩ.xlsx": True, "../ЩР-1.xlsx": True})
             p = {x.name: x for x in prj.panels()}
             self.assertEqual((p["ЩР-2"].parent, p["ЩР-1"].parent), (p["ГРЩ"].id, p["ГРЩ"].id))
@@ -425,6 +425,54 @@ class TestKJStamp(unittest.TestCase):
             self.assertIn("W2 (гр. 5: 5х10 → 5х16)", doc.kj["why"])
             self.assertIn("новые 1: W3", doc.kj["why"])
             self.assertTrue(any(i.rule == "drawings.kj_stale" for i in prj.issues))
+            # обновить КЖ из окна (тест: без Excel и AutoCAD — только отметка) -> «актуален», DWG — из отметки
+            from odn.services import kj_writer
+            os.environ["ODN_TEST_WRITER"] = "1"
+            try:
+                res = kj_writer.issue(prj, [{"doc": "ГРЩ.xlsx", "dwg": "КЖ_ГРЩ"}, {"doc": "нет.xlsx", "dwg": ""}])
+            finally:
+                os.environ.pop("ODN_TEST_WRITER", None)
+            self.assertEqual([x["dwg"] for x in res["done"]], [os.path.abspath(os.path.join(obj, "КЖ_ГРЩ.dwg"))])
+            self.assertEqual(res["errors"], ["нет.xlsx: нет книги"])
+            prj = load_project(obj, progress=lambda s: None, use_cache=False)
+            doc = next(x for x in prj.documents if x.file == "ГРЩ.xlsx")
+            self.assertEqual((doc.kj["state"], doc.kj["cables"]), ("ok", 3))
+            self.assertEqual(kj_writer._target(prj, doc, ""), doc.kj["dwg"])          # «обновить» — DWG из отметки
+            self.assertEqual(kj_writer.default_dwg(doc), "КЖ_ГРЩ.dwg")
+            self.assertEqual(kj_writer._target(prj, doc, "сх\\КЖ"), os.path.abspath(os.path.join(obj, "сх", "КЖ.dwg")))
+        finally:
+            shutil.rmtree(d, ignore_errors=True)
+
+
+class TestDismiss(unittest.TestCase):
+    """Замечание снято вручную (_окно/снятые.json): уходит из списка и счёта, «вернуть» — снова в списке."""
+
+    def test_dismiss(self):
+        TestExcelV312.setUpClass()
+        from odn.core.changes import EditError
+        from odn.services import dismiss
+        from odn.services.project import recheck
+        d = tempfile.mkdtemp(prefix="odn_dis_")
+        try:
+            obj = os.path.join(d, "объект")
+            shutil.copytree(FOLDER, obj, ignore=shutil.ignore_patterns("_окно", "*.nodes.txt", "*.drawn.txt"))
+            prj = load_project(obj, progress=lambda s: None, use_cache=False)
+            i = next(x for x in prj.issues if x.line)
+            k, n = dismiss.key(i), len(prj.issues)
+            res = dismiss.dismiss(prj, [{"rule": i.rule, "panel": i.panel, "line": i.line, "text": i.text}], "проверено")
+            self.assertEqual(res["n"], 1)
+            recheck(prj)
+            self.assertNotIn(k, {dismiss.key(x) for x in prj.issues})
+            self.assertEqual(len(prj.issues), n - 1)
+            self.assertEqual([dismiss.key(x) for x in prj.dismissed], [k])
+            self.assertTrue(prj.dismissed[0].dismissed.endswith(": проверено"))
+            prj = load_project(obj, progress=lambda s: None, use_cache=False)       # после перечитывания — тоже снято
+            self.assertEqual(len(prj.dismissed), 1)
+            with self.assertRaises(EditError):                                      # такого замечания уже нет
+                dismiss.dismiss(prj, [{"rule": i.rule, "panel": i.panel, "line": i.line, "text": "другой текст"}])
+            dismiss.restore(prj, [{"rule": i.rule, "panel": i.panel, "line": i.line, "text": i.text}])
+            recheck(prj)
+            self.assertEqual((len(prj.issues), prj.dismissed), (n, []))
         finally:
             shutil.rmtree(d, ignore_errors=True)
 
