@@ -822,7 +822,8 @@
     (dl:put sh (strcat cPV rs) (nth 1 s))
     (dl:put sh (strcat cPN rs) (nth 2 s))
     (dl:put sh (strcat cLT rs) (nth 7 s))
-    (dl:put sh (strcat cHN rs) (dl:join (nth 3 s) " "))
+    ;; хэндлы — текстом: «47E191» Excel иначе берёт как число 4,7E+192
+    (dl:put sh (strcat cHN rs) (if (nth 3 s) (strcat "'" (dl:join (nth 3 s) " "))))
     (dl:put sh (strcat cNT rs) (nth 4 s))
     (dl:put sh (strcat cEX rs) (nth 6 s))
     (dl:put sh (strcat cSH rs) (dl:join (nth 8 s) ", "))
