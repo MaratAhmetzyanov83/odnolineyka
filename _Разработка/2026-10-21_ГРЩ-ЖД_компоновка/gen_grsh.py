@@ -243,6 +243,22 @@ for i, (tag, yy) in enumerate((("N", 330.0), ("PE", 220.0))):
     for c in CAB:
         text((c[0] + 80, c[1] + yy), tag, 25, just="ML")
 
+# ---------- электроприводы MOD на лицевой стороне QF1, QF2, QF24 ----------
+def motor(cx, cy, w, h, tag):
+    x0, y0, x1, y1 = cx - w / 2, cy - h / 2 + 10, cx + w / 2, cy + h / 2 + 10
+    L.append('(command "_.WIPEOUT" "_non" %s "_non" %s "_non" %s "_non" %s "")'
+             % (pt((x0, y0)), pt((x1, y0)), pt((x1, y1)), pt((x0, y1))))
+    rect(x0, y0, x1, y1, layer="devices")
+    rect(cx - 18, y0 + 18, cx + 18, y0 + 44, layer="devices")          # окно положения
+    text((cx, y1 - 28), tag, 24, just="MC", layer="devices")
+    text((cx, y1 - 58), "MOD", 17, just="MC", layer="devices")
+    text((cx, y1 - 82), "эл. привод", 13, just="MC", layer="devices")
+
+
+motor(CAB[0][0] + 290, CAB[0][1] + PL_MID(0, ROW_A), 170, 150, "M1")
+motor(CAB[1][0] + 290, CAB[1][1] + PL_MID(0, ROW_A), 170, 150, "M2")
+motor(CAB[0][0] + 760, CAB[0][1] + PL_MID(0, ROW_A), 116, 140, "M3")
+
 # ---------- силовые связи (гибкая шина 10х32х1) и вводы ----------
 A_MID = PL_MID(0, ROW_A); B_MID = PL_MID(0, ROW_B)
 QF_TOP, QF_BOT = A_MID + 255 * 1.08 / 2, A_MID - 255 * 1.08 / 2
