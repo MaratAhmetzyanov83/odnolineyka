@@ -4,7 +4,7 @@ out = sys.argv[1]
 
 FX, FY = 31000.0, 3033.48          # низ-лево рамки в модели (масштаб 1:10)
 SC = 10.0
-CAB = [(FX + 450, FY + 1751), (FX + 1450, FY + 1751)]   # низ корпуса CQE (без цоколя)
+CAB = [(FX + 450, FY + 1851), (FX + 1450, FY + 1851)]   # низ корпуса CQE (без цоколя)
 
 # образцы с листа ЩОВ-001: (handle, точка вставки)
 SRC_CAB = ("13E977", (6157.958076956492, 3986.963122293474))
@@ -81,10 +81,10 @@ L.append('(setvar "OSMODE" 0) (setvar "CMDECHO" 0) (setvar "ATTREQ" 0)')
 copy(SRC_FRAME, (FX, FY))
 L.append('(command "_.SCALE" (entlast) "" %s 1.25)' % pt((FX, FY)))
 
-ROW_A, ROW_B, ROW_C, ROW_D = 1578.75, 1198.75, 900.0, 650.0   # от низа корпуса: пластины / DIN
+ROW_A, ROW_B, ROW_C, ROW_D, ROW_E = 1578.75, 1198.75, 900.0, 650.0, 450.0   # от низа корпуса: пластины / DIN
 
 
-def cabinet(cx, cy):
+def cabinet(cx, cy, din_rows):
     dx, dy = cx - CAB0[0], cy - CAB0[1]
     copy(SRC_CAB, (cx, cy))
     copy(SRC_PLINTH, (SRC_PLINTH[1][0] + dx, SRC_PLINTH[1][1] + dy))
@@ -92,14 +92,14 @@ def cabinet(cx, cy):
         sh = r - (SRC_PL_A[1][1] - CAB0[1])
         copy(SRC_PL_A, (SRC_PL_A[1][0] + dx, SRC_PL_A[1][1] + dy + sh))
         copy(SRC_PL_B, (SRC_PL_B[1][0] + dx, SRC_PL_B[1][1] + dy + sh))
-    for r in (ROW_C, ROW_D):
+    for r in din_rows:
         sh = r - (SRC_DPL[1][1] - CAB0[1])
         copy(SRC_DPL, (SRC_DPL[1][0] + dx, SRC_DPL[1][1] + dy + sh))
         copy(SRC_DIN, (SRC_DIN[1][0] + dx, SRC_DIN[1][1] + dy + sh))
 
 
-for c in CAB:
-    cabinet(*c)
+cabinet(*CAB[0], (ROW_C, ROW_D, ROW_E))
+cabinet(*CAB[1], (ROW_C, ROW_D, ROW_E))
 
 PL_MID = lambda cy, r: cy + r + 77.0          # середина пары пластин
 DIN_Y = lambda cy, r: cy + r + 37.5           # ось DIN-рейки
@@ -135,8 +135,12 @@ def terminals(x0, y, names, tag, pitch=None):
 def box(x0, y, w, h, tag, lines):
     rect(x0, y - h / 2, x0 + w, y + h / 2, layer="devices")
     for i, t in enumerate(lines):
-        text((x0 + w / 2, y + 15 - i * 30), t, 14 if i else 18, just="MC", layer="devices")
-    text((x0 + w / 2, y + h / 2 + 25), tag, 22, just="MC")
+        if t:
+            text((x0 + w / 2, y + 15 - i * 30), t, (14 if i else 18) if w >= 60 else 9, just="MC", layer="devices")
+    if w < 60:
+        text((x0 + w / 2, y + 62), tag, 14, rot=90, just="ML")
+    else:
+        text((x0 + w / 2, y + h / 2 + 25), tag, 22 if len(tag) < 5 else 17, just="MC")
     return x0 + w
 
 
@@ -147,33 +151,54 @@ M3W = ("S203", 1.5)    # NXB-125 3P, 27 мм на полюс
 
 # ---------- шкаф 1: ввод 1, секция 1 ----------
 cx, cy = CAB[0]
-big("A$C5c1f3258", cx + 290, PL_MID(cy, ROW_A), 1.3, 1.3, ["QS1"])
+big("NM8N-400", cx + 290, PL_MID(cy, ROW_A), 1.5, 1.1, ["QS1"])
 big("NM8N-400", cx + 760, PL_MID(cy, ROW_A), 1.0, 1.0, ["QF24"])
 big("NM8N-400", cx + 290, PL_MID(cy, ROW_B), 1.5, 1.08, ["QF1"])
 y = DIN_Y(cy, ROW_C)
 x = terminals(cx + 90, y, T16, "XT1")
 x = terminals(x + 40, y, T4, "XT4", pitch=8.0)
-x = box(x + 60, y, 108, 90, "A1", ["АВР", "контроллер"])
-x = box(x + 30, y, 36, 85, "KV1", ["U"])
-x = box(x + 40, y, 36, 85, "KV2", ["U"])
+x = box(x + 60, y, 36, 85, "KV1", ["U1", "РНПП"])
+x = box(x + 40, y, 36, 85, "KV2", ["U2", "РНПП"])
+x = box(x + 40, y, 81, 90, "FU1-FU3", ["gG 80А"])
+x = box(x + 20, y, 144, 90, "FV1-FV3", ["УЗИП 1+2"])
 y = DIN_Y(cy, ROW_D)
 sec1 = [(*M3W, "QF3"), (*M3, "QF4"), (*M3, "QF5"), (*M3, "QF6"), (*M3, "QF7"), (*M3, "QF8"),
-        (*M3, "QF9"), (*M3W, "QF10"), (*M3, "QF11"), (*M3W, "QF12")]
-din_row(cx + 90, y, sec1, gap=9.0)
+        (*M3, "QF9"), (*M3W, "QF10")]
+x = din_row(cx + 90, y, sec1, gap=9.0)
+x = box(x - 9, y, 18, 85, "YA1", [""])
+x = din_row(x + 9, y, [(*M3, "QF11"), (*M3W, "QF12")], gap=9.0)
+x = box(x - 9, y, 18, 85, "YA2", [""])
+# АВР: питание цепей управления от двух вводов, контроллер, режим, сигнализация
+y = DIN_Y(cy, ROW_E)
+x = din_row(cx + 90, y, [("S201", 2.0, "SF1"), ("S201", 2.0, "SF2")], gap=9.0)
+x = box(x + 20, y, 36, 85, "KM1", ["KM"])
+x = box(x + 9, y, 36, 85, "KM2", ["KM"])
+x = din_row(x + 20, y, [("S201", 1.0, "SF3"), ("S201", 1.0, "SF4")], gap=9.0)
+x = box(x + 20, y, 123, 90, "A1", ["ПР200-24", "ОВЕН"])
+x = box(x + 9, y, 72, 90, "A2", ["ПРМ-24", "ОВЕН"])
+x = box(x + 20, y, 36, 85, "SA1", ["А-0-Р"])
+for k in range(3):
+    x = box(x + (20 if k == 0 else 4), y, 18, 85, "HL%d" % (k + 1), [""])
+x = terminals(x + 30, y, ["VPR-4-GY"] * 20, "XT10", pitch=6.4)
 
 # ---------- шкаф 2: ввод 2, секция 2 ----------
 cx, cy = CAB[1]
-big("A$C5c1f3258", cx + 290, PL_MID(cy, ROW_A), 1.3, 1.3, ["QS2"])
+big("NM8N-400", cx + 290, PL_MID(cy, ROW_A), 1.5, 1.1, ["QS2"])
 big("NM8N-400", cx + 290, PL_MID(cy, ROW_B), 1.5, 1.08, ["QF2"])
 big("NM8N-250", cx + 760, PL_MID(cy, ROW_B), 1.0, 1.0, ["QF14"])
 y = DIN_Y(cy, ROW_C)
 x = terminals(cx + 90, y, T16, "XT2")
 x = terminals(x + 40, y, T16, "XT13")
 x = terminals(x + 40, y, ["КБР-400"] * 5, "XT14", pitch=56.0)
+x = box(x + 15, y, 81, 90, "FU4-FU6", ["gG 80А"])
+x = box(x + 15, y, 144, 90, "FV4-FV6", ["УЗИП 1+2"])
 y = DIN_Y(cy, ROW_D)
 sec2 = [(*M3, "QF13"), (*M3, "QF15"), (*M3, "QF16"), (*M3, "QF17"), (*M1, "QF18"), (*M1, "QF19"),
         ("DS201", 1.0, "QFD20"), (*M1, "QF21"), (*M3, "QF22"), (*M1, "QF23")]
 din_row(cx + 90, y, sec2, gap=9.0)
+y = DIN_Y(cy, ROW_E)
+x = box(cx + 90, y, 108, 90, "G1", ["БП+ИБП", "24 В"])
+x = box(x + 20, y, 180, 90, "GB1", ["АКБ 24 В"])
 
 # ---------- шины N и PE (общие, по низу обоих шкафов) ----------
 for i, (tag, yy) in enumerate((("N", 330.0), ("PE", 220.0))):
@@ -204,28 +229,36 @@ L.append('(setvar "DIMSCALE" 1.0)')
 # ---------- перечень аппаратов ----------
 SQ = "\\U+00B2"   # «²» кодом AutoCAD: в cp1251 его нет
 ROWS = [
-    ("Поз.", "Наименование", "Кол."),
-    ("QS1, QS2", "Выключатель-разъединитель NH40-800/3, 800 А", "2"),
-    ("QF1, QF2", "Выключатель NM8N-630, 3P, 630 А, LSI (Ir=520 А, tsd=0,2 с), эл. привод MOD", "2"),
-    ("QF24", "Выключатель секционный NM8N-400, 3P, 400 А, LSI (Ir=400 А, tsd=0,1 с), эл. привод MOD", "1"),
-    ("QF14", "Выключатель NM8N-250, 3P, B250 А", "1"),
-    ("QF3, QF10, QF12", "Выключатель модульный NXB-125, 3P, C80 / C100 / C80", "3"),
-    ("QF4-QF9, QF11, QF13,", "Выключатель модульный NB1-63H, 3P, C20...C63", "12"),
+    ("Поз.", "Наименование (по спецификации, раздел 1)", "Кол."),
+    ("QS1, QS2", "Выключатель-разъединитель NM8NSD-800, 3P, 800 А", "2"),
+    ("QF1, QF2", "Выключатель NM8N-630, 3P, LSI (Ir=520 А, tsd=0,2 с), OF/SD, MX", "2"),
+    ("QF24", "Выключатель секционный NM8N-400, 3P, LSI (Ir=400 А, tsd=0,1 с), OF/SD", "1"),
+    ("M1-M3", "Электропривод MOD к NM8N, ~230 В (QF1, QF2, QF24)", "3"),
+    ("A1", "Контроллер АВР ОВЕН ПР200-24 (=24 В), программа АВР", "1"),
+    ("A2", "Модуль расширения ОВЕН ПРМ-24.1", "1"),
+    ("KV1, KV2", "Реле контроля напряжения РНПП-311М (вводы 1, 2)", "2"),
+    ("SF1, SF2", "NB1-63H 2P C6 - питание цепей АВР от ввода 1 / 2", "2"),
+    ("KM1, KM2", "Контактор NCH8-20/20 - АВР цепей управления", "2"),
+    ("SF3, SF4", "NB1-63H 1P C4 (G1) / C10 (M1-M3)", "2"),
+    ("G1, GB1", "Источник питания 24 В с ИБП и АКБ", "1"),
+    ("SA1, HL1-HL3", "Переключатель «Авто-0-Ручн.»; лампы ND9", "1+3"),
+    ("FU1-FU6, FV1-FV6", "Предохранители gG 80 А; УЗИП тип 1+2, 3P+N", "2 к."),
+    ("QF3, QF10, QF12", "NXB-125, 3P, C80 / C100 / C80", "3"),
+    ("QF4-QF9, QF11, QF13,", "NB1-63H, 3P, C20...C63", "12"),
     ("QF15-QF17, QF22", "", ""),
-    ("QF18, QF19, QF21, QF23", "Выключатель модульный NB1-63H, 1P, C6...C25", "4"),
-    ("QFD20", "Автоматический выключатель дифф. тока, 2P, C32, 30 мА", "1"),
-    ("A1", "Контроллер АВР (по ТУ изготовителя НКУ)", "1"),
-    ("KV1, KV2", "Реле контроля напряжения 3ф (U1, U2)", "2"),
-    ("XT1, XT2, XT13", "Клеммы 16 мм" + SQ + " (L1, L2, L3, N, PE)", "15"),
-    ("XT4", "Клеммы 4 мм" + SQ + " (L1, L2, L3, N, PE)", "5"),
+    ("QF18, QF19, QF21, QF23", "NB1-63H, 1P, C6...C25", "4"),
+    ("QF14", "NM8N-250, 3P, 250 А", "1"),
+    ("QFD20", "АВДТ 2P C32 30 мА", "1"),
+    ("YA1, YA2", "Независимый расцепитель 230 В к QF10, QF12 (СПС)", "2"),
+    ("XT1, XT2, XT13 / XT4 / XT10", "Клеммы 16 / 4 / 2,5 мм" + SQ, "15/5/20"),
     ("XT14", "Колодка КБР-400 (кабель 1х185)", "5"),
-    ("", "Шины N и PE, медь; корпус CQE 2000х1000х600 с цоколем 100 мм", "2 шк."),
+    ("", "Корпус CQE 2000х1000х600 с цоколем 100; шины N, PE (ГЗШ 25х4)", "2 шк."),
 ]
-TX0, TY_TOP, RH = FX + 300, FY + 1480, 48.0
-CW = [520, 1820, 180]
+TX0, TY_TOP, RH = FX + 300, FY + 1620, 40.0
+CW = [640, 1700, 180]
 xs = [TX0, TX0 + CW[0], TX0 + CW[0] + CW[1], TX0 + sum(CW)]
 n = len(ROWS)
-text((TX0, TY_TOP + 45), "Перечень аппаратов ГРЩ-ЖД", 30, just="BL")
+text((TX0, TY_TOP + 25), "Перечень аппаратов ГРЩ-ЖД. Алгоритм АВР — см. принципиальную схему 0,4 кВ, лист ЖД", 26, just="BL")
 for i in range(n + 1):
     line((xs[0], TY_TOP - i * RH), (xs[3], TY_TOP - i * RH))
 for xx in xs:
@@ -235,9 +268,9 @@ for i, r in enumerate(ROWS):
     for j, t in enumerate(r):
         if t:
             if j == 2 or i == 0:
-                text(((xs[j] + xs[j + 1]) / 2, yc), t, 22, just="MC")
+                text(((xs[j] + xs[j + 1]) / 2, yc), t, 20, just="MC")
             else:
-                text((xs[j] + 12, yc), t, 22, just="ML")
+                text((xs[j] + 12, yc), t, 20, just="ML")
 
 # ---------- лист ----------
 L.append('(command "_.-LAYOUT" "_Copy" "ЩОВ-001" "ГРЩ-ЖД")')
