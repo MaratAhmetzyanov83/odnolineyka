@@ -77,6 +77,7 @@ def label(px, py, lines, h=25.0):
 
 # ---------- рамка, корпуса ----------
 L.append('(vl-load-com)')
+L.append('(setvar "3DOSMODE" 1) (setvar "AUTOSNAP" 0)')
 L.append('(setvar "OSMODE" 0) (setvar "CMDECHO" 0) (setvar "ATTREQ" 0)')
 copy(SRC_FRAME, (FX, FY))
 L.append('(command "_.SCALE" (entlast) "" %s 1.25)' % pt((FX, FY)))
@@ -107,7 +108,36 @@ DIN_Y = lambda cy, r: cy + r + 37.5           # ось DIN-рейки
 
 def big(name, cx, cy, sx, sy, short):
     w, h = ins(name, cx, cy, sx, sy, layer="0")
-    label(cx - w / 2, cy + h / 2 + 12, short, 25)
+    text((cx + w / 2 + 14, cy), short[0], 25, just="ML")
+    return w, h
+
+
+def pline(pts, width=6.0, layer="devices", ltype=None):
+    lt = "(cons 6 %s) " % s(ltype) if ltype else ""
+    L.append("(entmake (append (list '(0 . \"LWPOLYLINE\") '(100 . \"AcDbEntity\") (cons 8 %s) %s'(100 . \"AcDbPolyline\") (cons 90 %d) '(70 . 0) (cons 43 %.2f))"
+             " (mapcar '(lambda (p) (cons 10 p)) '(%s))))"
+             % (s(layer), lt, len(pts), width, " ".join("(%.3f %.3f)" % q for q in pts)))
+
+
+def dot(p, r=7.0):
+    L.append("(entmake (list '(0 . \"CIRCLE\") '(8 . \"devices\") (cons 10 '(%.3f %.3f 0.0)) (cons 40 %.2f)))" % (p[0], p[1], r))
+
+
+BUS_Y = [1865.0, 1895.0, 1925.0]      # оси шин L1, L2, L3 от низа корпуса
+
+
+def busbars(c, sec):
+    for k, yy in enumerate(BUS_Y):
+        rect(c[0] + 60, c[1] + yy - 5, c[0] + 940, c[1] + yy + 5, layer="devices")
+        text((c[0] + 945, c[1] + yy), "L%d" % (k + 1), 12, just="ML")
+    text((c[0] + 430, c[1] + 1840), "L1-L3: ШМТ 60х8, секция %d" % sec, 14, just="ML")
+
+
+def flex(x, y0, y1, width=6.0):
+    pline([(x, y0), (x, y1)], width)
+
+
+POLES = (-70.0, 0.0, 70.0)            # оси полюсов NM8N-400 х1,5
 
 
 def din_row(x0, y, items, gap=0.0):
@@ -151,9 +181,10 @@ M3W = ("S203", 1.5)    # NXB-125 3P, 27 мм на полюс
 
 # ---------- шкаф 1: ввод 1, секция 1 ----------
 cx, cy = CAB[0]
-big("NM8N-400", cx + 290, PL_MID(cy, ROW_A), 1.5, 1.1, ["QS1"])
+busbars((cx, cy), 1)
+big("NM8N-400", cx + 290, PL_MID(cy, ROW_A), 1.5, 1.08, ["QF1"])
 big("NM8N-400", cx + 760, PL_MID(cy, ROW_A), 1.0, 1.0, ["QF24"])
-big("NM8N-400", cx + 290, PL_MID(cy, ROW_B), 1.5, 1.08, ["QF1"])
+big("NM8N-400", cx + 290, PL_MID(cy, ROW_B), 1.5, 1.1, ["QS1"])
 y = DIN_Y(cy, ROW_C)
 x = terminals(cx + 90, y, T16, "XT1")
 x = terminals(x + 40, y, T4, "XT4", pitch=8.0)
@@ -161,6 +192,7 @@ x = box(x + 60, y, 36, 85, "KV1", ["U1", "РНПП"])
 x = box(x + 40, y, 36, 85, "KV2", ["U2", "РНПП"])
 x = box(x + 40, y, 81, 90, "FU1-FU3", ["gG 80А"])
 x = box(x + 20, y, 144, 90, "FV1-FV3", ["УЗИП 1+2"])
+x = din_row(x + 20, y, [(*M3, "SF5"), (*M3, "SF6")], gap=9.0)
 y = DIN_Y(cy, ROW_D)
 sec1 = [(*M3W, "QF3"), (*M3, "QF4"), (*M3, "QF5"), (*M3, "QF6"), (*M3, "QF7"), (*M3, "QF8"),
         (*M3, "QF9"), (*M3W, "QF10")]
@@ -179,13 +211,14 @@ x = box(x + 9, y, 72, 90, "A2", ["ПРМ-24", "ОВЕН"])
 x = box(x + 20, y, 36, 85, "SA1", ["А-0-Р"])
 for k in range(3):
     x = box(x + (20 if k == 0 else 4), y, 18, 85, "HL%d" % (k + 1), [""])
-x = terminals(x + 30, y, ["VPR-4-GY"] * 20, "XT10", pitch=6.4)
+x = terminals(x + 25, y, ["VPR-4-GY"] * 24, "XT10", pitch=5.4)
 
 # ---------- шкаф 2: ввод 2, секция 2 ----------
 cx, cy = CAB[1]
-big("NM8N-400", cx + 290, PL_MID(cy, ROW_A), 1.5, 1.1, ["QS2"])
-big("NM8N-400", cx + 290, PL_MID(cy, ROW_B), 1.5, 1.08, ["QF2"])
-big("NM8N-250", cx + 760, PL_MID(cy, ROW_B), 1.0, 1.0, ["QF14"])
+busbars((cx, cy), 2)
+big("NM8N-400", cx + 290, PL_MID(cy, ROW_A), 1.5, 1.08, ["QF2"])
+big("NM8N-250", cx + 760, PL_MID(cy, ROW_A), 1.0, 1.0, ["QF14"])
+big("NM8N-400", cx + 290, PL_MID(cy, ROW_B), 1.5, 1.1, ["QS2"])
 y = DIN_Y(cy, ROW_C)
 x = terminals(cx + 90, y, T16, "XT2")
 x = terminals(x + 40, y, T16, "XT13")
@@ -210,19 +243,54 @@ for i, (tag, yy) in enumerate((("N", 330.0), ("PE", 220.0))):
     for c in CAB:
         text((c[0] + 80, c[1] + yy), tag, 25, just="ML")
 
+# ---------- силовые связи (гибкая шина 10х32х1) и вводы ----------
+A_MID = PL_MID(0, ROW_A); B_MID = PL_MID(0, ROW_B)
+QF_TOP, QF_BOT = A_MID + 255 * 1.08 / 2, A_MID - 255 * 1.08 / 2
+QS_TOP, QS_BOT = B_MID + 255 * 1.1 / 2, B_MID - 255 * 1.1 / 2
+for n, c in enumerate(CAB):
+    X = c[0] + 290
+    for k, dx in enumerate(POLES):
+        flex(X + dx, c[1] + QS_TOP, c[1] + QF_BOT)                  # QS -> QF
+        flex(X + dx, c[1] + QF_TOP, c[1] + BUS_Y[k])                # QF -> шины
+        dot((X + dx, c[1] + BUS_Y[k]))
+    # ввод: кабели снизу к QS
+    pline([(c[0] + 38, c[1] + 40), (c[0] + 38, c[1] + QS_BOT - 40), (X, c[1] + QS_BOT - 40), (X, c[1] + QS_BOT)], 10.0)
+    text((c[0] + 62, c[1] + 30), "Ввод %d: 2х(5х150) снизу" % (n + 1), 14, rot=90, just="ML")
+    text((X + 110, c[1] + (QS_TOP + QF_BOT) / 2), "гибкая шина 10х32х1", 13, just="ML")
+# QF24: вход от шин секции 1, выход на шины секции 2
+X24 = CAB[0][0] + 760
+for k, dx in enumerate((-47.0, 0.0, 47.0)):
+    flex(X24 + dx, CAB[0][1] + A_MID + 127.5, CAB[0][1] + BUS_Y[k])
+    dot((X24 + dx, CAB[0][1] + BUS_Y[k]))
+    yy = CAB[0][1] + A_MID - 127.5 - 30 - k * 16
+    xx = CAB[1][0] + 30 + k * 14
+    pline([(X24 + dx, CAB[0][1] + A_MID - 127.5), (X24 + dx, yy), (xx, yy), (xx, CAB[1][1] + BUS_Y[k])], 6.0)
+    dot((xx, CAB[1][1] + BUS_Y[k]))
+text((X24 - 80, CAB[0][1] + A_MID - 127.5 - 100), "QF24 -> шины секции 2", 13, just="ML")
+# QF14: от шин секции 2
+X14 = CAB[1][0] + 760
+for k, dx in enumerate((-35.0, 0.0, 35.0)):
+    flex(X14 + dx, CAB[1][1] + A_MID + 100.7, CAB[1][1] + BUS_Y[k], 5.0)
+    dot((X14 + dx, CAB[1][1] + BUS_Y[k]))
+# перемычки N и PE между шкафами
+for yy in (330.0, 220.0):
+    rect(CAB[0][0] + 930, CAB[0][1] + yy - 6, CAB[1][0] + 130, CAB[1][1] + yy + 6, layer="devices")
+text((CAB[0][0] + 140, CAB[0][1] + 330 + 30), "N: ШМТ 60х8", 14, just="ML")
+text((CAB[0][0] + 140, CAB[0][1] + 220 + 30), "PE: ШМТ 40х5 (ГЗШ)", 14, just="ML")
+
 # подписи шкафов
 for c, t in zip(CAB, ("Шкаф 1. Ввод 1, секция 1", "Шкаф 2. Ввод 2, секция 2")):
     text((c[0] + 500, c[1] + 2000 + 45), t, 30, just="BC")
 
 # размеры
 L.append('(setvar "DIMSCALE" 10.0)')
-L.append('(command "_.DIMLINEAR" %s %s %s)' % (pt((CAB[0][0], CAB[0][1] + 2000)), pt((CAB[1][0] + 1000, CAB[1][1] + 2000)),
+L.append('(command "_.DIMLINEAR" "_non" %s "_non" %s "_non" %s)' % (pt((CAB[0][0], CAB[0][1] + 2000)), pt((CAB[1][0] + 1000, CAB[1][1] + 2000)),
                                                pt((CAB[0][0] + 1000, CAB[0][1] + 2000 + 160))))
-L.append('(command "_.DIMLINEAR" %s %s %s)' % (pt((CAB[0][0], CAB[0][1] + 2000)), pt((CAB[0][0] + 1000, CAB[0][1] + 2000)),
+L.append('(command "_.DIMLINEAR" "_non" %s "_non" %s "_non" %s)' % (pt((CAB[0][0], CAB[0][1] + 2000)), pt((CAB[0][0] + 1000, CAB[0][1] + 2000)),
                                                pt((CAB[0][0] + 500, CAB[0][1] + 2000 + 100))))
-L.append('(command "_.DIMLINEAR" %s %s %s)' % (pt((CAB[1][0], CAB[1][1] + 2000)), pt((CAB[1][0] + 1000, CAB[1][1] + 2000)),
+L.append('(command "_.DIMLINEAR" "_non" %s "_non" %s "_non" %s)' % (pt((CAB[1][0], CAB[1][1] + 2000)), pt((CAB[1][0] + 1000, CAB[1][1] + 2000)),
                                                pt((CAB[1][0] + 500, CAB[1][1] + 2000 + 100))))
-L.append('(command "_.DIMLINEAR" %s %s "_T" "2100" %s)' % (pt((CAB[1][0] + 1000, CAB[1][1] + 2000)), pt((CAB[1][0] + 1000, CAB[1][1] - 101)),
+L.append('(command "_.DIMLINEAR" "_non" %s "_non" %s "_T" "2100" "_non" %s)' % (pt((CAB[1][0] + 1000, CAB[1][1] + 2000)), pt((CAB[1][0] + 1000, CAB[1][1] - 101)),
                                                pt((CAB[1][0] + 1130, CAB[1][1] + 1000))))
 L.append('(setvar "DIMSCALE" 1.0)')
 
@@ -239,7 +307,7 @@ ROWS = [
     ("KV1, KV2", "Реле контроля напряжения РНПП-311М (вводы 1, 2)", "2"),
     ("SF1, SF2", "NB1-63H 2P C6 - питание цепей АВР от ввода 1 / 2", "2"),
     ("KM1, KM2", "Контактор NCH8-20/20 - АВР цепей управления", "2"),
-    ("SF3, SF4", "NB1-63H 1P C4 (G1) / C10 (M1-M3)", "2"),
+    ("SF3-SF6", "NB1-63H 1P C4 (G1), C10 (M1-M3); 3P C2 (KV1, KV2)", "4"),
     ("G1, GB1", "Источник питания 24 В с ИБП и АКБ", "1"),
     ("SA1, HL1-HL3", "Переключатель «Авто-0-Ручн.»; лампы ND9", "1+3"),
     ("FU1-FU6, FV1-FV6", "Предохранители gG 80 А; УЗИП тип 1+2, 3P+N", "2 к."),
@@ -250,9 +318,9 @@ ROWS = [
     ("QF14", "NM8N-250, 3P, 250 А", "1"),
     ("QFD20", "АВДТ 2P C32 30 мА", "1"),
     ("YA1, YA2", "Независимый расцепитель 230 В к QF10, QF12 (СПС)", "2"),
-    ("XT1, XT2, XT13 / XT4 / XT10", "Клеммы 16 / 4 / 2,5 мм" + SQ, "15/5/20"),
+    ("XT1, XT2, XT13 / XT4 / XT10", "Клеммы 16 / 4 / 2,5 мм" + SQ, "15/5/24"),
     ("XT14", "Колодка КБР-400 (кабель 1х185)", "5"),
-    ("", "Корпус CQE 2000х1000х600 с цоколем 100; шины N, PE (ГЗШ 25х4)", "2 шк."),
+    ("", "Корпус CQE 2000х1000х600, цоколь 100. Шины, провода, наконечники - спецификация", "2 шк."),
 ]
 TX0, TY_TOP, RH = FX + 300, FY + 1620, 40.0
 CW = [640, 1700, 180]
