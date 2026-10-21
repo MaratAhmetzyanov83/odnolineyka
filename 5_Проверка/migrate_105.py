@@ -3,6 +3,7 @@
 # формулы шаблона; служебные формулы 1.05 не переносятся.
 # «Справочная»: коды P:T и марки кабелей L:N из старой книги (первая строка кода; свои значения главнее,
 # новые — в свободные строки, сначала коды, что есть в линиях).
+# «Спецификация»: в 1.05 ручная — B3:J (значения и формат) из старой книги, если в шаблоне нет позиций (D:H пусто).
 # «Однолинейка»: E = «авто» у линий (кроме вводов). Затем сравнение ток / автомат / сечение / ΔU / кабель.
 import os, sys, shutil, signal, tempfile
 import win32com.client, win32process
@@ -95,6 +96,18 @@ try:
         log.append(f"Справочная {c0}:{c1}: свои значения {len(upd)} ({', '.join(upd)}); добавлены {', '.join(add) or '—'}"
                    + (f"; НЕ поместились: {', '.join(skip)}" if skip else ""))
     if o: rn.Protect(PWD, *o)
+    # «Спецификация»: позиции (D:H — тип, код, завод, ед., кол-во) есть в старой и нет в шаблоне — переносим лист
+    so, sn = old.Worksheets("Спецификация"), new.Worksheets("Спецификация")
+    filled = lambda ws: app.WorksheetFunction.CountA(ws.Range("D3:H1000")) > 0   # noqa: E731
+    if filled(so) and not filled(sn):
+        last = so.Cells(so.Rows.Count, 3).End(-4162).Row
+        o = unprot(sn)
+        sn.Range("B3:J1000").Clear()
+        so.Range(f"B3:J{last}").Copy(sn.Range("B3"))
+        if o: sn.Protect(PWD, *o)
+        log.append(f"Спецификация: перенесены строки 3–{last}")
+    else:
+        log.append("Спецификация: " + ("в шаблоне уже есть позиции — не тронута" if filled(sn) else "в старой книге пусто"))
     app.Calculation = -4105
     app.CalculateFull()
     # «Однолинейка»: «авто» у линий без автомата (вводы не трогаем)
