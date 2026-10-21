@@ -1,5 +1,5 @@
 ;;; ============================================================================
-;;;  SX_Schema.lsp  v3.26 —  однолинейная схема из Excel на ВАШИХ блоках
+;;;  SX_Schema.lsp  v3.27 —  однолинейная схема из Excel на ВАШИХ блоках
 ;;;
 ;;;  Команды:
 ;;;    SXDRAW    — окно: файл Excel, лист «Однолинейка», щит, точка вставки,
@@ -32,7 +32,7 @@
 ;;; ============================================================================
 
 (vl-load-com)
-(setq sx:ver "v3.26")
+(setq sx:ver "v3.27")
 
 
 ;;; ---------------------------------------------------------------- настройки
@@ -1975,10 +1975,12 @@
       (setq f (list (nth 0 f) (nth 1 f) (if k (substr cab 1 k) cab) (nth 3 f) (nth 4 f)))))
   f)
 
-;;; геометрия ввода: (уровень xl xr xb верх-рамки шинаL шинаN низ-фидера верх-QS)
+;;; геометрия ввода: (уровень xl xr xb верх-рамки шинаL шинаN низ-фидера верх-QS qsUp)
 ;;; уровень 1 — первый ввод листа (рамка от верха листа), 2 — следующие (рамка под основной шиной).
-;;; xb — куда петля от QS поднимается к шине (с неё начинается шина щита).
-(defun sx:feed-geo (q draw / s us u ins lev xl xr xb top busL busN fb)
+;;; xb — куда петля поднимается к шине (с неё начинается шина щита).
+;;; qsUp (v3.27) — следующее место свободно: кабель фидера петлёй к xb, вводной QS в столбце xb
+;;; на уровне отходящих автоматов (образец пользователя ЩС-ПК, 21.10). Иначе QS под фидером, как раньше.
+(defun sx:feed-geo (q draw / s us u ins lev xl xr xb top busL busN fb up)
   (setq s (sx:sheet (sx:i q)) us (* s *sx-sheet* *sx-step*) u (sx:u q)
         ins (vl-remove-if-not '(lambda (d) (and (sx:feed-p d) (= (sx:sheet (sx:i d)) s))) draw)
         lev (if (vl-some '(lambda (d) (< (sx:u d) u)) ins) 2 1))
@@ -1987,12 +1989,14 @@
              (+ u (/ *sx-step* 2.0))
              (+ u *sx-step*)))
   (if (= (sx:sheet (1+ (sx:i q))) s) nil (setq xb (+ u (/ *sx-step* 2.0))))
+  (setq up (> (- xb u) (* 0.75 *sx-step*)))
+  ;; QS в столбце xb: рамка уже, чтобы граница щита и подпись QS не легли друг на друга
   (setq xl (max (+ us 1.0) (- u sx:fdL))
-        xr (min (+ u sx:fdR) (- xb 3.0)))
+        xr (min (+ u sx:fdR) (- xb (if up 13.0 3.0))))
   (if (= lev 1)
     (setq top sx:vTop busL sx:vBusL busN sx:vBusN fb (- sx:vBusL sx:fdD1))
     (setq top (- sx:vBusN 6.0) busL sx:vBus2N busN (- sx:vBus2N 5.0) fb (- sx:vBus2N sx:fdD2)))
-  (list lev xl xr xb top busL busN fb (- fb 9.0)))
+  (list lev xl xr xb top busL busN fb (- fb 9.0) up))
 
 ;;; первый ввод листа (рамка от верха): (запись геометрия) или nil
 (defun sx:sheet-feed (draw s / q)
@@ -2057,13 +2061,25 @@
       (sx:textr (+ u sx:fdTxt1) (+ sx:fdQsBot 1.0) 2.5 (nth 2 f) sx:T 90.0)
       (if (/= (nth 3 f) "")
         (sx:textr (+ u sx:fdTxt2) (+ sx:fdQsBot 1.0) 2.5 (strcat "L=" (nth 3 f) (sx:ru '(1084))) sx:T 90.0))))
-  ;; вводной аппарат щита и петля к началу шины
-  (sx:feed-qf u sx:fdQsBot qsTop (sx:qf-vals (sx:s (sx:c q sx:cQFown)) (sx:s (sx:c q sx:cQFtxt)))
-              (if (or (wcmatch (strcase (sx:s (sx:c q sx:cQFtxt))) "QS*") (wcmatch (strcase (sx:s (sx:c q 7))) "QS*")) "QS" "QF"))   ; вид «QS» — если он есть в вашем блоке QF1
   (setq tgt (if (sx:is1 q sx:cBus2) sx:vBus2L sx:vBusL))
-  (sx:line u sx:fdQsBot u sx:fdLoop sx:L)
-  (sx:hline u xb sx:fdLoop sx:L)
-  (sx:line xb sx:fdLoop xb tgt sx:L))
+  (if (nth 9 g)
+    ;; v3.27: кабель фидера вниз под щит, петля к xb, вверх в вводной QS; QS — как отходящие автоматы
+    (progn
+      (sx:line u qsTop u sx:fdLoop sx:L)
+      (sx:hline u xb sx:fdLoop sx:L)
+      (sx:line xb sx:fdLoop xb (- sx:vQFins sx:qfBody) sx:L)
+      (sx:feed-qf xb (- sx:vQFins sx:qfBody) tgt (sx:feed-qsvals q) (sx:feed-qsvis q)))
+    ;; вводной аппарат щита под фидером и петля к началу шины
+    (progn
+      (sx:feed-qf u sx:fdQsBot qsTop (sx:feed-qsvals q) (sx:feed-qsvis q))
+      (sx:line u sx:fdQsBot u sx:fdLoop sx:L)
+      (sx:hline u xb sx:fdLoop sx:L)
+      (sx:line xb sx:fdLoop xb tgt sx:L))))
+
+;;; вводной аппарат строки ввода: значения атрибутов и вид («QS» — если он есть в вашем блоке QF1)
+(defun sx:feed-qsvals (q) (sx:qf-vals (sx:s (sx:c q sx:cQFown)) (sx:s (sx:c q sx:cQFtxt))))
+(defun sx:feed-qsvis (q)
+  (if (or (wcmatch (strcase (sx:s (sx:c q sx:cQFtxt))) "QS*") (wcmatch (strcase (sx:s (sx:c q 7))) "QS*")) "QS" "QF"))
 
 (defun sx:draw-ugo (d u / sym spec blk ob)
   (if (sx:input-p d)
