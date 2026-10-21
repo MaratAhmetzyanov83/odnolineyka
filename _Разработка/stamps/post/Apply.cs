@@ -52,7 +52,7 @@ public class PostApply {
    if(only!=null&&bt.Has(target))throw new System.Exception("Блок уже есть: "+target);nr.Name=target;
    tr.Commit();}
   return new{Nested=nested,Frames=rows};}finally{HostApplicationServices.WorkingDatabase=prior;}}
- public record SheetPlan(string Layout,string Number,string Offset);
+ public record SheetPlan(string Layout,string Number,string Offset,string Count=null);
  const string Num="%<\\AcSm Sheet.Number>%",Title="%<\\AcSm Sheet.Title>%";
  // Поля нумерации: ЛИСТ = номер листа, ОПИСАНИЕ = название, СКВОЗНАЯ = номер + сдвиг (свойство подшивки).
  static object Fields(Database db,SheetPlan[] plan){
@@ -65,19 +65,39 @@ public class PostApply {
      var set=new Dictionary<string,string>();
      foreach(ObjectId aid in br.AttributeCollection){var a=(AttributeReference)tr.GetObject(aid,OpenMode.ForWrite);string code=null;
       if(a.Tag=="ЛИСТ_№"||a.Tag=="ЛИСТ№")code=Num;else if(a.Tag=="ОПИСАНИЕ_ЛИСТА")code=Title;
+      else if(a.Tag=="КОЛ-ВО_ЛИСТОВ"&&sp.Count!=null&&sp.Number!=""&&Convert.ToString(Props(br).GetValueOrDefault("Видимость1"))=="Форма 3")code="%<\\AcSm SheetSet."+sp.Count+">%";
       else if(a.Tag=="СКВОЗНАЯ_НУМЕРЦИЯ")code=sp.Number==""?"%<\\AcSm SheetSet."+sp.Offset+">%":"%<\\AcExpr (%<\\AcSm Sheet.Number \\f \"%tc4\">%+%<\\AcSm SheetSet."+sp.Offset+" \\f \"%tc4\">%)>%";
       if(code==null)continue;if(a.HasFields)a.RemoveField();var f=new Field(code);a.SetField(f);tr.AddNewlyCreatedDBObject(f,true);set[a.Tag]=FieldCode(a,tr);}
      rows.Add(new{sp.Layout,Frame=br.Handle.ToString(),Codes=set});}
     if(n==0)rows.Add(new{sp.Layout,Error="нет рамки"});}
    tr.Commit();}
   return rows;}finally{HostApplicationServices.WorkingDatabase=prior;}}
+ // Свободный текст шифра (355; 80,2) в рамке не входит в действие сдвига штампа и на узких форматах «улетает» вправо.
+ // Переносим его во вложенный блок «Штамп» (он в наборе сдвига, видимость та же) — своей копией «Штамп_шифр_ПО»;
+ // свободный текст оставляем пустым, чтобы не ломать граф динамического блока.
+ static object FixCode(Database db){var log=new List<string>();
+  using(var tr=db.TransactionManager.StartTransaction()){var bt=(BlockTable)tr.GetObject(db.BlockTableId,OpenMode.ForWrite);
+   foreach(ObjectId rid in bt){var root=(BlockTableRecord)tr.GetObject(rid,OpenMode.ForRead);if(!root.IsDynamicBlock||!root.Name.StartsWith(Name))continue;
+    MText Free(BlockTableRecord b)=>b.Cast<ObjectId>().Select(i=>tr.GetObject(i,OpenMode.ForRead)).OfType<MText>().FirstOrDefault(m=>Math.Abs(m.Location.X-355)<0.5&&Math.Abs(m.Location.Y-80.2)<0.5&&m.Text.Trim()!="");
+    BlockReference Stamp(BlockTableRecord b)=>b.Cast<ObjectId>().Select(i=>tr.GetObject(i,OpenMode.ForRead)).OfType<BlockReference>().FirstOrDefault(r=>{var n=((BlockTableRecord)tr.GetObject(r.BlockTableRecord,OpenMode.ForRead)).Name;return n=="Штамп"||n.StartsWith("Штамп_шифр_ПО");});
+    var free=Free(root);var st=Stamp(root);if(free==null){log.Add(root.Name+": текста нет");continue;}if(st==null)throw new System.Exception(root.Name+": нет вложенного Штамп");
+    if(Math.Abs(st.ScaleFactors.X-1)>1e-9||Math.Abs(st.Rotation)>1e-9)throw new System.Exception("Штамп повёрнут/масштабирован");
+    var srcDef=(BlockTableRecord)tr.GetObject(st.BlockTableRecord,OpenMode.ForRead);string nm="Штамп_шифр_ПО";int k=1;while(bt.Has(nm))nm="Штамп_шифр_ПО_"+(++k);
+    var nb=new BlockTableRecord{Name=nm,Origin=srcDef.Origin};var nid=bt.Add(nb);tr.AddNewlyCreatedDBObject(nb,true);
+    foreach(ObjectId e in srcDef){var c=(Entity)tr.GetObject(e,OpenMode.ForRead).Clone();nb.AppendEntity(c);tr.AddNewlyCreatedDBObject(c,true);}
+    var t=(MText)free.Clone();t.Location=new Autodesk.AutoCAD.Geometry.Point3d(free.Location.X-st.Position.X,free.Location.Y-st.Position.Y,0);t.Visible=true;nb.AppendEntity(t);tr.AddNewlyCreatedDBObject(t,true);
+    var blocks=new List<BlockTableRecord>{root};foreach(ObjectId a in root.GetAnonymousBlockIds())blocks.Add((BlockTableRecord)tr.GetObject(a,OpenMode.ForRead));
+    int n=0;foreach(var b in blocks){var s2=Stamp(b);var f2=Free(b);if(s2!=null){s2.UpgradeOpen();s2.BlockTableRecord=nid;}if(f2!=null){f2.UpgradeOpen();f2.Contents="";n++;}}
+    log.Add(root.Name+": перенесён в "+nm+", очищено копий "+n);}
+   tr.Commit();}
+  return log;}
  [CommandMethod("POSTAPPLY")]public void Run(){
   string srcFile=Environment.GetEnvironmentVariable("POSTAPPLY_SRC"),list=Environment.GetEnvironmentVariable("POSTAPPLY_LIST");var res=new List<object>();
   using var src=new Database(false,true);src.ReadDwgFile(srcFile,FileOpenMode.OpenForReadAndAllShare,false,null);src.CloseInput(true);
   using(var tr=src.TransactionManager.StartTransaction()){var bt=(BlockTable)tr.GetObject(src.BlockTableId,OpenMode.ForRead);((BlockTableRecord)tr.GetObject(bt[Name],OpenMode.ForWrite)).Name=Tmp;tr.Commit();}
   foreach(var line in File.ReadAllLines(list).Where(x=>x.Contains('\t'))){var io=line.Split('\t');
    try{using var db=new Database(false,true);db.ReadDwgFile(io[0],FileOpenMode.OpenForReadAndAllShare,false,null);db.CloseInput(true);var ver=db.OriginalFileVersion;
-    object r=io[2]=="1"?Apply(db,src):io[2].StartsWith("L:")?Apply(db,src,io[2].Substring(2)):null;object fl=io.Length>3?Fields(db,JsonSerializer.Deserialize<SheetPlan[]>(io[3])):null;db.SaveAs(io[1],ver);res.Add(new{File=io[0],Out=io[1],Version=ver.ToString(),Result=r,Fields=fl});}
+    object r=io[2]=="1"?Apply(db,src):io[2].StartsWith("L:")?Apply(db,src,io[2].Substring(2)):null;object fx=Environment.GetEnvironmentVariable("POSTAPPLY_FIXCODE")=="1"?FixCode(db):null;object fl=io.Length>3?Fields(db,JsonSerializer.Deserialize<SheetPlan[]>(io[3])):null;db.SaveAs(io[1],ver);res.Add(new{File=io[0],Out=io[1],Version=ver.ToString(),Result=r,FixCode=fx,Fields=fl});}
    catch(System.Exception e){res.Add(new{File=io[0],Error=e.ToString()});}
    File.WriteAllText(list+".result.json",JsonSerializer.Serialize(res,new JsonSerializerOptions{WriteIndented=true,Encoder=System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping}));}
  }
