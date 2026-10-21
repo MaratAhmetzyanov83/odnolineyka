@@ -1,0 +1,4 @@
+<Project Sdk="Microsoft.NET.Sdk"><PropertyGroup><TargetFramework>net8.0-windows</TargetFramework><AssemblyName>PostInsp</AssemblyName><NoWarn>MSB3277;MSB3061</NoWarn></PropertyGroup><ItemGroup>
+<Reference Include="AcDbMgd"><HintPath>C:\Program Files\Autodesk\AutoCAD 2025\acdbmgd.dll</HintPath><Private>false</Private></Reference>
+<Reference Include="AcCoreMgd"><HintPath>C:\Program Files\Autodesk\AutoCAD 2025\accoremgd.dll</HintPath><Private>false</Private></Reference>
+<Reference Include="AcSmComponents.Interop"><HintPath>C:\Program Files\Autodesk\AutoCAD 2025\AcSmComponents.Interop.dll</HintPath><Private>false</Private></Reference></ItemGroup></Project>

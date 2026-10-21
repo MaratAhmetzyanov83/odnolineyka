@@ -1,0 +1,6 @@
+SECURELOAD 0
+FIELDEVAL 0
+NETLOAD "C:\Users\user\AppData\Local\Temp\claude\C--Users-user-Desktop-02-------------CAD-Revit-odnolineyka\96724f6e-c529-4381-9a09-b982f7bcbb2e\scratchpad\insp\out\PostInsp.dll"
+POSTSETPROPS
+POSTAPPLY
+_QUIT _Y
