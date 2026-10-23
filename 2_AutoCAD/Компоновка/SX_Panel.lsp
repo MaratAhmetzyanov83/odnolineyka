@@ -1,10 +1,10 @@
-;;; SX_Panel v2.06 — внутренняя компоновка электрощита из Excel.
+;;; SX_Panel v2.07 — внутренняя компоновка электрощита из Excel.
 ;;; CPDRAW / CPUPDATE / CPEDIT / CPDELETE / CPEXPLODE. Самостоятельный LISP, SX_Schema не нужен.
 ;;; Модульные аппараты и клеммы из пользовательской базы. v2.0: ввод первым, фазы L1-L2-L3 под гребёнки,
 ;;; кросс-модули L/N и N/PE, монтажные провода, DIN-рейки и корпус DKC (SX_Корпуса.csv).
 ;;; Excel: читается «Однолинейка» и «Каталог»; пишется только лист «Сборка_щита». Слои CP_*.
 (vl-load-com)
-(setq cp:version "2.06" cp:app "SX_PANEL" cp:partsapp "SX_PANEL_PARTS")
+(setq cp:version "2.07" cp:app "SX_PANEL" cp:partsapp "SX_PANEL_PARTS")
 
 ;;; Unicode / CP1251: строки работают и при LISPSYS=0.
 (defun cp:cp (c)
@@ -140,7 +140,7 @@
 (defun cp:terminal-set (id r / section cores sizes size phases pins color model suffix pin items)
   (setq section (cp:cable-section (cp:at r 17)) cores (cp:cable-cores (cp:at r 17))
         sizes '(1.5 2.5 4.0 6.0 10.0 16.0 35.0 50.0 95.0 150.0 240.0))
-  (if (null section) (cp:fail (strcat (cp:ru '(1053 1077 32 1085 1072 1081 1076 1077 1085 1086 32 1089 1077 1095 1077 1085 1080 1077 32 1082 1072 1073 1077 1083 1103 32 1076 1083 1103 32)) id (cp:ru '(46 32 1055 1088 1086 1074 1077 1088 1100 1090 1077 32 1089 1090 1086 1083 1073 1077 1094 32 81 46)))))
+  (if (null section) (cp:fail (strcat (cp:ru '(1053 1077 32 1085 1072 1081 1076 1077 1085 1086 32 1089 1077 1095 1077 1085 1080 1077 32 1082 1072 1073 1077 1083 1103 32 1076 1083 1103 32)) id (cp:ru '(46 32 1055 1088 1086 1074 1077 1088 1100 1090 1077 32 1089 1090 1086 1083 1073 1077 1094 32 81 46)) (cp:ru '(32 1065 1080 1090 58 32)) (cp:s (cp:g 'panel)) (cp:ru '(44 32 1082 1085 1080 1075 1072 58 32)) (vl-filename-base (cp:s (cp:g 'path))) (cp:ru '(44 32 81 58 32 171)) (cp:s (cp:at r 17)) (cp:ru '(187)))))
   (setq size (car (vl-remove-if '(lambda (n) (< n section)) sizes)))
   (if (null size) (cp:fail (strcat (cp:ru '(1044 1083 1103 32)) id (cp:ru '(32 1074 32 1073 1072 1079 1077 32 1085 1077 1090 32 1082 1083 1077 1084 1084 1099 32 1087 1086 1076 32 1089 1077 1095 1077 1085 1080 1077 32)) (cp:s section))))
   (setq phases (if (or (= (cp:at r 44) 3) (vl-string-search "," (cp:s (cp:at r 22)))) 3 1))
@@ -1389,5 +1389,5 @@
         (vla-regen cp:doc 1)
         (princ (cp:ru '(1050 1086 1084 1087 1086 1085 1086 1074 1082 1072 32 1088 1072 1079 1076 1077 1083 1077 1085 1072 32 1085 1072 32 1086 1090 1076 1077 1083 1100 1085 1099 1077 32 1086 1073 1098 1077 1082 1090 1099 46))))))
   (princ))
-(princ "\nSX_Panel v2.06: CPDRAW / CPUPDATE / CPEDIT / CPDELETE / CPEXPLODE")
+(princ "\nSX_Panel v2.07: CPDRAW / CPUPDATE / CPEDIT / CPDELETE / CPEXPLODE")
 (princ)
