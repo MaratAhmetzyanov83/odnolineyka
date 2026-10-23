@@ -1,10 +1,10 @@
-;;; SX_Panel v2.05 — внутренняя компоновка электрощита из Excel.
+;;; SX_Panel v2.06 — внутренняя компоновка электрощита из Excel.
 ;;; CPDRAW / CPUPDATE / CPEDIT / CPDELETE / CPEXPLODE. Самостоятельный LISP, SX_Schema не нужен.
 ;;; Модульные аппараты и клеммы из пользовательской базы. v2.0: ввод первым, фазы L1-L2-L3 под гребёнки,
 ;;; кросс-модули L/N и N/PE, монтажные провода, DIN-рейки и корпус DKC (SX_Корпуса.csv).
 ;;; Excel: читается «Однолинейка» и «Каталог»; пишется только лист «Сборка_щита». Слои CP_*.
 (vl-load-com)
-(setq cp:version "2.05" cp:app "SX_PANEL" cp:partsapp "SX_PANEL_PARTS")
+(setq cp:version "2.06" cp:app "SX_PANEL" cp:partsapp "SX_PANEL_PARTS")
 
 ;;; Unicode / CP1251: строки работают и при LISPSYS=0.
 (defun cp:cp (c)
@@ -262,6 +262,8 @@
   ;; KRU / KRUH / KRUSLG — закрытый корпус, торцевая крышка не нужна.
   (setq model (nth 2 (car (cadr group))))
   (if (wcmatch model "VPR-*") (cp:endcap-vpr model (cp:words (vl-string-translate "-" " " model)))))
+;;; NTH от nil в AutoCAD — ошибка consp; у клемм без крышки имя "".
+(defun cp:cap-name (cap) (if cap (nth 7 cap) ""))
 (defun cp:endcap-vpr (model tokens / name bb)
   (setq name (strcat "D-VPR-" (cadr tokens) (if (wcmatch model "VPR-*-3L-*") "-3L" "")) bb (cp:measure name 1.0 0.0 nil))
   (list "" name name (- (nth 2 bb) (nth 0 bb)) (- (nth 3 bb) (nth 1 bb)) "CAP" 0 name 1.0 0.0 nil))
@@ -310,7 +312,7 @@
     (foreach d (cadr group)
       (setq cp:xtpositions (append cp:xtpositions (list (list d xtrow xtx))) xtx (+ xtx (nth 3 d))))
     (setq closed (or (null (cdr remaining))
-                     (/= (nth 7 cap) (nth 7 (cp:endcap (cadr remaining))))))
+                     (/= (cp:cap-name cap) (cp:cap-name (cp:endcap (cadr remaining))))))
     (if (and closed cap)
       (setq cp:xtpositions (append cp:xtpositions (list (list cap xtrow xtx))) cp:caps (cons cap cp:caps) xtx (+ xtx (nth 3 cap))))
     (setq lastcap cap remaining (cdr remaining)))
@@ -1387,5 +1389,5 @@
         (vla-regen cp:doc 1)
         (princ (cp:ru '(1050 1086 1084 1087 1086 1085 1086 1074 1082 1072 32 1088 1072 1079 1076 1077 1083 1077 1085 1072 32 1085 1072 32 1086 1090 1076 1077 1083 1100 1085 1099 1077 32 1086 1073 1098 1077 1082 1090 1099 46))))))
   (princ))
-(princ "\nSX_Panel v2.05: CPDRAW / CPUPDATE / CPEDIT / CPDELETE / CPEXPLODE")
+(princ "\nSX_Panel v2.06: CPDRAW / CPUPDATE / CPEDIT / CPDELETE / CPEXPLODE")
 (princ)
