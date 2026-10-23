@@ -1,10 +1,10 @@
-;;; SX_Panel v2.04 — внутренняя компоновка электрощита из Excel.
+;;; SX_Panel v2.05 — внутренняя компоновка электрощита из Excel.
 ;;; CPDRAW / CPUPDATE / CPEDIT / CPDELETE / CPEXPLODE. Самостоятельный LISP, SX_Schema не нужен.
 ;;; Модульные аппараты и клеммы из пользовательской базы. v2.0: ввод первым, фазы L1-L2-L3 под гребёнки,
 ;;; кросс-модули L/N и N/PE, монтажные провода, DIN-рейки и корпус DKC (SX_Корпуса.csv).
 ;;; Excel: читается «Однолинейка» и «Каталог»; пишется только лист «Сборка_щита». Слои CP_*.
 (vl-load-com)
-(setq cp:version "2.04" cp:app "SX_PANEL" cp:partsapp "SX_PANEL_PARTS")
+(setq cp:version "2.05" cp:app "SX_PANEL" cp:partsapp "SX_PANEL_PARTS")
 
 ;;; Unicode / CP1251: строки работают и при LISPSYS=0.
 (defun cp:cp (c)
@@ -296,8 +296,8 @@
              (setq cp:problem (cp:ru '(1044 1083 1103 32 1084 1086 1076 1091 1083 1103 32 78 47 80 69 32 1074 1099 1073 1077 1088 1080 1090 1077 32 69 75 70 95 67 77 95 50 120 55 44 32 69 75 70 95 67 77 95 50 120 49 49 32 1080 1083 1080 32 69 75 70 95 67 77 95 50 120 49 53 32 1080 1079 32 1074 1072 1096 1077 1081 32 1073 1072 1079 1099 46)))
              (if (< (* cp:npe-banks (1- (atoi (substr crossname 10)))) (car cp:npe-counts))
                (setq cp:problem (cp:ru '(1042 32 1084 1086 1076 1091 1083 1077 32 78 47 80 69 32 1085 1077 1076 1086 1089 1090 1072 1090 1086 1095 1085 1086 32 1087 1086 1076 1082 1083 1102 1095 1077 1085 1080 1081 46))))))))
-  (cp:apply-terminals)
-  (setq cp:xtpositions nil cp:xtrows 0 cp:caps nil xtrow 0 xtx 0.0 remaining cp:terminalgroups closed T)
+  (setq cp:stage 'terminals) (cp:apply-terminals)
+  (setq cp:stage 'xt-layout cp:xtpositions nil cp:xtrows 0 cp:caps nil xtrow 0 xtx 0.0 remaining cp:terminalgroups closed T)
   (while remaining
     (setq group (car remaining) cap (cp:endcap group)
           groupwidth (apply '+ (mapcar '(lambda (d) (nth 3 d)) (cadr group))))
@@ -322,10 +322,10 @@
         cp:rowtop (+ (/ maxh 2.0) (* (1- cp:totalrows) cp:rowpitch)))
   (cp:put 'w cp:railw)
   (cp:put 'h (+ maxh (* (1- cp:totalrows) cp:rowpitch)))
-  (if (null cp:problem) (cp:posmap))
-  (if (and (null cp:problem) (cp:g 'wiring)) (cp:wires))
-  (setq cp:case (if (null cp:problem) (cp:case-pick)))
-  (if (and (null cp:problem) (cp:g 'wiring)) (cp:bom))
+  (setq cp:stage 'posmap) (if (null cp:problem) (cp:posmap))
+  (setq cp:stage 'wires) (if (and (null cp:problem) (cp:g 'wiring)) (cp:wires))
+  (setq cp:stage 'case cp:case (if (null cp:problem) (cp:case-pick)))
+  (setq cp:stage 'bom) (if (and (null cp:problem) (cp:g 'wiring)) (cp:bom))
   (null cp:problem))
 
 ;;; ===== v2.0: ток, полюса, фазы =====
@@ -1305,8 +1305,11 @@
     (cp:close-book) (cp:lib-close)
     (if (null new) (cp:cleanup-new))
     (if undo (vl-catch-all-apply 'vla-endundomark (list cp:doc)))
-    (if (and (not cp:failure) (not (member msg '("Function cancelled" "quit / exit abort")))) (princ (strcat "\nCPDRAW: " msg)))
+    (if (and (not cp:failure) (not (member msg '("Function cancelled" "quit / exit abort"))))
+      (progn (princ (strcat "\nCPDRAW: " msg " [" (vl-princ-to-string cp:stage) "]"))
+             (if (getenv "CP_Debug") (vl-catch-all-apply 'vl-bt nil))))
     (princ))
+  (setq cp:stage 'start)
   (setq cp:doc (vla-get-activedocument (vlax-get-acad-object)) cp:newdef nil cp:measure-cache nil cp:pendingnew nil cp:pendingparts nil cp:pendinggroup nil
         cp:case-cache nil cp:asm nil)
   (if update
@@ -1317,17 +1320,19 @@
   (setq path (cp:g 'path))
   (if (or (null path) (not (findfile path))) (setq path (getfiled (cp:ru '(69 120 99 101 108 32 1089 32 1086 1076 1085 1086 1083 1080 1085 1077 1081 1082 1086 1081)) "" "xlsx;xlsm;xls" 0)))
   (if (null path) (exit))
-  (cp:put 'path path) (cp:read-book path)
+  (cp:put 'path path) (setq cp:stage 'read-book) (cp:read-book path)
   (if (null cp:panels) (cp:fail (cp:ru '(1042 32 1086 1076 1085 1086 1083 1080 1085 1077 1081 1082 1077 32 1085 1077 1090 32 1097 1080 1090 1086 1074 46))))
   (if (and update (not edit) (not (member (cp:g 'panel) cp:panels))) (cp:fail (cp:ru '(1057 1086 1093 1088 1072 1085 1105 1085 1085 1099 1081 32 1097 1080 1090 32 1085 1077 32 1085 1072 1081 1076 1077 1085 32 1074 32 69 120 99 101 108 46 32 1048 1089 1087 1086 1083 1100 1079 1091 1081 1090 1077 32 67 80 69 68 73 84 32 1076 1083 1103 32 1074 1099 1073 1086 1088 1072 32 1076 1088 1091 1075 1086 1075 1086 32 1097 1080 1090 1072 46))))
-  (cp:import-library)
+  (setq cp:stage 'library) (cp:import-library)
+  (setq cp:stage 'dialog)
   (if (and edit (not (cp:dialog))) (exit))
   (setq ready nil)
   (while (not ready)
     (cp:import-library)
-    (cp:collect (cp:g 'panel)) (cp:apply-sizes)
+    (setq cp:stage 'collect) (cp:collect (cp:g 'panel)) (setq cp:stage 'apply-sizes) (cp:apply-sizes)
     (if (or edit (vl-some '(lambda (d) (null (nth 7 d))) cp:devices))
-      (if (not (cp:sizes-dialog)) (exit)))
+      (progn (setq cp:stage 'sizes-dialog) (if (not (cp:sizes-dialog)) (exit))))
+    (setq cp:stage 'plan)
     (if (cp:plan) (setq ready T)
       (progn (alert cp:problem) (if (not (cp:dialog)) (exit)))))
   (if (not update)
@@ -1336,7 +1341,7 @@
       (if (null point) (exit))
       (setq point (trans point 1 0))))
   (vla-startundomark cp:doc) (setq undo T)
-  (setq staged (cp:build point))
+  (setq cp:stage 'build staged (cp:build point))
   (if frame
     (progn
       (vla-put-xscalefactor staged (nth 1 frame)) (vla-put-yscalefactor staged (nth 2 frame))
@@ -1382,5 +1387,5 @@
         (vla-regen cp:doc 1)
         (princ (cp:ru '(1050 1086 1084 1087 1086 1085 1086 1074 1082 1072 32 1088 1072 1079 1076 1077 1083 1077 1085 1072 32 1085 1072 32 1086 1090 1076 1077 1083 1100 1085 1099 1077 32 1086 1073 1098 1077 1082 1090 1099 46))))))
   (princ))
-(princ "\nSX_Panel v2.04: CPDRAW / CPUPDATE / CPEDIT / CPDELETE / CPEXPLODE")
+(princ "\nSX_Panel v2.05: CPDRAW / CPUPDATE / CPEDIT / CPDELETE / CPEXPLODE")
 (princ)
