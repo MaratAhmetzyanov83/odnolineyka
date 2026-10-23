@@ -1,10 +1,10 @@
-;;; SX_Panel v2.03 — внутренняя компоновка электрощита из Excel.
+;;; SX_Panel v2.04 — внутренняя компоновка электрощита из Excel.
 ;;; CPDRAW / CPUPDATE / CPEDIT / CPDELETE / CPEXPLODE. Самостоятельный LISP, SX_Schema не нужен.
 ;;; Модульные аппараты и клеммы из пользовательской базы. v2.0: ввод первым, фазы L1-L2-L3 под гребёнки,
 ;;; кросс-модули L/N и N/PE, монтажные провода, DIN-рейки и корпус DKC (SX_Корпуса.csv).
 ;;; Excel: читается «Однолинейка» и «Каталог»; пишется только лист «Сборка_щита». Слои CP_*.
 (vl-load-com)
-(setq cp:version "2.03" cp:app "SX_PANEL" cp:partsapp "SX_PANEL_PARTS")
+(setq cp:version "2.04" cp:app "SX_PANEL" cp:partsapp "SX_PANEL_PARTS")
 
 ;;; Unicode / CP1251: строки работают и при LISPSYS=0.
 (defun cp:cp (c)
@@ -128,8 +128,18 @@
         (setq digits (strcat ch digits) i (1- i)))
       (setq count (atoi digits))))
   (if (and count (> count 0)) count))
+;;; v2.04: свыше 16 мм2 — винтовые KRU (35), KRUH (50…240); PE — KRUSLG до 95, выше — KRUH.
+(defun cp:xt-big (size pin / s)
+  (if (<= size 35.0)
+    (cond ((= pin "PE") "KRUSLG-35N") ((= pin "N") "KRU-35N-BU") (t "KRU-35N"))
+    (progn
+      (setq s (itoa (fix size)))
+      (cond ((and (= pin "PE") (<= size 95.0)) (strcat "KRUSLG-" s "N"))
+            ((= pin "N") (strcat "KRUH-" s "-BU"))
+            (t (strcat "KRUH-" s))))))
 (defun cp:terminal-set (id r / section cores sizes size phases pins color model suffix pin items)
-  (setq section (cp:cable-section (cp:at r 17)) cores (cp:cable-cores (cp:at r 17)) sizes '(1.5 2.5 4.0 6.0 10.0 16.0))
+  (setq section (cp:cable-section (cp:at r 17)) cores (cp:cable-cores (cp:at r 17))
+        sizes '(1.5 2.5 4.0 6.0 10.0 16.0 35.0 50.0 95.0 150.0 240.0))
   (if (null section) (cp:fail (strcat (cp:ru '(1053 1077 32 1085 1072 1081 1076 1077 1085 1086 32 1089 1077 1095 1077 1085 1080 1077 32 1082 1072 1073 1077 1083 1103 32 1076 1083 1103 32)) id (cp:ru '(46 32 1055 1088 1086 1074 1077 1088 1100 1090 1077 32 1089 1090 1086 1083 1073 1077 1094 32 81 46)))))
   (setq size (car (vl-remove-if '(lambda (n) (< n section)) sizes)))
   (if (null size) (cp:fail (strcat (cp:ru '(1044 1083 1103 32)) id (cp:ru '(32 1074 32 1073 1072 1079 1077 32 1085 1077 1090 32 1082 1083 1077 1084 1084 1099 32 1087 1086 1076 32 1089 1077 1095 1077 1085 1080 1077 32)) (cp:s section))))
@@ -143,7 +153,7 @@
       (foreach pin pins
         (setq color (cond ((= pin "N") "BU") ((= pin "PE") (if (= size 1.5) "PE" "PE-YG")) (t "GY"))
               suffix (if (member size '(1.5 2.5)) (rtos size 2 1) (itoa (fix size)))
-              model (strcat "VPR-" suffix "-" color))
+              model (if (> size 16.0) (cp:xt-big size pin) (strcat "VPR-" suffix "-" color)))
         (setq items (append items (list (list (strcat id ":" pin) (strcat "XT|" model) model nil nil "XT" 0)))))))
   (setq cp:terminalgroups (append cp:terminalgroups (list (list id items section)))))
 (defun cp:apply-terminals ( / groups group items d m bb)
@@ -209,9 +219,7 @@
     (if (and (/= mid "") (/= model "") (not (member mid seenm)))
       (progn (setq seenm (cons mid seenm)) (cp:add-device mid model (cp:model-catalog model) "MODULE" idx)))
     (setq txt (cp:s (cp:at r 16)))
-    ;; v2.03: вводной кабель > 16 мм2 заходит прямо на QS — клемму не ставим.
-    (if (and (= (cp:at r 51) 1) (/= txt "") (not (member txt seenxt))
-             (not (and input (> (cond ((cp:cable-section (cp:at r 17))) (0)) 16.0))))
+    (if (and (= (cp:at r 51) 1) (/= txt "") (not (member txt seenxt)))
       (progn
         (setq seenxt (cons txt seenxt)) (cp:terminal-set txt r)
         (if (/= qid "") (cp:inf-put qid 'tids (append (cp:inf qid 'tids) (list txt)))))))
@@ -250,9 +258,12 @@
                (setq placed (cons (list fit row x) placed) x (+ x (* (nth 3 fit) pitch)) rest (cp:remove-first fit rest)))
               (t (setq row (1+ row) x 0.0))))
       (list (reverse placed) (if devices (1+ row) 0) nil))))
-(defun cp:endcap (group / model tokens name bb)
-  (setq model (nth 2 (car (cadr group))) tokens (cp:words (vl-string-translate "-" " " model))
-        name (strcat "D-VPR-" (cadr tokens) (if (wcmatch model "VPR-*-3L-*") "-3L" "")) bb (cp:measure name 1.0 0.0 nil))
+(defun cp:endcap (group / model)
+  ;; KRU / KRUH / KRUSLG — закрытый корпус, торцевая крышка не нужна.
+  (setq model (nth 2 (car (cadr group))))
+  (if (wcmatch model "VPR-*") (cp:endcap-vpr model (cp:words (vl-string-translate "-" " " model)))))
+(defun cp:endcap-vpr (model tokens / name bb)
+  (setq name (strcat "D-VPR-" (cadr tokens) (if (wcmatch model "VPR-*-3L-*") "-3L" "")) bb (cp:measure name 1.0 0.0 nil))
   (list "" name name (- (nth 2 bb) (nth 0 bb)) (- (nth 3 bb) (nth 1 bb)) "CAP" 0 name 1.0 0.0 nil))
 (defun cp:plan ( / usable packed maxh crossname xtrow xtx groupwidth group remaining cap lastcap closed loops)
   (setq cp:problem nil cp:positions nil cp:segs nil cp:wirelist nil cp:bomrows nil
@@ -290,17 +301,17 @@
   (while remaining
     (setq group (car remaining) cap (cp:endcap group)
           groupwidth (apply '+ (mapcar '(lambda (d) (nth 3 d)) (cadr group))))
-    (if (> (+ groupwidth (nth 3 cap)) cp:railw) (setq cp:problem (strcat (cp:ru '(1053 1072 1073 1086 1088 32 1082 1083 1077 1084 1084 32)) (car group) (cp:ru '(32 1089 32 1079 1072 1075 1083 1091 1096 1082 1086 1081 32 1096 1080 1088 1077 32 1088 1103 1076 1072 46)))))
-    (if (> (+ xtx groupwidth (nth 3 cap)) cp:railw)
+    (if (> (+ groupwidth (if cap (nth 3 cap) 0.0)) cp:railw) (setq cp:problem (strcat (cp:ru '(1053 1072 1073 1086 1088 32 1082 1083 1077 1084 1084 32)) (car group) (cp:ru '(32 1089 32 1079 1072 1075 1083 1091 1096 1082 1086 1081 32 1096 1080 1088 1077 32 1088 1103 1076 1072 46)))))
+    (if (> (+ xtx groupwidth (if cap (nth 3 cap) 0.0)) cp:railw)
       (progn
-        (if (not closed)
+        (if (and (not closed) lastcap)
           (setq cp:xtpositions (append cp:xtpositions (list (list lastcap xtrow xtx))) cp:caps (cons lastcap cp:caps)))
         (setq xtrow (1+ xtrow) xtx 0.0)))
     (foreach d (cadr group)
       (setq cp:xtpositions (append cp:xtpositions (list (list d xtrow xtx))) xtx (+ xtx (nth 3 d))))
     (setq closed (or (null (cdr remaining))
                      (/= (nth 7 cap) (nth 7 (cp:endcap (cadr remaining))))))
-    (if closed
+    (if (and closed cap)
       (setq cp:xtpositions (append cp:xtpositions (list (list cap xtrow xtx))) cp:caps (cons cap cp:caps) xtx (+ xtx (nth 3 cap))))
     (setq lastcap cap remaining (cdr remaining)))
   (if cp:terminals (setq cp:xtrows (1+ xtrow)))
@@ -1371,5 +1382,5 @@
         (vla-regen cp:doc 1)
         (princ (cp:ru '(1050 1086 1084 1087 1086 1085 1086 1074 1082 1072 32 1088 1072 1079 1076 1077 1083 1077 1085 1072 32 1085 1072 32 1086 1090 1076 1077 1083 1100 1085 1099 1077 32 1086 1073 1098 1077 1082 1090 1099 46))))))
   (princ))
-(princ "\nSX_Panel v2.03: CPDRAW / CPUPDATE / CPEDIT / CPDELETE / CPEXPLODE")
+(princ "\nSX_Panel v2.04: CPDRAW / CPUPDATE / CPEDIT / CPDELETE / CPEXPLODE")
 (princ)
