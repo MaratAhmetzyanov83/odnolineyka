@@ -55,12 +55,17 @@ namespace SXTools
             doc.SendStringToExecute(cmd, false, false, false);
         }
 
-        /// <summary>Выполнить команду в текущем чертеже (двойной Esc сбрасывает текущую команду).</summary>
+        /// <summary>Выполнить команду в текущем чертеже.
+        /// Прерывание (Esc) — только если идёт другая команда и отдельной посылкой:
+        /// «^C^C» в одной строке с командой AutoCAD сбрасывает вместе с остатком строки, и команда теряется.</summary>
         internal static void Run(string command)
         {
             Document doc = AcApp.DocumentManager.MdiActiveDocument;
             if (doc == null) return;
-            doc.SendStringToExecute("\x03\x03" + command + "\n", true, false, false);
+            string active = "";
+            try { active = Convert.ToString(AcApp.GetSystemVariable("CMDNAMES")); } catch { }
+            if (!string.IsNullOrEmpty(active)) doc.SendStringToExecute("\x1B\x1B", true, false, false);
+            doc.SendStringToExecute(command + " ", true, false, true);
         }
 
         internal static void OpenPath(string path)
