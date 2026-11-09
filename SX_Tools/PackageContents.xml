@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ApplicationPackage SchemaVersion="1.0" ProductType="Application" Name="SX Tools" Description="Однолинейка, компоновка, длины трасс, каталог блоков - одна палитра" AppVersion="1.0.0" Author="odnolineyka" AutoLoadMode="OnStartup" ProductCode="{6d1d5c4e-2a52-4f0e-9b0a-5a4c1e7b2f32}" UpgradeCode="{6d1d5c4e-2a52-4f0e-9b0a-5a4c1e7b2f33}">
+  <CompanyDetails Name="odnolineyka" />
+  <Components>
+    <RuntimeRequirements OS="Win64" Platform="AutoCAD*" SeriesMin="R25.0" SeriesMax="R25.0" />
+    <ComponentEntry AppName="SXTools" Version="1.0.0" ModuleName="./Contents/SXTools.dll" AppDescription="SX palette" AppType=".NET" LoadOnAutoCADStartup="True" LoadOnCommandInvocation="False">
+      <Commands GroupName="SX">
+        <Command Global="SXT" Local="SXT" />
+        <Command Global="SXTRELOAD" Local="SXTRELOAD" />
+      </Commands>
+    </ComponentEntry>
+  </Components>
+</ApplicationPackage>

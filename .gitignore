@@ -24,3 +24,7 @@ _Разработка/2026-10-09_cable-journal/release_v*/
 6_Программа/кэш/
 6_Программа/настройки.json
 __pycache__/
+# SX_Tools: копии баз блоков и сборка
+SX_Tools/CAD/Блоки/*.dwg
+SX_Tools/src/obj/
+SX_Tools/src/bin/
