@@ -1,7 +1,10 @@
 ;;; ================================================================
-;;;  DLN v24 — длины кабельных линий из планов в таблицу однолинейки
+;;;  DLN v25 — длины кабельных линий из планов в таблицу однолинейки
 ;;;  Книги: 1.06 / 1.05 / v3.12 (лист «Исходные данные»); v4, v5 (лист «Линии») — архив.
 ;;;  Команды:  DLN      — заполнить таблицу (первый раз)
+;;;            DLN_ADD  — только добавить новые линии: в конец таблицы, зелёная заливка строки;
+;;;                       старые строки не трогаются (ни ячейки, ни порядок). Так же —
+;;;                       ответ «Добавить» в DLN (по заполненной таблице) и в DLN_RAMKA
 ;;;            DLN_UPD  — обновить после правок планов: длины, кол-во, текст выноски;
 ;;;                       новые линии — по порядку номеров; пропавшие — подсветка
 ;;;                       и «нет на плане»; «Потолок/Пол», мощность, кабель не трогает.
@@ -707,6 +710,13 @@
       (vl-catch-all-apply 'vlax-put-property (list it 'Color *dl-miss-color*))
       (if (equal (dl:vv (vl-catch-all-apply 'vlax-get-property (list it 'Color))) (float *dl-miss-color*) 0.5)
         (vl-catch-all-apply 'vlax-put-property (list it 'ColorIndex -4142))))))
+;; DLN_ADD: заливка новых строк (светло-зелёный, RGB 198,239,206) — от A до последней колонки
+(setq *dl-new-color* 13561798 *dl-new-rows* nil)
+(defun dl:fill-row (sh row color / it)
+  (setq it (vl-catch-all-apply 'vlax-get-property
+             (list (dl:rng sh (strcat "A" (itoa row) ":" (dl:colname *dl-lastcol*) (itoa row))) 'Interior)))
+  (if (not (vl-catch-all-error-p it))
+    (vl-catch-all-apply 'vlax-put-property (list it 'Color color))))
 ;; строки выше *dl-row0* (вводы, ЩБП и т.п., вписанные вручную): только найти и обновить на месте
 (defun dl:col-top (sh c / v)
   (if (> *dl-row0* *dl-row-top*)
@@ -760,10 +770,11 @@
   ;; DLN по уже заполненной таблице — предложить режим «обновить»
   (if (and (= mode 'fill) (> nlines 0) (not *dl-v4*))
     (progn
-      (initget "Обновить Заполнить _Update Fill")
+      (initget "Добавить Обновить Заполнить _Add Update Fill")
       (setq ans (getkword (strcat "\nDLN: в таблице уже " (itoa nlines)
-                                  " линий. Для правок планов — DLN_UPD. [Обновить/Заполнить] <Обновить>: ")))
-      (if (or (null ans) (= ans "Update")) (setq mode 'upd))))
+                                  " линий. Добавить — только новые, старые строки не трогать. [Добавить/Обновить/Заполнить] <Добавить>: ")))
+      (cond ((or (null ans) (= ans "Add")) (setq mode 'add))
+            ((= ans "Update") (setq mode 'upd)))))
   (vl-catch-all-apply 'vlax-put-property (list *dl-app* 'Calculation -4135))
   (vl-catch-all-apply 'vlax-put-property (list *dl-app* 'ScreenUpdating :vlax-false))
   (setq cG (dl:hreq "Кол-во потребителей" 1)
@@ -791,7 +802,7 @@
         last (1- *dl-row0*) i *dl-row0*)
   (foreach n names (if (/= n "") (setq last i)) (setq i (1+ i)))
   (if (and *dl-v4* (dl:v4-last sh)) (setq last (dl:v4-last sh)))
-  (setq newn 0 upd 0)
+  (setq newn 0 upd 0 *dl-new-rows* nil)
   (foreach s sum
     (setq g (car s) isnew nil
           row (dl:find-row g names *dl-row0*))
@@ -803,6 +814,8 @@
         (dl:put sh (strcat cG rs) 1))
       (setq upd (1+ upd)))
     (setq rs (itoa row))
+    ;; DLN_ADD: строку, которая уже есть в таблице, не трогаем совсем
+    (if (or isnew (/= mode 'add)) (progn
     (if (nth 5 s) (dl:put sh (strcat cG rs) (nth 5 s)))
     (if (not *dl-v4*)
       (progn
@@ -830,7 +843,27 @@
     ;; «Потолок/Пол»: при заполнении — если пусто; при обновлении — только у новых линий
     (setq sv (if (>= row *dl-row0*) (nth (- row *dl-row0*) svals) (nth (- row *dl-row-top*) tsvals)))
     (if (and (nth 3 s) (or isnew (and (= mode 'fill) (null sv))))
-      (dl:put sh (strcat cS rs) (if (>= (nth 1 s) (nth 2 s)) 1 2))))
+      (dl:put sh (strcat cS rs) (if (>= (nth 1 s) (nth 2 s)) 1 2)))
+    (if isnew (setq *dl-new-rows* (cons row *dl-new-rows*))))))
+  (if (= mode 'add)
+    ;; DLN_ADD: без «нет на плане», без очистки удалённых, без пересортировки;
+    ;; новые строки (в конце таблицы) — зелёная заливка
+    (progn
+      ;; «нет на плане» — только для пометок на чертеже, в таблицу не пишется
+      (setq thands (if tnames (mapcar 'dl:str (dl:col-top sh cHN)))
+            *dl-missing* (vl-remove-if '(lambda (n) (dl:elsewhere (dl:hands-of n names hands tnames thands) sum))
+                                       (dl:missing *dl-tnames* sum))
+            *dl-added* nil)
+      (foreach s sum
+        (if (not (vl-some '(lambda (n) (= (dl:norm n) (dl:norm (car s)))) *dl-tnames*))
+          (setq *dl-added* (cons (car s) *dl-added*))))
+      (setq *dl-added* (reverse *dl-added*))
+      (foreach r *dl-new-rows*
+        (dl:fill-row sh r *dl-new-color*))
+      (if (and *dl-v4* (> newn 0)) (dl:v4-resize sh last))
+      (dl:restore-xl)
+      (list upd newn mode))
+    (progn
   ;; строки таблицы, которых нет на плане (в пределах тех же «префикс.уровень»): примечание + подсветка
   ;; линии щита бывают на разных листах: трасса жива в чертеже, но вне выбранных
   ;; видовых экранов — это другой лист, а не «нет на плане»
@@ -866,7 +899,7 @@
     (if (> newn 0) (dl:v4-resize sh last))
     (progn (setq *dl-kparent* (dl:kup-parents)) (dl:sort sh cD) (dl:paint-all sh cD *dl-marked*)))
   (dl:restore-xl)
-  (list upd newn mode))
+  (list upd newn mode))))
 (defun dl:restore-xl ()
   (if *dl-app*
     (progn (vl-catch-all-apply 'vlax-put-property (list *dl-app* 'ScreenUpdating :vlax-true))
@@ -1301,6 +1334,8 @@
 ;;; ---------- команды ----------
 (defun c:DLN () (setq *dl-ram* nil *dl-ramss* nil) (dl:run 'fill))
 (defun c:DLN_UPD () (setq *dl-ram* nil *dl-ramss* nil) (dl:run 'upd))
+;; DLN_ADD — только новые линии: в конец таблицы, зелёная заливка; старые строки не трогаются
+(defun c:DLN_ADD () (setq *dl-ram* nil *dl-ramss* nil) (dl:run 'add))
 ;; DLN_RAMKA — обычный выбор AutoCAD (рамка, секущая рамка, щелчки) в активном видовом экране
 ;; или в модели: берутся только выбранные трассы и выноски на видимых слоях (выключенные,
 ;; замороженные и замороженные в этом ВЭ не выбираются и не считаются) -> книга, выбранная сейчас.
@@ -1313,7 +1348,7 @@
                           (max (caddr r) (caddr bb)) (max (cadddr r) (cadddr bb)))
                 bb))))
   r)
-(defun c:DLN_RAMKA (/ ss vp w bb path)
+(defun c:DLN_RAMKA (/ ss vp w bb path ans md)
   (setq *dl-ram* nil *dl-ramss* nil)
   (if (and (= (getvar "TILEMODE") 0) (= (getvar "CVPORT") 1))
     (progn (princ "\nDLN: войдите в видовой экран плана (двойной щелчок) или в модель и повторите.") (exit)))
@@ -1333,8 +1368,11 @@
   (if (setq path (getfiled "Книга, куда писать выбранные линии (xlsx / xlsm)"
                            (cond ((dl:xls-path nil)) ((getvar "DWGPREFIX"))) "xlsx;xlsm" 0))
     (progn
+      (initget "Добавить Обновить _Add Update")
+      (setq ans (getkword "\nDLN: [Добавить только новые/Обновить всё] <Добавить>: ")
+            md (if (= ans "Update") 'upd 'add))
       (setq *dl-ram* (list path (list w)) *dl-ramss* ss)
-      (dl:run 'upd)
+      (dl:run md)
       (setq *dl-ram* nil *dl-ramss* nil))
     (princ "\nDLN: книга не выбрана."))
   (princ))
@@ -1368,9 +1406,16 @@
                      "  выносок: " (itoa (length labels))
                      "  линий: " (itoa (length sum))))
       (setq res (dl:write path sum mode))
-      (princ (strcat "\n  режим: " (if (= (caddr res) 'upd) "обновить" "заполнить")
-                     "  обновлено строк: " (itoa (car res)) ", добавлено: " (itoa (cadr res))
-                     "  (формулы: " (cond ((= *dl-fmode* 1) "Formula") ((= *dl-fmode* 2) "FormulaLocal") ((= *dl-fmode* 3) "Value2") (T "-")) ")"))
+      (if (= (caddr res) 'add)
+        (progn
+          (princ (strcat "\n  режим: добавить  старых строк (не тронуты): " (itoa (car res))
+                         ", добавлено: " (itoa (cadr res)) " — в конце таблицы, зелёная заливка"))
+          (if *dl-added* (princ (strcat "\n  новые линии: " (dl:join *dl-added* ", "))))
+          (if (> (cadr res) 0)
+            (princ "\n  Внесите новые линии в «Разбивка_по_щитам» (H), иначе их не будет на схеме.")))
+        (princ (strcat "\n  режим: " (if (= (caddr res) 'upd) "обновить" "заполнить")
+                       "  обновлено строк: " (itoa (car res)) ", добавлено: " (itoa (cadr res))
+                       "  (формулы: " (cond ((= *dl-fmode* 1) "Formula") ((= *dl-fmode* 2) "FormulaLocal") ((= *dl-fmode* 3) "Value2") (T "-")) ")")))
       (dl:check labels issues sum)
       ;; выделить полилинии без группы или с конфликтом
       (setq ss (ssadd))
@@ -1573,5 +1618,5 @@
   (princ "\nDLN: лист «Сверка» открыт в Excel. Книга не сохранена.")
   (princ))
 
-(princ "\nDLN v17 загружен. Команды: DLN (заполнить), DLN_UPD (обновить после правок планов), DLN_SVR (сверка по всем листам), DLN_CHK (только проверка), DLN_NEXT / DLN_PREV (по пометкам), DLN_CLR (убрать пометки), DLN_XLS (сменить таблицу)")
+(princ "\nDLN v25 загружен. Команды: DLN (заполнить), DLN_ADD (только новые линии, зелёным), DLN_UPD (обновить после правок планов), DLN_SVR (сверка по всем листам), DLN_CHK (только проверка), DLN_NEXT / DLN_PREV (по пометкам), DLN_CLR (убрать пометки), DLN_XLS (сменить таблицу)")
 (princ)
