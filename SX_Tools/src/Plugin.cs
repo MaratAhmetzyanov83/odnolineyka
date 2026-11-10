@@ -173,7 +173,8 @@ namespace SXTools
             tab.Panels.Add(Panel("Длины трасс",
                 new[] {
                     Btn.L("Заполнить", "DLN", gRuler, "DLN — длины трасс с планов в книгу"),
-                    Btn.L("Обновить", "DLN_UPD", gRefresh, "DLN_UPD — после правок планов"),
+                    Btn.L("Добавить", "DLN_ADD", gAdd, "DLN_ADD — только новые линии, в конец, зелёным; старые строки не трогает"),
+                    Btn.L("Обновить", "DLN_UPD", gRefresh, "DLN_UPD — после правок планов (переписывает всё)"),
                     Btn.S("Сверка", "DLN_SVR", gList, "DLN_SVR — план и таблица по всем листам"),
                     Btn.S("Проверка", "DLN_CHK", gCheck, "DLN_CHK — только проверка"),
                     Btn.S("Книга", "DLN_XLS", gFile, "DLN_XLS — выбрать книгу Excel"),
