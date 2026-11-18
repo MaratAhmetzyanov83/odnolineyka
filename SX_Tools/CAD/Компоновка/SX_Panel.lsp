@@ -1,10 +1,10 @@
-;;; SX_Panel v2.09 — внутренняя компоновка электрощита из Excel.
+;;; SX_Panel v2.10 — внутренняя компоновка электрощита из Excel.
 ;;; CPDRAW / CPUPDATE / CPEDIT / CPDELETE / CPEXPLODE. Самостоятельный LISP, SX_Schema не нужен.
 ;;; Модульные аппараты и клеммы из пользовательской базы. v2.0: ввод первым, фазы L1-L2-L3 под гребёнки,
 ;;; кросс-модули L/N и N/PE, монтажные провода, DIN-рейки и корпус DKC (SX_Корпуса.csv).
 ;;; Excel: читается «Однолинейка» и «Каталог»; пишется только лист «Сборка_щита». Слои CP_*.
 (vl-load-com)
-(setq cp:version "2.09" cp:app "SX_PANEL" cp:partsapp "SX_PANEL_PARTS")
+(setq cp:version "2.10" cp:app "SX_PANEL" cp:partsapp "SX_PANEL_PARTS")
 
 ;;; Unicode / CP1251: строки работают и при LISPSYS=0.
 (defun cp:cp (c)
@@ -162,13 +162,19 @@
               model (if (> size 16.0) (cp:xt-big size pin) (strcat "VPR-" suffix "-" color)))
         (setq items (append items (list (list (strcat id ":" pin) (strcat "XT|" model) model nil nil "XT" 0)))))))
   (setq cp:terminalgroups (append cp:terminalgroups (list (list id items section)))))
+(defun cp:terminal-mapping (d / model mapping)
+  (setq model (nth 2 d) mapping (cdr (assoc (nth 1 d) (cp:g 'sizes))))
+  (if (null mapping) (setq mapping (list model 1.0 0.0)))
+  ;; Для L/N/PE в DALI используем вид штатной трёхуровневой клеммы.
+  (if (and (= model "VPRTT-2.5-3L-LNPE") (= (cp:norm (car mapping)) model))
+    (cons "VPR-2.5-3L-GY" (cdr mapping))
+    mapping))
 (defun cp:apply-terminals ( / groups group items d m bb)
   (setq cp:terminals nil groups nil)
   (foreach group cp:terminalgroups
     (setq items nil)
     (foreach d (cadr group)
-      (setq m (cdr (assoc (nth 1 d) (cp:g 'sizes))))
-      (if (null m) (setq m (list (nth 2 d) 1.0 0.0)))
+      (setq m (cp:terminal-mapping d))
       (if (= (car m) (nth 2 d)) (setq m (cons (cp:vpr6-block (car m)) (cdr m))))
       (setq bb (cp:measure (car m) (cadr m) (caddr m) (nth 3 m))
             d (list (car d) (nth 1 d) (nth 2 d) (- (nth 2 bb) (nth 0 bb)) (- (nth 3 bb) (nth 1 bb)) "XT" 0 (car m) (cadr m) (caddr m) (nth 3 m))
@@ -965,10 +971,8 @@
         (setq cp:size-items (append cp:size-items (list (list key label))))
         (setq cp:size-data (cons (cons key size) cp:size-data)))))
   (foreach d cp:terminals
-    (setq key (nth 1 d) size (cdr (assoc key (cp:g 'sizes))))
-    (if (null size) (setq size (list (nth 2 d) 1.0 0.0)))
-    (setq name (nth 2 d))
-    (if (and (member name '("VPRTT-2.5-3L-LNPE" "VPRTT-2.5-GY")) (not (member name cp:blocknames)))
+    (setq key (nth 1 d) size (cp:terminal-mapping d) name (nth 2 d))
+    (if (and (= name "VPRTT-2.5-GY") (not (member name cp:blocknames)))
       (setq cp:blocknames (append cp:blocknames (list name))))
     (if (not (assoc key cp:size-items))
       (setq cp:size-items (append cp:size-items (list (list key (strcat (cp:ru '(1050 1083 1077 1084 1084 1099 58 32)) (nth 2 d)))))
@@ -1061,8 +1065,7 @@
 
 ;;; Упрощённый вид для компоновки, размеры ДКС: ширина на рейке и длина корпуса.
 (defun cp:dali-block (name / spec width half y r)
-  (if (setq spec (assoc name '(("VPRTT-2.5-3L-LNPE" 5.2 103.0 3)
-                               ("VPRTT-2.5-GY" 5.2 68.9 2)
+  (if (setq spec (assoc name '(("VPRTT-2.5-GY" 5.2 68.9 2)
                                ("D-VPRTT-2.5" 2.2 68.9 0))))
     (progn
       (setq width (cadr spec) half (/ (caddr spec) 2.0))

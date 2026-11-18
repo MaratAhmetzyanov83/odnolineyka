@@ -84,11 +84,16 @@
         cp:terminalgroups nil)
   (cp:terminal-set "XT56" (qa:dali-row "L.1.02.1" 1) "5x1.5")
   (cp:terminal-set "XT57" (qa:dali-row "L.1.06.1" nil) "5x1.5")
+  (qa:check "dali_power_defaults_to_library_block"
+    (equal (cp:terminal-mapping (caadar cp:terminalgroups)) '("VPR-2.5-3L-GY" 1.0 0.0)))
+  (cp:put 'sizes '(("XT|VPRTT-2.5-3L-LNPE" "VPRTT-2.5-3L-LNPE" 1.0 0.0)))
   (qa:check "dali_group_fits_whole_on_one_rail" (and (cp:plan) (= cp:xtrows 2)))
   (qa:check "dali_terminal_order_includes_both_covers"
     (equal (mapcar '(lambda (p) (nth 7 (car p))) cp:xtpositions)
-      '("VPRTT-2.5-3L-LNPE" "D-VPR-2.5-3L" "VPRTT-2.5-GY" "D-VPRTT-2.5"
-        "VPRTT-2.5-3L-LNPE" "D-VPR-2.5-3L" "VPRTT-2.5-GY" "D-VPRTT-2.5")))
+      '("VPR-2.5-3L-GY" "D-VPR-2.5-3L" "VPRTT-2.5-GY" "D-VPRTT-2.5"
+        "VPR-2.5-3L-GY" "D-VPR-2.5-3L" "VPRTT-2.5-GY" "D-VPRTT-2.5")))
+  (qa:check "dali_power_keeps_lnpe_model"
+    (= (nth 2 (car cp:terminals)) "VPRTT-2.5-3L-LNPE"))
   (qa:check "dali_power_and_bus_have_separate_labels"
     (equal (mapcar 'car cp:terminals) '("XT56" "XT56:DA" "XT57" "XT57:DA")))
   (qa:check "dali_power_connection_stays_on_3_levels"
@@ -102,11 +107,10 @@
          (= (length (cadr (assoc "XT11" cp:terminalgroups))) 5))))
 (qa:dali-layout)
 (cp:ensure-block "VPRTT-2.5-GY")
-(cp:ensure-block "VPRTT-2.5-3L-LNPE")
 (cp:ensure-block "D-VPRTT-2.5")
 (qa:check "dali_blocks_available_without_separate_library_update"
   (vl-every '(lambda (name) (tblsearch "BLOCK" name))
-    '("VPRTT-2.5-GY" "VPRTT-2.5-3L-LNPE" "D-VPRTT-2.5")))
+    '("VPR-2.5-3L-GY" "VPRTT-2.5-GY" "D-VPRTT-2.5")))
 ;;; Габариты из каталога; функции измерения заменяются только на время расчёта раскладки.
 (defun qa:layout ( / cp:measure cp:terminalgroups cp:cfg cp:devices caps rows tight pos row right)
   (defun cp:measure (name scale angle state)
