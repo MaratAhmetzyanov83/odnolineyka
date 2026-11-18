@@ -39,7 +39,7 @@
                      ("QF2" "QF" "AV_2P_36" 2.0 90.0 "QF" 4 "AV_2P_36" 1.0 0.0))
         cp:terminalgroups nil cp:cross-counts '(0 0 0 0) cp:cross-unknown 0 i 44)
   (repeat 44 (setq row (cons (cond ((= i 17) "3x4") ((= i 22) "L1") ((= i 44) 1)) row) i (1- i)))
-  (cp:terminal-set "XT1" row)
+  (cp:terminal-set "XT1" row "3x4")
   (cp:plan)
   (setq before (list cp:positions cp:xtpositions cp:rowpitch (cp:g 'h)))
   (cp:draw-geometry)

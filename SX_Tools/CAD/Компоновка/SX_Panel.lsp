@@ -1,10 +1,10 @@
-;;; SX_Panel v2.07 — внутренняя компоновка электрощита из Excel.
+;;; SX_Panel v2.08 — внутренняя компоновка электрощита из Excel.
 ;;; CPDRAW / CPUPDATE / CPEDIT / CPDELETE / CPEXPLODE. Самостоятельный LISP, SX_Schema не нужен.
 ;;; Модульные аппараты и клеммы из пользовательской базы. v2.0: ввод первым, фазы L1-L2-L3 под гребёнки,
 ;;; кросс-модули L/N и N/PE, монтажные провода, DIN-рейки и корпус DKC (SX_Корпуса.csv).
 ;;; Excel: читается «Однолинейка» и «Каталог»; пишется только лист «Сборка_щита». Слои CP_*.
 (vl-load-com)
-(setq cp:version "2.07" cp:app "SX_PANEL" cp:partsapp "SX_PANEL_PARTS")
+(setq cp:version "2.08" cp:app "SX_PANEL" cp:partsapp "SX_PANEL_PARTS")
 
 ;;; Unicode / CP1251: строки работают и при LISPSYS=0.
 (defun cp:cp (c)
@@ -137,8 +137,8 @@
       (cond ((and (= pin "PE") (<= size 95.0)) (strcat "KRUSLG-" s "N"))
             ((= pin "N") (strcat "KRUH-" s "-BU"))
             (t (strcat "KRUH-" s))))))
-(defun cp:terminal-set (id r / section cores sizes size phases pins color model suffix pin items)
-  (setq section (cp:cable-section (cp:at r 17)) cores (cp:cable-cores (cp:at r 17))
+(defun cp:terminal-set (id r cable / section cores sizes size phases pins color model suffix pin items)
+  (setq section (cp:cable-section cable) cores (cp:cable-cores cable)
         sizes '(1.5 2.5 4.0 6.0 10.0 16.0 35.0 50.0 95.0 150.0 240.0))
   (if (null section) (cp:fail (strcat (cp:ru '(1053 1077 32 1085 1072 1081 1076 1077 1085 1086 32 1089 1077 1095 1077 1085 1080 1077 32 1082 1072 1073 1077 1083 1103 32 1076 1083 1103 32)) id (cp:ru '(46 32 1055 1088 1086 1074 1077 1088 1100 1090 1077 32 1089 1090 1086 1083 1073 1077 1094 32 81 46)) (cp:ru '(32 1065 1080 1090 58 32)) (cp:s (cp:g 'panel)) (cp:ru '(44 32 1082 1085 1080 1075 1072 58 32)) (vl-filename-base (cp:s (cp:g 'path))) (cp:ru '(44 32 81 58 32 171)) (cp:s (cp:at r 17)) (cp:ru '(187)))))
   (setq size (car (vl-remove-if '(lambda (n) (< n section)) sizes)))
@@ -186,7 +186,7 @@
                      counts (list (1+ (car counts)) (1+ (cadr counts)) (1+ (caddr counts)) (nth 3 counts)))))
         (if (member poles '("2P" "4P" "1P+N")) (setq counts (list (car counts) (cadr counts) (caddr counts) (1+ (nth 3 counts))))))))
   (setq cp:devices (append (cp:cross-devices counts) (if (cp:g 'npe) (cp:npe-devices)) cp:devices)))
-(defun cp:collect (panel / selected r idx cat qid mid model n typ txt id seenq seenm seenxt k counts parts input)
+(defun cp:collect (panel / selected r idx cat qid mid model n typ txt id seenq seenm seenxt k counts parts input place prev-place cable prev-cable)
   (setq cp:devices nil cp:terminals nil cp:terminalgroups nil selected nil idx 3 counts nil cp:info nil)
   (foreach r cp:rows
     (if (and (= (cp:s (car r)) panel) (numberp (cp:at r 2)) (= (cp:at r 56) 1))
@@ -218,11 +218,20 @@
     (setq mid (cp:s (cp:at r 34)) model (cp:s (cp:at r 35)))
     (if (and (/= mid "") (/= model "") (not (member mid seenm)))
       (progn (setq seenm (cons mid seenm)) (cp:add-device mid model (cp:model-catalog model) "MODULE" idx)))
-    (setq txt (cp:s (cp:at r 16)))
-    (if (and (= (cp:at r 51) 1) (/= txt "") (not (member txt seenxt)))
+    (setq txt (cp:s (cp:at r 16)) place (cp:at r 2) cable nil)
+    (if (and (= (cp:at r 51) 1) (/= txt ""))
       (progn
-        (setq seenxt (cons txt seenxt)) (cp:terminal-set txt r)
-        (if (/= qid "") (cp:inf-put qid 'tids (append (cp:inf qid 'tids) (list txt)))))))
+        (setq cable (cp:s (cp:at r 17)))
+        ;; N = «+» или «к»: клемма в общем кабеле, Q заполнен у первого места.
+        (if (and (= cable "") (member (cp:at r 59) '("+" "K"))
+                 prev-cable (= place (1+ prev-place)))
+          (setq cable prev-cable))
+        (if (not (member txt seenxt))
+          (progn
+            (setq seenxt (cons txt seenxt))
+            (cp:terminal-set txt r cable)
+            (if (/= qid "") (cp:inf-put qid 'tids (append (cp:inf qid 'tids) (list txt))))))))
+    (setq prev-place place prev-cable cable))
   (foreach group cp:terminalgroups (setq cp:terminals (append cp:terminals (cadr group))))
   (if cp:devices (cp:cross-add))
   cp:devices)
@@ -1389,5 +1398,5 @@
         (vla-regen cp:doc 1)
         (princ (cp:ru '(1050 1086 1084 1087 1086 1085 1086 1074 1082 1072 32 1088 1072 1079 1076 1077 1083 1077 1085 1072 32 1085 1072 32 1086 1090 1076 1077 1083 1100 1085 1099 1077 32 1086 1073 1098 1077 1082 1090 1099 46))))))
   (princ))
-(princ "\nSX_Panel v2.07: CPDRAW / CPUPDATE / CPEDIT / CPDELETE / CPEXPLODE")
+(princ (strcat "\nSX_Panel v" cp:version ": CPDRAW / CPUPDATE / CPEDIT / CPDELETE / CPEXPLODE"))
 (princ)
