@@ -32,7 +32,7 @@
 ;;; ============================================================================
 
 (vl-load-com)
-(setq sx:ver "v3.28")
+(setq sx:ver "v3.29")
 
 
 ;;; ---------------------------------------------------------------- настройки
@@ -1084,13 +1084,73 @@
     (if (and (setq s (sx:key-sheet k)) (not (member (strcat "S|" (itoa s)) res)))
       (setq res (cons (strcat "S|" (itoa s)) res))))
   res)
+(defun sx:mark-data (e / xd)
+  (if (setq xd (assoc -3 (entget e (list sx:app))))
+    (mapcar 'cdr (vl-remove-if-not '(lambda (p) (= (car p) 1000)) (cdadr xd)))))
+(defun sx:write-mark (e data)
+  (regapp sx:app)
+  (entmod (append (entget e) (list (list -3 (cons sx:app (mapcar '(lambda (s) (cons 1000 s)) data)))))))
+(defun sx:shape-dxf (ed)
+  (vl-remove-if '(lambda (p) (member (car p) '(-1 -2 5 102 330 360))) ed))
+(defun sx:entity-shape (e / ed parts child attr s hash)
+  (setq ed (entget e) parts (list (sx:shape-dxf ed)))
+  (if (and (= (cdr (assoc 0 ed)) "INSERT") (= (cdr (assoc 66 ed)) 1))
+    (progn
+      (setq child (entnext e))
+      (while (and child (setq attr (entget child)) (= (cdr (assoc 0 attr)) "ATTRIB"))
+        (setq parts (cons (sx:shape-dxf attr) parts) child (entnext child)))))
+  (setq s (vl-prin1-to-string parts) hash 0)
+  ;; Модуль оставляет промежуточное произведение в диапазоне целых AutoLISP.
+  (foreach c (vl-string->list s) (setq hash (rem (+ (* hash 131) c) 16000057)))
+  (strcat (itoa (strlen s)) ":" (itoa hash)))
 (defun sx:xd-set (e key)
-  ;; Преобразование ename тоже защищено: служебные записи не являются VLA-объектами.
-  (vl-catch-all-apply
-    '(lambda ()
-       (vla-setxdata (vlax-ename->vla-object e)
-         (vlax-safearray-fill (vlax-make-safearray vlax-vbInteger '(0 . 2)) '(1001 1000 1000))
-         (vlax-safearray-fill (vlax-make-safearray vlax-vbVariant '(0 . 2)) (list sx:app sx:tagpanel key)))) nil))
+  ;; Handle хранится строкой, чтобы COPY не заменял его на handle новой вставки.
+  (sx:write-mark e (list sx:tagpanel key (cdr (assoc 5 (entget e))) (if (= key "U") "" (sx:entity-shape e)))))
+(defun sx:manual-state (e data / ed owner original)
+  (setq ed (entget e) owner (nth 2 data) original (nth 3 data))
+  (cond ((not (wcmatch (strcase (cdr (assoc 8 ed))) "SX_*")) 'copy)
+        ((and owner (/= owner (cdr (assoc 5 ed)))) 'copy)
+        ((and original (/= original "") (/= original (sx:entity-shape e))) 'edited)))
+(defun sx:erase-managed (e data / state)
+  (setq state (if data (sx:manual-state e data)))
+  (cond ((= state 'edited)
+         (setq sx:retained (cons (list (car data) (cadr data) (nth 3 data)) sx:retained))
+         nil)
+        ((= state 'copy) nil)
+        (t (entdel e))))
+(defun sx:later-handle-p (a b)
+  (or (> (strlen a) (strlen b)) (and (= (strlen a) (strlen b)) (> a b))))
+;; В старом формате ищем поздние копии уже существовавших частей. U создаётся в конце построения.
+(defun sx:mark-legacy-copies ( / ss i e data handle last bounds earlier key late candidate)
+  (if (setq ss (ssget "_X" (list '(8 . "SX_*") (list -3 (list sx:app)))))
+    (progn
+      (setq i (sslength ss))
+      (repeat i
+        (setq e (ssname ss (setq i (1- i))) data (sx:mark-data e))
+        (if (and (= (cadr data) "U") (not (sx:manual-state e data)))
+          (progn
+            (setq handle (cdr (assoc 5 (entget e))) last (assoc (car data) bounds))
+            (cond ((null last) (setq bounds (cons (cons (car data) handle) bounds)))
+                  ((sx:later-handle-p handle (cdr last)) (setq bounds (subst (cons (car data) handle) last bounds)))))))
+      (setq i (sslength ss))
+      (repeat i
+        (setq e (ssname ss (setq i (1- i))) data (sx:mark-data e) last (assoc (car data) bounds)
+              handle (cdr (assoc 5 (entget e))))
+        (if (and last (or (null (nth 2 data)) (= (nth 2 data) handle)))
+          (progn
+            (setq key (list (car data) (cadr data)))
+            (cond ((not (sx:later-handle-p handle (cdr last)))
+                   (if (not (member key earlier)) (setq earlier (cons key earlier))))
+                  ((= (length data) 2) (setq late (cons (cons e key) late)))))))
+      (foreach candidate late
+        (if (member (cdr candidate) earlier) (sx:write-mark (car candidate) (append (cdr candidate) '("KEEP" ""))))))))
+(defun sx:mark-built (e key / expected removed)
+  (if sx:retained (setq expected (list sx:tagpanel key (sx:entity-shape e))))
+  (if (member expected sx:retained)
+    (progn
+      (entdel e)
+      (setq sx:retained (vl-remove-if '(lambda (item) (and (not removed) (equal item expected) (setq removed T))) sx:retained)))
+    (sx:xd-set e key)))
 ;; пометить всё, что создано после mark (атрибуты и концы вставок не трогаем)
 (defun sx:tag-new (mark key / e ed)
   (regapp sx:app)
@@ -1102,26 +1162,25 @@
       (sx:xd-set e key))
     (setq e (entnext e))))
 ;; sx:try + метка куска схемы
-(defun sx:ttry (key fn label / first count result err ob)
+(defun sx:ttry (key fn label / first count result err e generated)
   ;; Только новые объекты ModelSpace. entnext может заходить в определения блоков.
   (setq first (vla-get-count sx:ms))
   (sx:try fn label)
   (regapp sx:app)
   (setq count (vla-get-count sx:ms))
   (while (< first count)
+    (setq generated (cons (vlax-vla-object->ename (vla-item sx:ms first)) generated)
+          first (1+ first)))
+  (foreach e (reverse generated)
     (setq result (vl-catch-all-apply
-      '(lambda ()
-         (setq ob (vla-item sx:ms first))
-         (sx:xd-set (vlax-vla-object->ename ob) key)) nil))
+      'sx:mark-built (list e key)))
     (if (vl-catch-all-error-p result)
       (progn
         (setq err (strcat "tag " label ": " (vl-catch-all-error-message result)))
-        (sx:log err) (setq sx:errs (cons err sx:errs))))
-    (setq first (1+ first))))
+        (sx:log err) (setq sx:errs (cons err sx:errs))))))
 ;; (щит кусок) из метки объекта или nil
 (defun sx:xd-get (e / xd)
-  (if (setq xd (cdr (assoc -3 (entget e (list sx:app)))))
-    (mapcar 'cdr (vl-remove-if-not '(lambda (x) (= (car x) 1000)) (cdr (car xd))))))
+  (if (setq xd (sx:mark-data e)) (list (car xd) (cadr xd))))
 (defun sx:key-n (k) (atoi (substr k 3)))
 ;; ключ модуля строки (как в sx:draw-modules) или nil
 (defun sx:modkey (d)
@@ -1139,7 +1198,7 @@
       (setq k (sslength ss) bare 0)
       (repeat k
         (setq e (ssname ss (setq k (1- k))))
-        (if (setq xd (sx:xd-get e))
+        (if (and (setq xd (sx:mark-data e)) (not (sx:manual-state e xd)))
           (progn
             (if (not (member (car xd) pans)) (setq pans (cons (car xd) pans)))
             (if (not (member (cadr xd) keys)) (setq keys (cons (cadr xd) keys))))
@@ -1191,8 +1250,9 @@
     (progn
       (setq k (sslength ss))
       (repeat k
-        (setq e (ssname ss (setq k (1- k))) xd (sx:xd-get e))
-        (if (and xd (= (car xd) panel) (member (cadr xd) keys)) (progn (entdel e) (setq n (1+ n)))))))
+        (setq e (ssname ss (setq k (1- k))) xd (sx:mark-data e))
+        (if (and xd (= (car xd) panel) (member (cadr xd) keys) (sx:erase-managed e xd))
+          (setq n (1+ n))))))
   n)
 
 ;;; Однократный переход с ручного образца: взять под управление только его
@@ -1218,7 +1278,7 @@
                         (mapcar '(lambda (p) (append (cdr p) '(0.0)))
                                 (vl-remove-if-not '(lambda (p) (= (car p) 10)) ed))))
             (cond
-              ((and (= (cdr (assoc 8 ed)) "0")
+              ((and (= (cdr (assoc 8 ed)) "0") (null (sx:xd-get e))
                     (or (sx:path-equal pts cable1) (sx:path-equal pts cable2)))
                (vla-put-layer (vlax-ename->vla-object e) sx:L)
                (setq key (strcat "R|" (itoa (sx:i d)))))
@@ -1240,7 +1300,7 @@
       (progn
         (setq e (vlax-vla-object->ename ob) xd (sx:xd-get e)
               pt (vlax-safearray->list (vlax-variant-value (vla-get-insertionpoint ob))))
-        (if (or (equal xd (list sx:tagpanel "U"))
+        (if (or (and (equal xd (list sx:tagpanel "U")) (not (sx:manual-state e (sx:mark-data e))))
                 (and (null xd) (< (distance pt target) 0.15)))
           (progn
             (setq sx:sumpt pt)
@@ -1402,13 +1462,16 @@
         (setq k (1+ k))))))
 
 ;;; ---------------------------------------------------------------- очистка
-(defun sx:clear ( / ss k)
+(defun sx:clear ( / ss k e data legacy)
+  (setq legacy (null (ssget "_X" (list '(8 . "SX_*") (list -3 (list sx:app))))))
   (if (setq ss (ssget "_X" '((8 . "SX_*"))))
     (progn
       (setq k (sslength ss))
-      (repeat k (entdel (ssname ss (setq k (1- k))))))))
+      (repeat k
+        (setq e (ssname ss (setq k (1- k))) data (sx:mark-data e))
+        (if (or legacy data) (sx:erase-managed e data))))))
 
-(defun c:SXCLEAR () (sx:clear) (princ))
+(defun c:SXCLEAR ( / sx:retained) (sx:mark-legacy-copies) (sx:clear) (princ))
 
 ;;; ---------------------------------------------------------------- отрисовка
 (defun sx:content-p (d)
@@ -2593,7 +2656,7 @@
               (princ (strcat "\nSXUPDATE: " xls " / " pan)) T)
        (progn (princ (strcat "\nSXUPDATE: panel not found in table: " pan)) nil)))))
 
-(defun sx:main (upd / *error* data recs panel pos i row draw oldcmd maxi sym probs xrow ridx pick dkeys ndel)
+(defun sx:main (upd / *error* data recs panel pos i row draw oldcmd maxi sym probs xrow ridx pick dkeys ndel sx:retained)
   (defun *error* (msg)
     (if sx:doc (vl-catch-all-apply 'vla-endundomark (list sx:doc)))
     (if oldcmd (setvar "CMDECHO" oldcmd))
@@ -2728,6 +2791,7 @@
     (progn (sx:log "Drawing switched before generation; no objects changed.") (setvar "CMDECHO" oldcmd) (exit)))
   (vla-startundomark sx:doc)
   ;; Adopt the matching manual sample before clearing generated geometry.
+  (sx:mark-legacy-copies)
   (sx:layers) (sx:summary-capture)
   (if (or sx:part sx:do-clear) (sx:adopt-inputs draw))
   (sx:stg "clear")
@@ -2788,5 +2852,5 @@
   (princ))
 
 (princ (strcat "\n" (sx:ru '(83 88 95 83 99 104 101 109 97 32 118 51 46 49 55 32 1079 1072 1075 1088 1091 1078 1077 1085 32 40 1074 1072 1096 1080 32 1073 1083 1086 1082 1080 41 58 32 83 88 68 82 65 87 32 8212 32 1087 1086 1089 1090 1088 1086 1080 1090 1100 32 1089 1093 1077 1084 1091 44 32 83 88 67 76 69 65 82 32 8212 32 1089 1090 1077 1088 1077 1090 1100 46))))
-(princ "\n[SX_Schema v3.28] SXDRAW / SXUPDATE / SXUPDSEL / SXUPDSHEET / SXCLEAR")
+(princ (strcat "\n[SX_Schema " sx:ver "] SXDRAW / SXUPDATE / SXUPDSEL / SXUPDSHEET / SXCLEAR"))
 (princ)
