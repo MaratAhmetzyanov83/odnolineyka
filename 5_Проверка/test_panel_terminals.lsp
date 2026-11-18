@@ -68,6 +68,45 @@
   (qa:check "missing_cable_on_ordinary_row_is_rejected"
     (and (vl-catch-all-error-p (vl-catch-all-apply 'cp:collect '("QA"))) cp:failure)))
 (qa:shared-cables)
+(defun qa:dali-row (line phases / row i)
+  (setq i 44)
+  (repeat 44
+    (setq row (cons (cond ((= i 18) line) ((= i 44) phases)) row) i (1- i)))
+  row)
+(defun qa:dali-layout ( / cp:cfg cp:devices cp:terminalgroups cp:measure)
+  (defun cp:measure (name scale angle state)
+    (cond ((= name "D-VPR-2.5-3L") '(0.0 -51.5 2.2 51.5))
+          ((= name "D-VPRTT-2.5") '(0.0 -34.45 2.2 34.45))
+          ((= name "VPRTT-2.5-GY") '(0.0 -34.45 5.2 34.45))
+          (t '(0.0 -51.5 5.2 51.5))))
+  (setq cp:cfg '((nrows . 1) (slots . 1) (pitch . 18.0) (reserve . 0.0) (gap . 60.0) (devh . 90.0))
+        cp:devices '(("QF1" "QF" "AV_1P_18" 1.0 90.0 "QF" 3 "AV_1P_18" 1.0 0.0))
+        cp:terminalgroups nil)
+  (cp:terminal-set "XT56" (qa:dali-row "L.1.02.1" 1) "5x1.5")
+  (cp:terminal-set "XT57" (qa:dali-row "L.1.06.1" nil) "5x1.5")
+  (qa:check "dali_group_fits_whole_on_one_rail" (and (cp:plan) (= cp:xtrows 2)))
+  (qa:check "dali_terminal_order_includes_both_covers"
+    (equal (mapcar '(lambda (p) (nth 7 (car p))) cp:xtpositions)
+      '("VPRTT-2.5-3L-LNPE" "D-VPR-2.5-3L" "VPRTT-2.5-GY" "D-VPRTT-2.5"
+        "VPRTT-2.5-3L-LNPE" "D-VPR-2.5-3L" "VPRTT-2.5-GY" "D-VPRTT-2.5")))
+  (qa:check "dali_power_and_bus_have_separate_labels"
+    (equal (mapcar 'car cp:terminals) '("XT56" "XT56:DA" "XT57" "XT57:DA")))
+  (qa:check "dali_power_connection_stays_on_3_levels"
+    (and (equal (cp:xt-pt "XT56" "PE") (cp:pt "XT56" 'top))
+         (> (car (cp:pt "XT56:DA" 'top)) (car (cp:xt-pt "XT56" "PE")))))
+  (setq cp:terminalgroups nil)
+  (cp:terminal-set "XT10" (qa:dali-row "R.1.05.4" 1) "5x6")
+  (cp:terminal-set "XT11" (qa:dali-row "L.1.01.1" 3) "5x2.5")
+  (qa:check "five_core_socket_and_three_phase_lighting_keep_existing_terminals"
+    (and (= (length (cadr (assoc "XT10" cp:terminalgroups))) 3)
+         (= (length (cadr (assoc "XT11" cp:terminalgroups))) 5))))
+(qa:dali-layout)
+(cp:ensure-block "VPRTT-2.5-GY")
+(cp:ensure-block "VPRTT-2.5-3L-LNPE")
+(cp:ensure-block "D-VPRTT-2.5")
+(qa:check "dali_blocks_available_without_separate_library_update"
+  (vl-every '(lambda (name) (tblsearch "BLOCK" name))
+    '("VPRTT-2.5-GY" "VPRTT-2.5-3L-LNPE" "D-VPRTT-2.5")))
 ;;; Габариты из каталога; функции измерения заменяются только на время расчёта раскладки.
 (defun qa:layout ( / cp:measure cp:terminalgroups cp:cfg cp:devices caps rows tight pos row right)
   (defun cp:measure (name scale angle state)

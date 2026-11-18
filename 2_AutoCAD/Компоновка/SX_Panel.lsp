@@ -1,10 +1,10 @@
-;;; SX_Panel v2.08 — внутренняя компоновка электрощита из Excel.
+;;; SX_Panel v2.09 — внутренняя компоновка электрощита из Excel.
 ;;; CPDRAW / CPUPDATE / CPEDIT / CPDELETE / CPEXPLODE. Самостоятельный LISP, SX_Schema не нужен.
 ;;; Модульные аппараты и клеммы из пользовательской базы. v2.0: ввод первым, фазы L1-L2-L3 под гребёнки,
 ;;; кросс-модули L/N и N/PE, монтажные провода, DIN-рейки и корпус DKC (SX_Корпуса.csv).
 ;;; Excel: читается «Однолинейка» и «Каталог»; пишется только лист «Сборка_щита». Слои CP_*.
 (vl-load-com)
-(setq cp:version "2.08" cp:app "SX_PANEL" cp:partsapp "SX_PANEL_PARTS")
+(setq cp:version "2.09" cp:app "SX_PANEL" cp:partsapp "SX_PANEL_PARTS")
 
 ;;; Unicode / CP1251: строки работают и при LISPSYS=0.
 (defun cp:cp (c)
@@ -137,17 +137,23 @@
       (cond ((and (= pin "PE") (<= size 95.0)) (strcat "KRUSLG-" s "N"))
             ((= pin "N") (strcat "KRUH-" s "-BU"))
             (t (strcat "KRUH-" s))))))
-(defun cp:terminal-set (id r cable / section cores sizes size phases pins color model suffix pin items)
+(defun cp:terminal-set (id r cable / section cores sizes size phases pins color model suffix pin items dali)
   (setq section (cp:cable-section cable) cores (cp:cable-cores cable)
         sizes '(1.5 2.5 4.0 6.0 10.0 16.0 35.0 50.0 95.0 150.0 240.0))
   (if (null section) (cp:fail (strcat (cp:ru '(1053 1077 32 1085 1072 1081 1076 1077 1085 1086 32 1089 1077 1095 1077 1085 1080 1077 32 1082 1072 1073 1077 1083 1103 32 1076 1083 1103 32)) id (cp:ru '(46 32 1055 1088 1086 1074 1077 1088 1100 1090 1077 32 1089 1090 1086 1083 1073 1077 1094 32 81 46)) (cp:ru '(32 1065 1080 1090 58 32)) (cp:s (cp:g 'panel)) (cp:ru '(44 32 1082 1085 1080 1075 1072 58 32)) (vl-filename-base (cp:s (cp:g 'path))) (cp:ru '(44 32 81 58 32 171)) (cp:s (cp:at r 17)) (cp:ru '(187)))))
   (setq size (car (vl-remove-if '(lambda (n) (< n section)) sizes)))
   (if (null size) (cp:fail (strcat (cp:ru '(1044 1083 1103 32)) id (cp:ru '(32 1074 32 1073 1072 1079 1077 32 1085 1077 1090 32 1082 1083 1077 1084 1084 1099 32 1087 1086 1076 32 1089 1077 1095 1077 1085 1080 1077 32)) (cp:s section))))
   (setq phases (if (or (= (cp:at r 44) 3) (vl-string-search "," (cp:s (cp:at r 22)))) 3 1))
-  (if (and (= cores 3) (<= section 2.5))
+  ;; Однофазная линия освещения L.*: 5 жил = L/N/PE и два проводника DALI.
+  (setq dali (and (= cores 5) (= phases 1) (<= section 2.5)
+                  (wcmatch (cp:norm (cp:at r 18)) "L.*")))
+  (if (or dali (and (= cores 3) (<= section 2.5)))
     (progn
-      (setq model "VPR-2.5-3L-GY"
-            items (list (list id (strcat "XT|" model) model nil nil "XT" 0))))
+      (setq model (if dali "VPRTT-2.5-3L-LNPE" "VPR-2.5-3L-GY")
+            items (list (list id (strcat "XT|" model) model nil nil "XT" 0)))
+      (if dali
+        (setq items (append items
+          (list (list (strcat id ":DA") "XT|VPRTT-2.5-GY" "VPRTT-2.5-GY" nil nil "XT" 0))))))
     (progn
       (setq pins (if (= phases 1) '("L" "N" "PE") '("L1" "L2" "L3" "N" "PE")))
       (foreach pin pins
@@ -163,9 +169,12 @@
     (foreach d (cadr group)
       (setq m (cdr (assoc (nth 1 d) (cp:g 'sizes))))
       (if (null m) (setq m (list (nth 2 d) 1.0 0.0)))
+      (if (= (car m) (nth 2 d)) (setq m (cons (cp:vpr6-block (car m)) (cdr m))))
       (setq bb (cp:measure (car m) (cadr m) (caddr m) (nth 3 m))
             d (list (car d) (nth 1 d) (nth 2 d) (- (nth 2 bb) (nth 0 bb)) (- (nth 3 bb) (nth 1 bb)) "XT" 0 (car m) (cadr m) (caddr m) (nth 3 m))
             items (append items (list d)) cp:terminals (append cp:terminals (list d))))
+    (if (= (nth 2 (car items)) "VPRTT-2.5-3L-LNPE")
+      (setq items (cons (car items) (cons (cp:endcap-vpr "D-VPR-2.5-3L") (cdr items)))))
     (setq groups (append groups (list (list (car group) items (nth 2 group))))))
   (setq cp:terminalgroups groups))
 (defun cp:cross-add ( / counts d r parts ph poles idx)
@@ -267,15 +276,18 @@
                (setq placed (cons (list fit row x) placed) x (+ x (* (nth 3 fit) pitch)) rest (cp:remove-first fit rest)))
               (t (setq row (1+ row) x 0.0))))
       (list (reverse placed) (if devices (1+ row) 0) nil))))
-(defun cp:endcap (group / model)
+(defun cp:endcap (group / model tokens)
   ;; KRU / KRUH / KRUSLG — закрытый корпус, торцевая крышка не нужна.
-  (setq model (nth 2 (car (cadr group))))
-  (if (wcmatch model "VPR-*") (cp:endcap-vpr model (cp:words (vl-string-translate "-" " " model)))))
+  (setq model (nth 2 (last (cadr group))))
+  (cond ((= model "VPRTT-2.5-GY") (cp:endcap-vpr "D-VPRTT-2.5"))
+        ((wcmatch model "VPR-*")
+         (setq tokens (cp:words (vl-string-translate "-" " " model)))
+         (cp:endcap-vpr (strcat "D-VPR-" (cadr tokens) (if (wcmatch model "VPR-*-3L-*") "-3L" ""))))))
 ;;; NTH от nil в AutoCAD — ошибка consp; у клемм без крышки имя "".
-(defun cp:cap-name (cap) (if cap (nth 7 cap) ""))
-(defun cp:endcap-vpr (model tokens / name bb)
-  (setq name (strcat "D-VPR-" (cadr tokens) (if (wcmatch model "VPR-*-3L-*") "-3L" "")) bb (cp:measure name 1.0 0.0 nil))
-  (list "" name name (- (nth 2 bb) (nth 0 bb)) (- (nth 3 bb) (nth 1 bb)) "CAP" 0 name 1.0 0.0 nil))
+(defun cp:cap-name (cap) (if cap (nth 2 cap) ""))
+(defun cp:endcap-vpr (model / name bb)
+  (setq name (cp:vpr6-block model) bb (cp:measure name 1.0 0.0 nil))
+  (list "" model model (- (nth 2 bb) (nth 0 bb)) (- (nth 3 bb) (nth 1 bb)) "CAP" 0 name 1.0 0.0 nil))
 (defun cp:plan ( / usable packed maxh crossname xtrow xtx groupwidth group remaining cap lastcap closed loops)
   (setq cp:problem nil cp:positions nil cp:segs nil cp:wirelist nil cp:bomrows nil
         cp:railw (* (cp:g 'slots) (cp:g 'pitch))
@@ -319,8 +331,9 @@
           (setq cp:xtpositions (append cp:xtpositions (list (list lastcap xtrow xtx))) cp:caps (cons lastcap cp:caps)))
         (setq xtrow (1+ xtrow) xtx 0.0)))
     (foreach d (cadr group)
+      (if (= (nth 5 d) "CAP") (setq cp:caps (cons d cp:caps)))
       (setq cp:xtpositions (append cp:xtpositions (list (list d xtrow xtx))) xtx (+ xtx (nth 3 d))))
-    (setq closed (or (null (cdr remaining))
+    (setq closed (or (= (cp:cap-name cap) "D-VPRTT-2.5") (null (cdr remaining))
                      (/= (cp:cap-name cap) (cp:cap-name (cp:endcap (cadr remaining))))))
     (if (and closed cap)
       (setq cp:xtpositions (append cp:xtpositions (list (list cap xtrow xtx))) cp:caps (cons cap cp:caps) xtx (+ xtx (nth 3 cap))))
@@ -954,6 +967,9 @@
   (foreach d cp:terminals
     (setq key (nth 1 d) size (cdr (assoc key (cp:g 'sizes))))
     (if (null size) (setq size (list (nth 2 d) 1.0 0.0)))
+    (setq name (nth 2 d))
+    (if (and (member name '("VPRTT-2.5-3L-LNPE" "VPRTT-2.5-GY")) (not (member name cp:blocknames)))
+      (setq cp:blocknames (append cp:blocknames (list name))))
     (if (not (assoc key cp:size-items))
       (setq cp:size-items (append cp:size-items (list (list key (strcat (cp:ru '(1050 1083 1077 1084 1084 1099 58 32)) (nth 2 d)))))
             cp:size-data (cons (cons key size) cp:size-data))))
@@ -985,6 +1001,8 @@
 (defun cp:lib-close ()
   (if cp:libdbx (cp:rel cp:libdbx))
   (setq cp:libdbx nil cp:libsrc nil cp:libpath nil))
+(defun cp:dbx ()
+  (vla-getinterfaceobject (vlax-get-acad-object) (strcat "ObjectDBX.AxDbDocument." (substr (getvar "ACADVER") 1 2))))
 (defun cp:import-library ( / path b dest)
   ;; Здесь читаем имена, определения копируются только по запросу cp:ensure-block.
   (setq path (cp:g 'library) dest (vla-get-blocks cp:doc))
@@ -997,7 +1015,7 @@
             (if (= (strcase (vla-get-fullname d)) (strcase path)) (setq cp:libsrc d)))
           (if (null cp:libsrc)
             (progn
-              (setq cp:libdbx (vla-getinterfaceobject (vlax-get-acad-object) (strcat "ObjectDBX.AxDbDocument." (substr (getvar "ACADVER") 1 2))))
+              (setq cp:libdbx (cp:dbx))
               (vla-open cp:libdbx path) (setq cp:libsrc cp:libdbx)))
           (setq cp:libpath path)))))
   (setq cp:blocknames (list "") cp:casenames nil)
@@ -1014,15 +1032,59 @@
   (setq cp:blocknames (vl-sort cp:blocknames '<))
   cp:blocknames)
 
-(defun cp:ensure-block (name / b arr result)
-  (if (not (tblsearch "BLOCK" name))
+(defun cp:copy-block (source block destination / objects)
+  (setq objects (vlax-make-safearray vlax-vbObject '(0 . 0)))
+  (vlax-safearray-put-element objects 0 block)
+  (vla-copyobjects source objects (vla-get-blocks destination)))
+
+;;; В старых DWG под именами VPR-6 сохранены блоки TWIN. Копия с именем CP_* сохраняет старые вставки.
+(defun cp:vpr6-block (name / source temporary copy alias result bounds)
+  (setq alias (strcat "CP_" name))
+  (cond
+    ((not (member name '("VPR-6-GY" "VPR-6-BU" "D-VPR-6"))) name)
+    ((tblsearch "BLOCK" alias) alias)
+    ((and cp:libsrc (tblsearch "BLOCK" name)
+          (setq bounds (cp:measure name 1.0 0.0 nil))
+          (equal (- (nth 3 bounds) (nth 1 bounds)) 74.2 0.3)
+          (not (vl-catch-all-error-p (setq source (vl-catch-all-apply 'vla-item (list (vla-get-blocks cp:libsrc) name))))))
+     (setq temporary (cp:dbx)
+           result (vl-catch-all-apply '(lambda ()
+             (cp:copy-block cp:libsrc source temporary)
+             (setq copy (vla-item (vla-get-blocks temporary) name))
+             (vla-put-name copy alias)
+             (cp:copy-block temporary copy cp:doc))))
+     (cp:rel copy)
+     (cp:rel temporary)
+     (if (vl-catch-all-error-p result) (cp:fail (vl-catch-all-error-message result)))
+     alias)
+    (t name)))
+
+;;; Упрощённый вид для компоновки, размеры ДКС: ширина на рейке и длина корпуса.
+(defun cp:dali-block (name / spec width half y r)
+  (if (setq spec (assoc name '(("VPRTT-2.5-3L-LNPE" 5.2 103.0 3)
+                               ("VPRTT-2.5-GY" 5.2 68.9 2)
+                               ("D-VPRTT-2.5" 2.2 68.9 0))))
     (progn
-      (if (null cp:libsrc) (cp:fail (strcat (cp:ru '(1053 1077 1090 32 1073 1083 1086 1082 1072 32 1074 32 1095 1077 1088 1090 1077 1078 1077 32 1080 32 1085 1077 32 1086 1090 1082 1088 1099 1090 1072 32 1073 1080 1073 1083 1080 1086 1090 1077 1082 1072 58 32)) name)))
-      (setq b (vl-catch-all-apply 'vla-item (list (vla-get-blocks cp:libsrc) name)))
-      (if (vl-catch-all-error-p b) (cp:fail (strcat (cp:ru '(1042 32 1073 1080 1073 1083 1080 1086 1090 1077 1082 1077 32 1085 1077 1090 32 1073 1083 1086 1082 1072 58 32)) name)))
-      (setq arr (vlax-make-safearray vlax-vbObject '(0 . 0))) (vlax-safearray-fill arr (list b))
-      (setq result (vl-catch-all-apply 'vla-copyobjects (list cp:libsrc arr (vla-get-blocks cp:doc))))
-      (if (vl-catch-all-error-p result) (cp:fail (vl-catch-all-error-message result))))))
+      (setq width (cadr spec) half (/ (caddr spec) 2.0))
+      (entmake (list '(0 . "BLOCK") '(70 . 0) (cons 2 name) '(10 0.0 0.0 0.0)))
+      (entmake (list '(0 . "LWPOLYLINE") '(100 . "AcDbEntity") '(8 . "0") '(100 . "AcDbPolyline") '(90 . 4) '(70 . 1)
+                     (list 10 0.0 (- half)) (list 10 width (- half)) (list 10 width half) (list 10 0.0 half)))
+      (setq y (- half 4.0) r 1.35)
+      (repeat (nth 3 spec)
+        (entmake (list '(0 . "CIRCLE") '(8 . "0") (list 10 (/ width 2.0) y 0.0) (cons 40 r)))
+        (entmake (list '(0 . "CIRCLE") '(8 . "0") (list 10 (/ width 2.0) (- y) 0.0) (cons 40 r)))
+        (setq y (- y 5.0)))
+      (entmake '((0 . "ENDBLK") (8 . "0"))))))
+
+(defun cp:ensure-block (name / b result)
+  (if (not (tblsearch "BLOCK" name))
+    (cond
+      ((and cp:libsrc (not (vl-catch-all-error-p (setq b (vl-catch-all-apply 'vla-item (list (vla-get-blocks cp:libsrc) name))))))
+       (setq result (vl-catch-all-apply 'cp:copy-block (list cp:libsrc b cp:doc)))
+       (if (vl-catch-all-error-p result) (cp:fail (vl-catch-all-error-message result))))
+      ((cp:dali-block name))
+      (t (cp:fail (strcat (cp:ru '(1053 1077 1090 32 1073 1083 1086 1082 1072 58 32)) name))))))
+
 (defun cp:set-state (ob state / prop allowed found)
   (if (and state (/= state "") (= (vla-get-isdynamicblock ob) :vlax-true))
     (progn
