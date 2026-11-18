@@ -32,7 +32,7 @@
 ;;; ============================================================================
 
 (vl-load-com)
-(setq sx:ver "v3.29")
+(setq sx:ver "v3.30")
 
 
 ;;; ---------------------------------------------------------------- настройки
@@ -1590,7 +1590,7 @@
              ((wcmatch (strcase tk) "*V") (setq v (sx:digits tk)))))
      (setq n (list (itoa sx:tcount) w v)))
     ((member (car dv) '("PS" "PK"))
-     (setq sx:pcount (1+ sx:pcount) n (list (strcat "U" (itoa sx:pcount)) (cadr dv))))
+     (setq sx:pcount (1+ sx:pcount) n (list (strcat "PS" (itoa sx:pcount)) (cadr dv))))
     ((= (car dv) "DIM")
      (setq sx:dcount (1+ sx:dcount) n (list (strcat "A" (itoa sx:dcount)) (cadr dv))))
     (t (setq n (list (cadr dv)))))
